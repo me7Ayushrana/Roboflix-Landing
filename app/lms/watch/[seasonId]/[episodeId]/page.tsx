@@ -683,7 +683,10 @@ export default function VideoPlayerPage() {
                   src={getYouTubeEmbedUrl()}
                   title={episode.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  className="w-full h-full border-0 absolute top-0 left-0 pointer-events-none"
+                  className={`w-full h-full border-0 absolute top-0 left-0 pointer-events-none transition-opacity duration-150 ${
+                    isPlaying ? "opacity-100" : "opacity-0"
+                  }`}
+                  tabIndex={-1}
                 />
               </div>
 
@@ -724,10 +727,35 @@ export default function VideoPlayerPage() {
                 </div>
               </div>
 
-              {/* Permanent Premium Watermark Pill - Floating perfectly above the bottom control dock, covering the native YouTube logo */}
-              <div className="absolute bottom-[92px] right-6 px-3 py-1.5 bg-black border border-red-950/50 rounded-full text-[10px] font-semibold tracking-wider text-red-500 select-none pointer-events-none z-20 shadow-2xl flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
-                ROBOFLIX PRO
+              {/* Four Premium HUD Telemetry Guards (Completely blocks all 4 corners of native YouTube elements without cropping the canvas) */}
+              <div 
+                className={`absolute inset-0 pointer-events-none z-20 select-none transition-opacity duration-300 ${
+                  showControls ? "opacity-90" : "opacity-45"
+                }`}
+              >
+                {/* Top-Left: LMS Course / Session identifier */}
+                <div className="absolute top-4 left-4 px-2.5 py-1.5 bg-black/85 backdrop-blur-sm border border-red-950/30 rounded text-[9px] font-mono tracking-widest text-red-500/90 shadow-2xl flex items-center gap-1.5 transition-all">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse shadow-[0_0_8px_#dc2626]" />
+                  ROBOFLIX SECURE LMS // S{seasonId}:E{episode.id}
+                </div>
+
+                {/* Top-Right: Secure Telemetry / Resolution lock */}
+                <div className="absolute top-4 right-4 px-2.5 py-1.5 bg-black/85 backdrop-blur-sm border border-red-950/30 rounded text-[9px] font-mono tracking-widest text-red-500/90 shadow-2xl flex items-center gap-1.5 transition-all">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
+                  SYS STATUS: OK // 1080P HD
+                </div>
+
+                {/* Bottom-Left: Decrypted Stream Identifier (floats cleanly above control bar) */}
+                <div className="absolute bottom-[92px] left-6 px-2.5 py-1.5 bg-black/85 backdrop-blur-sm border border-red-950/30 rounded text-[9px] font-mono tracking-widest text-red-500/90 shadow-2xl flex items-center gap-1.5 transition-all">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse shadow-[0_0_8px_#dc2626]" />
+                  DECRYPTED FEED // {episode.isFree ? "MOCK_GUEST" : "AUTH_STUDENT"}
+                </div>
+
+                {/* Bottom-Right: Roboflix Pro Branding Guard (fully covers any possible YouTube watermark/logo) */}
+                <div className="absolute bottom-[92px] right-6 px-2.5 py-1.5 bg-black border border-red-950/50 rounded text-[9px] font-mono tracking-widest text-red-500 shadow-2xl flex items-center gap-1.5 transition-all">
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
+                  ROBOFLIX PRO // ENGINEv2
+                </div>
               </div>
 
               {/* Clickable Overlay - Single click to toggle Play/Pause, Double click to toggle Fullscreen */}
