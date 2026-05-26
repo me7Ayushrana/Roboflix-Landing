@@ -41,7 +41,9 @@ export default function VideoPlayerPage() {
   const [playbackQuality, setPlaybackQuality] = useState("default")
   const [showQualityMenu, setShowQualityMenu] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
+  const [showControls, setShowControls] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
+  const controlsTimeoutRef = useRef<any>(null)
 
   // 1. Session verification & login guard bypass for free/preview episodes
   useEffect(() => {
@@ -170,6 +172,47 @@ export default function VideoPlayerPage() {
     document.addEventListener("fullscreenchange", handleFsChange)
     return () => document.removeEventListener("fullscreenchange", handleFsChange)
   }, [])
+
+  // 5.5. Auto-hide player controls on mouse inactivity both in fullscreen and windowed modes
+  useEffect(() => {
+    if (!isPlaying) {
+      setShowControls(true)
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+      }
+    } else {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+      }
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false)
+      }, 2500)
+    }
+
+    return () => {
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current)
+      }
+    }
+  }, [isPlaying])
+
+  const handleMouseMove = () => {
+    setShowControls(true)
+    if (controlsTimeoutRef.current) {
+      clearTimeout(controlsTimeoutRef.current)
+    }
+    if (isPlaying) {
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false)
+      }, 2500)
+    }
+  }
+
+  const handleMouseLeave = () => {
+    if (isPlaying) {
+      setShowControls(false)
+    }
+  }
 
   // 6. Keyboard Shortcuts Event Listener (Space to Toggle Play, Arrow Up/Down to Control Volume)
   useEffect(() => {
@@ -405,7 +448,9 @@ export default function VideoPlayerPage() {
           <div className="mb-6">
             <div 
               ref={containerRef}
-              className="relative w-full bg-black rounded-lg overflow-hidden group aspect-video border border-gray-800/80 shadow-2xl"
+              onMouseMove={handleMouseMove}
+              onMouseLeave={handleMouseLeave}
+              className="relative w-full bg-black rounded-lg overflow-hidden aspect-video border border-gray-800/80 shadow-2xl"
             >
               {/* YouTube Iframe - 100% dimensions to fit the entire video screen perfectly with zero cropping, using absolute pointer isolation */}
               <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
@@ -419,7 +464,11 @@ export default function VideoPlayerPage() {
               </div>
 
               {/* Premium Top Header Overlay - Slides down on hover to cover native YouTube titles and share button */}
-              <div className="absolute top-0 left-0 right-0 p-5 bg-gradient-to-b from-black/95 via-black/60 to-transparent flex items-center justify-between opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-30 select-none">
+              <div 
+                className={`absolute top-0 left-0 right-0 p-5 bg-gradient-to-b from-black/95 via-black/60 to-transparent flex items-center justify-between transition-all duration-300 z-30 select-none ${
+                  showControls ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none"
+                }`}
+              >
                 <div className="flex items-center gap-2.5">
                   <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
                   <span className="text-xs font-semibold tracking-wider text-gray-200 uppercase truncate max-w-[280px]">
@@ -431,17 +480,11 @@ export default function VideoPlayerPage() {
                 </div>
               </div>
 
-              {/* Flat Opaque Black Mask (Top-Left): Blackout native YouTube title & avatar completely (0 brightness) */}
-              <div className="absolute top-0 left-0 w-[300px] h-[55px] bg-black z-20 pointer-events-none" />
-
-              {/* Flat Opaque Black Mask (Top-Right): Blackout native YouTube share & watch-later buttons completely (0 brightness) */}
-              <div className="absolute top-0 right-0 w-[140px] h-[55px] bg-black z-20 pointer-events-none" />
-
-              {/* Flat Opaque Black Mask (Bottom-Left): Blackout native YouTube share link icon completely (0 brightness) */}
-              <div className="absolute bottom-0 left-0 w-[110px] h-[55px] bg-black z-20 pointer-events-none" />
-
-              {/* Flat Opaque Black Mask (Bottom-Right): Blackout native YouTube logo & "More videos" button completely (0 brightness) */}
-              <div className="absolute bottom-0 right-0 w-[320px] h-[60px] bg-black z-20 pointer-events-none" />
+              {/* Permanent Premium Watermark Pill - Completely covers the native YouTube logo with a high-end streaming indicator */}
+              <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-black/85 backdrop-blur-md border border-red-950/50 rounded-full text-[10px] font-semibold tracking-wider text-red-500 select-none pointer-events-none z-20 shadow-lg flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
+                ROBOFLIX PRO
+              </div>
 
               {/* Clickable Overlay - Single click to toggle Play/Pause, Double click to toggle Fullscreen */}
               <div 
@@ -468,7 +511,11 @@ export default function VideoPlayerPage() {
               )}
 
               {/* Custom Glassmorphic Controls overlay - high z-index (z-30) to capture click actions */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex flex-col gap-3 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-30">
+              <div 
+                className={`absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex flex-col gap-3 transition-all duration-300 z-30 ${
+                  showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2 pointer-events-none"
+                }`}
+              >
                 {/* Progress Bar (Timeline Seek) */}
                 <div className="flex items-center gap-3 w-full">
                   <span className="text-xs font-mono text-gray-300 select-none">{formatTime(currentTime)}</span>
