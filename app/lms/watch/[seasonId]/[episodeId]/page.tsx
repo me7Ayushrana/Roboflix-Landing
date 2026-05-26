@@ -44,6 +44,21 @@ export default function VideoPlayerPage() {
   const [showControls, setShowControls] = useState(true)
   const containerRef = useRef<HTMLDivElement>(null)
   const controlsTimeoutRef = useRef<any>(null)
+  // Privacy shield ref — controlled directly via DOM (synchronous), bypasses React async re-render lag
+  const shieldRef = useRef<HTMLDivElement>(null)
+
+  const showShield = () => {
+    if (shieldRef.current) {
+      shieldRef.current.style.opacity = "1"
+      shieldRef.current.style.pointerEvents = "auto"
+    }
+  }
+  const hideShield = () => {
+    if (shieldRef.current) {
+      shieldRef.current.style.opacity = "0"
+      shieldRef.current.style.pointerEvents = "none"
+    }
+  }
 
   // HUD state for visual hotkey confirmation (Ultra-premium feature)
   const [hud, setHud] = useState<{
@@ -148,16 +163,29 @@ export default function VideoPlayerPage() {
               event.target.setVolume(volume)
             },
             onStateChange: (event: any) => {
-              if (event.data === window.YT.PlayerState.PLAYING) {
+              const state = event.data
+              const YTS = window.YT.PlayerState
+              if (state === YTS.PLAYING) {
+                // SYNCHRONOUS — hide shield the instant YouTube starts playing, no React delay
+                hideShield()
                 setIsPlaying(true)
-              } else if (event.data === window.YT.PlayerState.PAUSED) {
+              } else if (state === YTS.PAUSED) {
+                // SYNCHRONOUS — show shield the instant YouTube pauses (before any React re-render)
+                showShield()
                 setIsPlaying(false)
-              } else if (event.data === window.YT.PlayerState.ENDED) {
-                // Immediately reset before YouTube can show its recommendation grid — synchronous, no React delay
+              } else if (state === YTS.ENDED) {
+                // SYNCHRONOUS — show shield AND immediately reset video before YouTube can render recommendation grid
+                showShield()
                 event.target.seekTo(0, true)
                 event.target.pauseVideo()
                 setIsPlaying(false)
                 setCurrentTime(0)
+              } else if (state === YTS.BUFFERING) {
+                // Keep shield visible during buffering — YouTube shows spinner/UI while buffering
+                showShield()
+              } else {
+                // Unstarted (-1) or Cued (5) — always shield
+                showShield()
               }
             }
           }
@@ -636,11 +664,11 @@ export default function VideoPlayerPage() {
                 />
               </div>
 
-              {/* Permanent Privacy Shield — solid opaque black layer always above the iframe, only transparent when actively playing. No React async gap possible since it is always rendered. */}
+              {/* Permanent Privacy Shield — controlled via DOM ref (zero React async delay). Opacity toggled synchronously inside YouTube's own onStateChange callback. Always mounted so there is never a missing-frame gap. */}
               <div
-                className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-100 z-[15] ${
-                  isPlaying ? "opacity-0" : "opacity-100"
-                }`}
+                ref={shieldRef}
+                style={{ opacity: 1, pointerEvents: "auto", transition: "opacity 80ms linear" }}
+                className="absolute inset-0 bg-black z-[15]"
               />
 
               {/* YouTube Native Title Blocker Overlay (Privacy Control) - completely blocks native header titles at start/seeks with zero cropping */}
