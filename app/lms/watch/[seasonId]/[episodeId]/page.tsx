@@ -418,11 +418,27 @@ export default function VideoPlayerPage() {
                 />
               </div>
 
-              {/* Solid black cinematic bar to cover the native YouTube title/share header completely */}
-              <div className="absolute top-0 left-0 right-0 h-10 bg-black z-20 pointer-events-none" />
+              {/* Top-Left Mask: Covers native YouTube title & avatar completely */}
+              <div className="absolute top-3 left-3 w-[260px] h-[44px] bg-black border border-gray-800/80 rounded-lg text-xs font-semibold text-gray-200 select-none pointer-events-none z-20 shadow-lg flex items-center px-3 gap-2">
+                <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse shrink-0" />
+                <span className="truncate">{episode.title}</span>
+              </div>
 
-              {/* Solid black cinematic bar to cover the native YouTube logo, share button, and "More videos" button completely */}
-              <div className="absolute bottom-0 left-0 right-0 h-10 bg-black z-20 pointer-events-none" />
+              {/* Top-Right Mask: Covers native YouTube share & watch-later buttons completely */}
+              <div className="absolute top-3 right-3 w-[130px] h-[44px] bg-black border border-gray-800/80 rounded-lg text-xs font-bold tracking-widest text-red-500 select-none pointer-events-none z-20 shadow-lg flex items-center justify-center">
+                ROBOFLIX CORE
+              </div>
+
+              {/* Bottom-Left Mask: Covers native YouTube share/link icon completely */}
+              <div className="absolute bottom-3 left-3 w-[110px] h-[44px] bg-black border border-gray-800/80 rounded-lg text-[10px] font-bold text-gray-400 select-none pointer-events-none z-20 shadow-lg flex items-center justify-center">
+                LMS LECTURE
+              </div>
+
+              {/* Bottom-Right Mask: Covers native YouTube logo & "More videos" button completely */}
+              <div className="absolute bottom-3 right-3 w-[260px] h-[44px] bg-black border border-gray-800/80 rounded-lg text-[10px] font-bold tracking-widest text-gray-400 select-none pointer-events-none z-20 shadow-lg flex items-center justify-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+                ROBOFLIX LMS PLAYER
+              </div>
 
               {/* Clickable Overlay - Single click to toggle Play/Pause, Double click to toggle Fullscreen */}
               <div 
@@ -447,12 +463,6 @@ export default function VideoPlayerPage() {
                   </span>
                 </div>
               )}
-
-              {/* Permanent Premium Watermark - Positioned perfectly above the cinematic bottom bar */}
-              <div className="absolute bottom-12 right-4 px-3 py-1.5 bg-black/80 backdrop-blur-md border border-gray-800/80 rounded-lg text-[10px] font-bold tracking-widest text-gray-400 select-none pointer-events-none z-20 shadow-lg flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-                ROBOFLIX LMS PLAYER
-              </div>
 
               {/* Custom Glassmorphic Controls overlay - high z-index (z-30) to capture click actions */}
               <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex flex-col gap-3 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-30">
