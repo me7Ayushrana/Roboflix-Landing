@@ -150,11 +150,14 @@ export default function VideoPlayerPage() {
             onStateChange: (event: any) => {
               if (event.data === window.YT.PlayerState.PLAYING) {
                 setIsPlaying(true)
-              } else if (
-                event.data === window.YT.PlayerState.PAUSED ||
-                event.data === window.YT.PlayerState.ENDED
-              ) {
+              } else if (event.data === window.YT.PlayerState.PAUSED) {
                 setIsPlaying(false)
+              } else if (event.data === window.YT.PlayerState.ENDED) {
+                // Immediately reset before YouTube can show its recommendation grid — synchronous, no React delay
+                event.target.seekTo(0, true)
+                event.target.pauseVideo()
+                setIsPlaying(false)
+                setCurrentTime(0)
               }
             }
           }
@@ -622,18 +625,23 @@ export default function VideoPlayerPage() {
               onMouseLeave={handleMouseLeave}
               className="relative w-full bg-black rounded-lg overflow-hidden aspect-video border border-gray-800/80 shadow-2xl"
             >
-              {/* YouTube Iframe - 100% dimensions to fit the entire video screen perfectly with zero cropping, using absolute pointer isolation */}
+              {/* YouTube Iframe - 100% dimensions, pointer-isolated, always rendered for API control */}
               <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
                 <iframe
                   id="roboflix-player-iframe"
                   src={getYouTubeEmbedUrl()}
                   title={episode.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  className={`w-full h-full border-0 absolute top-0 left-0 pointer-events-none transition-opacity duration-150 ${
-                    isPlaying ? "opacity-100" : "opacity-0"
-                  }`}
+                  className="w-full h-full border-0 absolute top-0 left-0 pointer-events-none"
                 />
               </div>
+
+              {/* Permanent Privacy Shield — solid opaque black layer always above the iframe, only transparent when actively playing. No React async gap possible since it is always rendered. */}
+              <div
+                className={`absolute inset-0 bg-black pointer-events-none transition-opacity duration-100 z-[15] ${
+                  isPlaying ? "opacity-0" : "opacity-100"
+                }`}
+              />
 
               {/* YouTube Native Title Blocker Overlay (Privacy Control) - completely blocks native header titles at start/seeks with zero cropping */}
               <AnimatePresence>
