@@ -418,26 +418,23 @@ export default function VideoPlayerPage() {
                 />
               </div>
 
-              {/* Top-Left Mask: Covers native YouTube title & avatar completely */}
-              <div className="absolute top-3 left-3 w-[260px] h-[44px] bg-black border border-gray-800/80 rounded-lg text-xs font-semibold text-gray-200 select-none pointer-events-none z-20 shadow-lg flex items-center px-3 gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse shrink-0" />
-                <span className="truncate">{episode.title}</span>
+              {/* Premium Top Header Overlay - Slides down on hover to cover native YouTube titles and share button */}
+              <div className="absolute top-0 left-0 right-0 p-5 bg-gradient-to-b from-black/95 via-black/60 to-transparent flex items-center justify-between opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-30 select-none">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
+                  <span className="text-xs font-semibold tracking-wider text-gray-200 uppercase truncate max-w-[280px]">
+                    {episode.title}
+                  </span>
+                </div>
+                <div className="px-3 py-1 bg-red-950/20 border border-red-500/30 rounded-full text-[10px] font-bold tracking-widest text-red-500 uppercase">
+                  ROBOFLIX CORE
+                </div>
               </div>
 
-              {/* Top-Right Mask: Covers native YouTube share & watch-later buttons completely */}
-              <div className="absolute top-3 right-3 w-[130px] h-[44px] bg-black border border-gray-800/80 rounded-lg text-xs font-bold tracking-widest text-red-500 select-none pointer-events-none z-20 shadow-lg flex items-center justify-center">
-                ROBOFLIX CORE
-              </div>
-
-              {/* Bottom-Left Mask: Covers native YouTube share/link icon completely */}
-              <div className="absolute bottom-3 left-3 w-[110px] h-[44px] bg-black border border-gray-800/80 rounded-lg text-[10px] font-bold text-gray-400 select-none pointer-events-none z-20 shadow-lg flex items-center justify-center">
-                LMS LECTURE
-              </div>
-
-              {/* Bottom-Right Mask: Covers native YouTube logo & "More videos" button completely */}
-              <div className="absolute bottom-3 right-3 w-[260px] h-[44px] bg-black border border-gray-800/80 rounded-lg text-[10px] font-bold tracking-widest text-gray-400 select-none pointer-events-none z-20 shadow-lg flex items-center justify-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
-                ROBOFLIX LMS PLAYER
+              {/* Permanent Premium Watermark Pill - Completely covers the native YouTube logo with a high-end streaming indicator */}
+              <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-black/85 backdrop-blur-md border border-red-950/50 rounded-full text-[10px] font-semibold tracking-wider text-red-500 select-none pointer-events-none z-20 shadow-lg flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
+                ROBOFLIX PRO
               </div>
 
               {/* Clickable Overlay - Single click to toggle Play/Pause, Double click to toggle Fullscreen */}
