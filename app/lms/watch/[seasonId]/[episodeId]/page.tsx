@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, Menu, X, MessageCircle, Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize, Gauge } from "lucide-react"
+import { ArrowLeft, Menu, X, MessageCircle, Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize, Gauge, Settings } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
@@ -38,6 +38,8 @@ export default function VideoPlayerPage() {
   const [isMuted, setIsMuted] = useState(false)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
   const [showSpeedMenu, setShowSpeedMenu] = useState(false)
+  const [playbackQuality, setPlaybackQuality] = useState("default")
+  const [showQualityMenu, setShowQualityMenu] = useState(false)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
@@ -169,6 +171,65 @@ export default function VideoPlayerPage() {
     return () => document.removeEventListener("fullscreenchange", handleFsChange)
   }, [])
 
+  // 6. Keyboard Shortcuts Event Listener (Space to Toggle Play, Arrow Up/Down to Control Volume)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore keypresses if typing inside inputs/textareas
+      const target = e.target as HTMLElement
+      if (
+        target.tagName === "INPUT" ||
+        target.tagName === "TEXTAREA" ||
+        target.isContentEditable
+      ) {
+        return
+      }
+
+      if (!player) return
+
+      switch (e.code) {
+        case "Space":
+          e.preventDefault()
+          togglePlay()
+          break
+        case "ArrowUp":
+          e.preventDefault()
+          setVolume((prev) => {
+            const nextVol = Math.min(prev + 5, 100)
+            player.setVolume(nextVol)
+            if (nextVol > 0 && isMuted) {
+              player.unmute()
+              setIsMuted(false)
+            }
+            return nextVol
+          })
+          break
+        case "ArrowDown":
+          e.preventDefault()
+          setVolume((prev) => {
+            const nextVol = Math.max(prev - 5, 0)
+            player.setVolume(nextVol)
+            if (nextVol === 0 && !isMuted) {
+              player.mute()
+              setIsMuted(true)
+            }
+            return nextVol
+          })
+          break
+        case "ArrowRight":
+          skipForward()
+          break
+        case "ArrowLeft":
+          skipBackward()
+          break
+        default:
+          break
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown)
+    return () => window.removeEventListener("keydown", handleKeyDown)
+  }, [player, isPlaying, volume, isMuted, duration, currentTime])
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -272,6 +333,27 @@ export default function VideoPlayerPage() {
     setPlaybackSpeed(speed)
     player.setPlaybackRate(speed)
     setShowSpeedMenu(false)
+  }
+
+  const changeQuality = (quality: string) => {
+    if (!player) return
+    setPlaybackQuality(quality)
+    if (player.setPlaybackQuality) {
+      player.setPlaybackQuality(quality)
+    }
+    setShowQualityMenu(false)
+  }
+
+  const getQualityName = (q: string) => {
+    switch (q) {
+      case "hd1080": return "1080p"
+      case "hd720": return "720p"
+      case "large": return "480p"
+      case "medium": return "360p"
+      case "small": return "240p"
+      case "default": return "Auto"
+      default: return "Auto"
+    }
   }
 
   const handleFullscreen = () => {
@@ -418,12 +500,15 @@ export default function VideoPlayerPage() {
                     </div>
                   </div>
 
-                  {/* Right side controls: Playback speed, Fullscreen */}
+                  {/* Right side controls: Playback speed, Playback quality, Fullscreen */}
                   <div className="flex items-center gap-4 relative">
                     {/* Playback speed trigger */}
                     <div className="relative">
                       <button
-                        onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                        onClick={() => {
+                          setShowSpeedMenu(!showSpeedMenu)
+                          setShowQualityMenu(false)
+                        }}
                         className="p-1.5 hover:text-red-500 text-gray-300 transition-colors flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider"
                         title="Playback Speed"
                       >
@@ -443,6 +528,44 @@ export default function VideoPlayerPage() {
                               }`}
                             >
                               {speed === 1 ? "Normal" : `${speed}x`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Playback Quality Trigger */}
+                    <div className="relative">
+                      <button
+                        onClick={() => {
+                          setShowQualityMenu(!showQualityMenu)
+                          setShowSpeedMenu(false)
+                        }}
+                        className="p-1.5 hover:text-red-500 text-gray-300 transition-colors flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider"
+                        title="Video Quality"
+                      >
+                        <Settings className="w-4 h-4" />
+                        <span>{getQualityName(playbackQuality)}</span>
+                      </button>
+
+                      {/* Quality Selection Dropdown */}
+                      {showQualityMenu && (
+                        <div className="absolute bottom-10 right-0 p-2 bg-gray-900/95 border border-gray-800 rounded-lg shadow-xl flex flex-col gap-1 z-20 min-w-[100px] backdrop-blur-md">
+                          {[
+                            { label: "Auto", value: "default" },
+                            { label: "1080p", value: "hd1080" },
+                            { label: "720p", value: "hd720" },
+                            { label: "480p", value: "large" },
+                            { label: "360p", value: "medium" },
+                          ].map((opt) => (
+                            <button
+                              key={opt.value}
+                              onClick={() => changeQuality(opt.value)}
+                              className={`px-3 py-1 text-left text-xs font-semibold rounded hover:bg-red-600 hover:text-white transition-colors ${
+                                playbackQuality === opt.value ? "text-red-500 bg-red-600/10" : "text-gray-300"
+                              }`}
+                            >
+                              {opt.label}
                             </button>
                           ))}
                         </div>
