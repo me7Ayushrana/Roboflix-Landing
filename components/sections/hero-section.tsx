@@ -124,7 +124,7 @@ export function HeroSection() {
       playerRef.current = new window.YT.Player("trailer-iframe", {
         videoId: TRAILER_VIDEO_ID,
         playerVars: {
-          autoplay: 1, controls: 0, modestbranding: 1,
+          autoplay: 1, controls: 0, modestbranding: 0,
           rel: 0, showinfo: 0, iv_load_policy: 3,
           disablekb: 1, fs: 0, cc_load_policy: 0, playsinline: 1,
         },
@@ -491,8 +491,8 @@ export function HeroSection() {
                   className="relative w-full aspect-video bg-black overflow-hidden"
                 >
                   {/* YT iframe — always present for API control */}
-                  <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
-                    <div id="trailer-iframe" className="w-full h-full absolute inset-0 pointer-events-none" />
+                  <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-auto">
+                    <div id="trailer-iframe" className="w-full h-full absolute inset-0 pointer-events-auto" />
                   </div>
 
                   {/* Privacy shield — synchronous DOM ref, zero flicker */}
@@ -669,6 +669,23 @@ export function HeroSection() {
                             </div>
                           )}
                         </div>
+
+                        {/* YouTube Redirect Button */}
+                        <a
+                          href={`https://www.youtube.com/watch?v=${TRAILER_VIDEO_ID}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          title="Watch on YouTube"
+                          className="p-2 bg-white/5 hover:bg-[#ff0000]/20 rounded-full text-gray-300 hover:text-[#ff0000] transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-lg"
+                        >
+                          <svg
+                            className="w-4 h-4 fill-current"
+                            viewBox="0 0 24 24"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.518 3.5 12 3.5 12 3.5s-7.518 0-9.388.553a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.87.553 9.388.553 9.388.553s7.518 0 9.388-.553a3.003 3.003 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+                          </svg>
+                        </a>
 
                         {/* Fullscreen */}
                         <button onClick={handleFullscreen} title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
