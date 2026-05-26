@@ -492,10 +492,12 @@ export default function VideoPlayerPage() {
   const toggleMute = () => {
     if (!player) return
     if (isMuted) {
+      const targetVol = volume || 50
       player.unmute()
-      player.setVolume(volume || 50)
+      player.setVolume(targetVol)
+      setVolume(targetVol)
       setIsMuted(false)
-      showHUD("unmute", `Volume ${volume || 50}%`)
+      showHUD("unmute", `Volume ${targetVol}%`)
     } else {
       player.mute()
       setIsMuted(true)
@@ -804,22 +806,24 @@ export default function VideoPlayerPage() {
                     </button>
 
                     {/* Volume controls group */}
-                    <div className="flex items-center gap-2 group/volume">
+                    <div className="flex items-center group/volume">
                       <button
                         onClick={toggleMute}
-                        className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all"
+                        className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all z-10"
                         title={isMuted ? "Unmute" : "Mute"}
                       >
                         {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                       </button>
-                      <input
-                        type="range"
-                        min={0}
-                        max={100}
-                        value={isMuted ? 0 : volume}
-                        onChange={handleVolumeChange}
-                        className="w-0 group-hover/volume:w-20 transition-all duration-300 origin-left scale-x-0 group-hover/volume:scale-x-100 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-red-600 outline-none"
-                      />
+                      <div className="w-0 group-hover/volume:w-20 group-hover/volume:ml-2 overflow-hidden transition-all duration-300 flex items-center h-8">
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={isMuted ? 0 : volume}
+                          onChange={handleVolumeChange}
+                          className="w-20 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-red-600 outline-none"
+                        />
+                      </div>
                     </div>
                   </div>
 

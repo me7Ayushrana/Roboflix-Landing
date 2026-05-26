@@ -269,8 +269,19 @@ export function HeroSection() {
 
   const toggleMute = () => {
     const p = playerRef.current; if (!p) return
-    if (isMuted) { p.unmute(); p.setVolume(volume || 50); setIsMuted(false); showHUD("unmute", `Volume ${volume || 50}%`) }
-    else         { p.mute();   setIsMuted(true);          showHUD("mute",   "Muted") }
+    if (isMuted) {
+      const targetVol = volume || 50
+      p.unmute()
+      p.setVolume(targetVol)
+      setVolume(targetVol)
+      setIsMuted(false)
+      showHUD("unmute", `Volume ${targetVol}%`)
+    }
+    else {
+      p.mute()
+      setIsMuted(true)
+      showHUD("mute", "Muted")
+    }
   }
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -615,16 +626,18 @@ export function HeroSection() {
                           <RotateCw className="w-4 h-4" />
                         </button>
                         {/* Volume */}
-                        <div className="flex items-center gap-2 group/vol">
+                        <div className="flex items-center group/vol">
                           <button onClick={toggleMute} title={isMuted ? "Unmute" : "Mute"}
-                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all">
+                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all z-10">
                             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                           </button>
-                          <input
-                            type="range" min={0} max={100} value={isMuted ? 0 : volume}
-                            onChange={handleVolumeChange}
-                            className="w-0 group-hover/vol:w-20 transition-all duration-300 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-red-600 outline-none"
-                          />
+                          <div className="w-0 group-hover/vol:w-20 group-hover/vol:ml-2 overflow-hidden transition-all duration-300 flex items-center h-8">
+                            <input
+                              type="range" min={0} max={100} value={isMuted ? 0 : volume}
+                              onChange={handleVolumeChange}
+                              className="w-20 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-red-600 outline-none"
+                            />
+                          </div>
                         </div>
                       </div>
 
