@@ -629,7 +629,9 @@ export default function VideoPlayerPage() {
                   src={getYouTubeEmbedUrl()}
                   title={episode.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  className="w-full h-full border-0 absolute top-0 left-0 pointer-events-none"
+                  className={`w-full h-full border-0 absolute top-0 left-0 pointer-events-none transition-opacity duration-150 ${
+                    isPlaying ? "opacity-100" : "opacity-0"
+                  }`}
                 />
               </div>
 
