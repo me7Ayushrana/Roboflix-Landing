@@ -15,7 +15,7 @@ export const SEASONS_DATA = [
         title: "Episode 1: Getting Started",
         description: "Learn the basics of robotics, set up your environment, and build your first circuit. This foundational episode covers essential concepts you'll use throughout the journey.",
         duration: "45 min",
-        videoUrl: "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2",
+        videoUrl: "https://youtu.be/T5rmd-vKQeM?si=FFfRVj_tJ-ZlkJK6",
         summary: "In this introductory episode, we cover the fundamentals of robotics including basic electrical concepts, safety practices, and hardware setup. You'll learn how to use Arduino, sensors, and motors effectively.",
         files: [
           { name: "starter_circuit.ino", type: "Code" },
