@@ -664,7 +664,7 @@ export default function VideoPlayerPage() {
               </div>
 
               {/* Permanent Premium Watermark Pill - Floating perfectly above the bottom control dock, covering the native YouTube logo */}
-              <div className="absolute bottom-[92px] right-6 px-3 py-1.5 bg-black/90 backdrop-blur-md border border-red-950/50 rounded-full text-[10px] font-semibold tracking-wider text-red-500 select-none pointer-events-none z-20 shadow-2xl flex items-center gap-1.5">
+              <div className="absolute bottom-[92px] right-6 px-3 py-1.5 bg-black border border-red-950/50 rounded-full text-[10px] font-semibold tracking-wider text-red-500 select-none pointer-events-none z-20 shadow-2xl flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
                 ROBOFLIX PRO
               </div>
@@ -676,10 +676,10 @@ export default function VideoPlayerPage() {
                 className="absolute inset-0 cursor-pointer z-10"
               />
 
-              {/* Premium Pause/Load Overlay - Deeply darkens (0 brightness) and blurs (0 visibility) the YouTube native pause elements */}
+              {/* Premium Pause/Load Overlay - 100% opaque solid black to completely cover native pause recommends and logos */}
               {!isPlaying && (
                 <div 
-                  className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-lg pointer-events-none transition-all duration-300 z-20 animate-fade-in"
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-black pointer-events-none transition-all duration-300 z-20 animate-fade-in"
                 >
                   <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-all mb-4">
                     <Play className="w-8 h-8 fill-current text-white ml-1 animate-pulse" />
