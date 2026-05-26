@@ -381,9 +381,29 @@ export default function VideoPlayerPage() {
   const changeQuality = (quality: string) => {
     if (!player) return
     setPlaybackQuality(quality)
-    if (player.setPlaybackQuality) {
+    
+    // Modern YouTube API: Force suggested quality by reloading the video seamlessly at the exact same position
+    if (player.loadVideoById) {
+      const currentTime = player.getCurrentTime()
+      const wasPlaying = isPlaying
+      
+      player.loadVideoById({
+        videoId: currentVideoId,
+        startSeconds: currentTime,
+        suggestedQuality: quality
+      })
+      
+      // Auto-resume playback state if it was playing
+      if (wasPlaying) {
+        setTimeout(() => {
+          player.playVideo()
+        }, 150)
+      }
+    } else if (player.setPlaybackQuality) {
+      // Fallback for native API support
       player.setPlaybackQuality(quality)
     }
+    
     setShowQualityMenu(false)
   }
 
