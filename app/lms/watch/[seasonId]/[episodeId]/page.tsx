@@ -455,6 +455,13 @@ export default function VideoPlayerPage() {
       setIsPlaying(false)
       showHUD("pause", "Paused")
     } else {
+      if (!isMuted) {
+        player.unmute()
+        player.setVolume(volume === 0 ? 50 : volume)
+      } else {
+        player.mute()
+        player.setVolume(0)
+      }
       player.playVideo()
       setIsPlaying(true)
       showHUD("play", "Play")
@@ -780,7 +787,7 @@ export default function VideoPlayerPage() {
                   <div className="flex items-center gap-4">
                     {/* Play/Pause Button */}
                     <button
-                      onClick={togglePlay}
+                      onClick={(e) => { e.stopPropagation(); togglePlay() }}
                       className="p-2.5 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg shadow-red-600/35 hover:scale-105 active:scale-95 transition-all"
                       title={isPlaying ? "Pause" : "Play"}
                     >
@@ -789,7 +796,7 @@ export default function VideoPlayerPage() {
 
                     {/* Skip Back 10s */}
                     <button
-                      onClick={() => skipBackward()}
+                      onClick={(e) => { e.stopPropagation(); skipBackward() }}
                       className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95"
                       title="Skip Backward 10s"
                     >
@@ -798,7 +805,7 @@ export default function VideoPlayerPage() {
 
                     {/* Skip Forward 10s */}
                     <button
-                      onClick={() => skipForward()}
+                      onClick={(e) => { e.stopPropagation(); skipForward() }}
                       className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95"
                       title="Skip Forward 10s"
                     >
@@ -806,21 +813,26 @@ export default function VideoPlayerPage() {
                     </button>
 
                     {/* Volume controls group */}
-                    <div className="flex items-center group/volume">
+                    <div className="flex items-center group/volume" onClick={(e) => e.stopPropagation()}>
                       <button
-                        onClick={toggleMute}
+                        onClick={(e) => { e.stopPropagation(); toggleMute() }}
                         className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all z-10"
                         title={isMuted ? "Unmute" : "Mute"}
                       >
                         {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                       </button>
-                      <div className="w-0 group-hover/volume:w-20 group-hover/volume:ml-2 overflow-hidden transition-all duration-300 flex items-center h-8">
+                      <div className="w-0 group-hover/volume:w-20 group-hover/volume:ml-2 overflow-hidden transition-all duration-300 flex items-center h-8"
+                        onClick={(e) => e.stopPropagation()}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
                         <input
                           type="range"
                           min={0}
                           max={100}
                           value={isMuted ? 0 : volume}
                           onChange={handleVolumeChange}
+                          onClick={(e) => e.stopPropagation()}
+                          onMouseDown={(e) => e.stopPropagation()}
                           className="w-20 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-red-600 outline-none"
                         />
                       </div>

@@ -221,7 +221,10 @@ export function HeroSection() {
           e.preventDefault()
           setVolume(prev => {
             const v = Math.min(prev + 5, 100)
-            p?.setVolume(v); showHUD("volume", `Volume ${v}%`); return v
+            p?.setVolume(v)
+            if (v > 0) { p?.unmute(); setIsMuted(false) }
+            showHUD("volume", `Volume ${v}%`)
+            return v
           }); handleMouseMove(); break
         case "ArrowDown":
           e.preventDefault()
@@ -229,7 +232,7 @@ export function HeroSection() {
             const v = Math.max(prev - 5, 0)
             p?.setVolume(v)
             if (v === 0) { p?.mute(); setIsMuted(true); showHUD("mute", "Muted") }
-            else showHUD("volume", `Volume ${v}%`)
+            else         { p?.unmute(); setIsMuted(false); showHUD("volume", `Volume ${v}%`) }
             return v
           }); handleMouseMove(); break
         default:
@@ -250,7 +253,18 @@ export function HeroSection() {
   const togglePlay = () => {
     const p = playerRef.current; if (!p) return
     if (isPlaying) { p.pauseVideo(); setIsPlaying(false); showHUD("pause", "Paused") }
-    else           { p.playVideo();  setIsPlaying(true);  showHUD("play",  "Play")   }
+    else {
+      if (!isMuted) {
+        p.unmute()
+        p.setVolume(volume === 0 ? 50 : volume)
+      } else {
+        p.mute()
+        p.setVolume(0)
+      }
+      p.playVideo()
+      setIsPlaying(true)
+      showHUD("play", "Play")
+    }
   }
 
   const skipForward = (secs = 10) => {
@@ -611,30 +625,35 @@ export function HeroSection() {
                       {/* Left: Play/Pause, Skip, Volume */}
                       <div className="flex items-center gap-3">
                         {/* Play / Pause */}
-                        <button onClick={togglePlay} title={isPlaying ? "Pause" : "Play"}
+                        <button onClick={(e) => { e.stopPropagation(); togglePlay() }} title={isPlaying ? "Pause" : "Play"}
                           className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg shadow-red-600/35 hover:scale-105 active:scale-95 transition-all">
                           {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                         </button>
                         {/* Skip back */}
-                        <button onClick={() => skipBackward()} title="Rewind 10s"
+                        <button onClick={(e) => { e.stopPropagation(); skipBackward() }} title="Rewind 10s"
                           className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95">
                           <RotateCcw className="w-4 h-4" />
                         </button>
                         {/* Skip forward */}
-                        <button onClick={() => skipForward()} title="Forward 10s"
+                        <button onClick={(e) => { e.stopPropagation(); skipForward() }} title="Forward 10s"
                           className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95">
                           <RotateCw className="w-4 h-4" />
                         </button>
                         {/* Volume */}
-                        <div className="flex items-center group/vol">
-                          <button onClick={toggleMute} title={isMuted ? "Unmute" : "Mute"}
+                        <div className="flex items-center group/vol" onClick={(e) => e.stopPropagation()}>
+                          <button onClick={(e) => { e.stopPropagation(); toggleMute() }} title={isMuted ? "Unmute" : "Mute"}
                             className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all z-10">
                             {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                           </button>
-                          <div className="w-0 group-hover/vol:w-20 group-hover/vol:ml-2 overflow-hidden transition-all duration-300 flex items-center h-8">
+                          <div className="w-0 group-hover/vol:w-20 group-hover/vol:ml-2 overflow-hidden transition-all duration-300 flex items-center h-8"
+                            onClick={(e) => e.stopPropagation()}
+                            onMouseDown={(e) => e.stopPropagation()}
+                          >
                             <input
                               type="range" min={0} max={100} value={isMuted ? 0 : volume}
                               onChange={handleVolumeChange}
+                              onClick={(e) => e.stopPropagation()}
+                              onMouseDown={(e) => e.stopPropagation()}
                               className="w-20 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-red-600 outline-none"
                             />
                           </div>
@@ -645,7 +664,7 @@ export function HeroSection() {
                       <div className="flex items-center gap-3 relative">
                         {/* Speed */}
                         <div className="relative">
-                          <button onClick={() => { setShowSpeedMenu(p => !p); setShowQualityMenu(false) }} title="Playback Speed"
+                          <button onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(p => !p); setShowQualityMenu(false) }} title="Playback Speed"
                             className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase">
                             <Gauge className="w-3.5 h-3.5" />
                             <span>{playbackSpeed === 1 ? "1.0x" : `${playbackSpeed}x`}</span>
@@ -653,7 +672,7 @@ export function HeroSection() {
                           {showSpeedMenu && (
                             <div className="absolute bottom-12 right-0 p-2 bg-black/90 border border-white/5 rounded-xl shadow-2xl flex flex-col gap-1 z-20 min-w-[110px] backdrop-blur-lg">
                               {[0.5, 0.75, 1, 1.25, 1.5, 2].map(s => (
-                                <button key={s} onClick={() => changeSpeed(s)}
+                                <button key={s} onClick={(e) => { e.stopPropagation(); changeSpeed(s) }}
                                   className={`px-3 py-1.5 text-left text-xs font-semibold rounded-lg hover:text-white transition-all flex items-center justify-between ${playbackSpeed === s ? "text-red-500 bg-red-600/10" : "text-gray-300"}`}>
                                   <span>{s === 1 ? "Normal" : `${s}x`}</span>
                                   {playbackSpeed === s && <span className="w-1 h-1 rounded-full bg-red-600 animate-ping" />}
@@ -665,7 +684,7 @@ export function HeroSection() {
 
                         {/* Quality */}
                         <div className="relative">
-                          <button onClick={() => { setShowQualityMenu(p => !p); setShowSpeedMenu(false) }} title="Video Quality"
+                          <button onClick={(e) => { e.stopPropagation(); setShowQualityMenu(p => !p); setShowSpeedMenu(false) }} title="Video Quality"
                             className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase">
                             <Settings className="w-3.5 h-3.5" />
                             <span>{getQualityName(playbackQuality)}</span>
@@ -673,7 +692,7 @@ export function HeroSection() {
                           {showQualityMenu && (
                             <div className="absolute bottom-12 right-0 p-2 bg-black/90 border border-white/5 rounded-xl shadow-2xl flex flex-col gap-1 z-20 min-w-[110px] backdrop-blur-lg">
                               {[{label:"Auto",value:"default"},{label:"1080p",value:"hd1080"},{label:"720p",value:"hd720"},{label:"480p",value:"large"},{label:"360p",value:"medium"}].map(opt => (
-                                <button key={opt.value} onClick={() => changeQuality(opt.value)}
+                                <button key={opt.value} onClick={(e) => { e.stopPropagation(); changeQuality(opt.value) }}
                                   className={`px-3 py-1.5 text-left text-xs font-semibold rounded-lg hover:text-white transition-all flex items-center justify-between ${playbackQuality === opt.value ? "text-red-500 bg-red-600/10" : "text-gray-300"}`}>
                                   <span>{opt.label}</span>
                                   {playbackQuality === opt.value && <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />}
@@ -689,6 +708,7 @@ export function HeroSection() {
                           target="_blank"
                           rel="noopener noreferrer"
                           title="Watch on YouTube"
+                          onClick={(e) => e.stopPropagation()}
                           className="p-2 bg-white/5 hover:bg-[#ff0000]/20 rounded-full text-gray-300 hover:text-[#ff0000] transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-lg"
                         >
                           <svg
@@ -701,7 +721,7 @@ export function HeroSection() {
                         </a>
 
                         {/* Fullscreen */}
-                        <button onClick={handleFullscreen} title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                        <button onClick={(e) => { e.stopPropagation(); handleFullscreen() }} title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
                           className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95">
                           {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                         </button>
