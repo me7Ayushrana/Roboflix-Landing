@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { Mail, Lock, ArrowRight } from "lucide-react"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
 // Valid credentials - email: phone number
 const VALID_CREDENTIALS: Record<string, string> = {
@@ -47,20 +48,40 @@ export default function LmsLoginPage() {
     return () => clearInterval(timer)
   }, [])
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
     setLoading(true)
 
-    // Validate credentials
-    if (VALID_CREDENTIALS[email] === password) {
-      localStorage.setItem("lms_user", JSON.stringify({ email }))
-      router.push("/lms/dashboard")
-    } else {
-      setError("Invalid email or phone number. Please check your credentials.")
-    }
+    try {
+      if (isSupabaseConfigured()) {
+        const { data, error: authError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password: password.trim(),
+        })
 
-    setLoading(false)
+        if (authError) {
+          setError(authError.message)
+        } else if (data.user) {
+          localStorage.setItem("lms_user", JSON.stringify({ email: data.user.email }))
+          router.push("/lms/dashboard")
+        }
+      } else {
+        // Fallback to static mock credentials list if Supabase env is not configured
+        const trimmedEmail = email.trim()
+        const trimmedPassword = password.trim()
+        if (VALID_CREDENTIALS[trimmedEmail] === trimmedPassword) {
+          localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
+          router.push("/lms/dashboard")
+        } else {
+          setError("Invalid email or phone number. (Local Fallback Mode)")
+        }
+      }
+    } catch (err: any) {
+      setError(err?.message || "An unexpected error occurred during login.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

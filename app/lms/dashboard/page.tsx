@@ -5,6 +5,7 @@ import Link from "next/link"
 import { motion } from "framer-motion"
 import { LogOut, Clock, Lock } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
 interface User {
   email: string
@@ -38,18 +39,44 @@ export default function LmsDashboardPage() {
   }, [])
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("lms_user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-      setIsLoading(false)
-    } else {
-      window.location.href = "/lms/login"
+    const checkSession = async () => {
+      try {
+        if (isSupabaseConfigured()) {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session && session.user) {
+            setUser({ email: session.user.email || "" })
+            setIsLoading(false)
+            return
+          }
+        }
+        
+        // Fallback to local storage if Supabase is not configured or has no active session
+        const storedUser = localStorage.getItem("lms_user")
+        if (storedUser) {
+          setUser(JSON.parse(storedUser))
+          setIsLoading(false)
+        } else {
+          window.location.href = "/lms/login"
+        }
+      } catch (err) {
+        window.location.href = "/lms/login"
+      }
     }
+
+    checkSession()
   }, [])
 
-  const handleLogout = () => {
-    localStorage.removeItem("lms_user")
-    window.location.href = "/lms/login"
+  const handleLogout = async () => {
+    try {
+      if (isSupabaseConfigured()) {
+        await supabase.auth.signOut()
+      }
+    } catch (err) {
+      console.error("Error signing out from Supabase:", err)
+    } finally {
+      localStorage.removeItem("lms_user")
+      window.location.href = "/lms/login"
+    }
   }
 
   if (isLoading) {

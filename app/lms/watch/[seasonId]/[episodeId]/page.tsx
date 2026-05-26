@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, Menu, X, MessageCircle } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
+import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
 export default function VideoPlayerPage() {
   const params = useParams()
@@ -23,12 +24,29 @@ export default function VideoPlayerPage() {
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("lms_user")
-    if (!storedUser) {
-      router.push("/lms/login")
-    } else {
-      setIsLoading(false)
+    const checkSession = async () => {
+      try {
+        if (isSupabaseConfigured()) {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session && session.user) {
+            setIsLoading(false)
+            return
+          }
+        }
+        
+        // Fallback to local storage if Supabase is not configured or has no active session
+        const storedUser = localStorage.getItem("lms_user")
+        if (storedUser) {
+          setIsLoading(false)
+        } else {
+          router.push("/lms/login")
+        }
+      } catch (err) {
+        router.push("/lms/login")
+      }
     }
+
+    checkSession()
   }, [router])
 
   if (isLoading) {
