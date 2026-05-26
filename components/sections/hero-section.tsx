@@ -222,7 +222,7 @@ export function HeroSection() {
           setVolume(prev => {
             const v = Math.min(prev + 5, 100)
             p?.setVolume(v)
-            if (v > 0) { p?.unmute(); setIsMuted(false) }
+            if (v > 0) { p?.unMute(); setIsMuted(false) }
             showHUD("volume", `Volume ${v}%`)
             return v
           }); handleMouseMove(); break
@@ -232,7 +232,7 @@ export function HeroSection() {
             const v = Math.max(prev - 5, 0)
             p?.setVolume(v)
             if (v === 0) { p?.mute(); setIsMuted(true); showHUD("mute", "Muted") }
-            else         { p?.unmute(); setIsMuted(false); showHUD("volume", `Volume ${v}%`) }
+            else         { p?.unMute(); setIsMuted(false); showHUD("volume", `Volume ${v}%`) }
             return v
           }); handleMouseMove(); break
         default:
@@ -255,7 +255,7 @@ export function HeroSection() {
     if (isPlaying) { p.pauseVideo(); setIsPlaying(false); showHUD("pause", "Paused") }
     else {
       if (!isMuted) {
-        p.unmute()
+        p.unMute()
         p.setVolume(volume === 0 ? 50 : volume)
       } else {
         p.mute()
@@ -285,7 +285,7 @@ export function HeroSection() {
     const p = playerRef.current; if (!p) return
     if (isMuted) {
       const targetVol = volume || 50
-      p.unmute()
+      p.unMute()
       p.setVolume(targetVol)
       setVolume(targetVol)
       setIsMuted(false)
@@ -302,7 +302,7 @@ export function HeroSection() {
     const p = playerRef.current; if (!p) return
     const v = parseInt(e.target.value); setVolume(v); p.setVolume(v)
     if (v === 0) { p.mute(); setIsMuted(true); showHUD("mute", "Muted") }
-    else         { p.unmute(); setIsMuted(false); showHUD("volume", `Volume ${v}%`) }
+    else         { p.unMute(); setIsMuted(false); showHUD("volume", `Volume ${v}%`) }
   }
 
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {

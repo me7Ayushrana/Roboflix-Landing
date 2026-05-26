@@ -365,7 +365,7 @@ export default function VideoPlayerPage() {
             const nextVol = Math.min(prev + 5, 100)
             player.setVolume(nextVol)
             if (nextVol > 0 && isMuted) {
-              player.unmute()
+              player.unMute()
               setIsMuted(false)
             }
             showHUD("volume", `Volume ${nextVol}%`)
@@ -456,7 +456,7 @@ export default function VideoPlayerPage() {
       showHUD("pause", "Paused")
     } else {
       if (!isMuted) {
-        player.unmute()
+        player.unMute()
         player.setVolume(volume === 0 ? 50 : volume)
       } else {
         player.mute()
@@ -500,7 +500,7 @@ export default function VideoPlayerPage() {
     if (!player) return
     if (isMuted) {
       const targetVol = volume || 50
-      player.unmute()
+      player.unMute()
       player.setVolume(targetVol)
       setVolume(targetVol)
       setIsMuted(false)
@@ -522,7 +522,7 @@ export default function VideoPlayerPage() {
       setIsMuted(true)
       showHUD("mute", "Muted")
     } else {
-      player.unmute()
+      player.unMute()
       setIsMuted(false)
       showHUD("volume", `Volume ${vol}%`)
     }
