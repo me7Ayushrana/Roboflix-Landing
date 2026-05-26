@@ -16,7 +16,7 @@ export const SEASONS_DATA = [
         description: "Learn the basics of robotics, set up your environment, and build your first circuit. This foundational episode covers essential concepts you'll use throughout the journey.",
         duration: "45 min",
         isFree: true,
-        videoUrl: "https://youtu.be/T5rmd-vKQeM?si=FFfRVj_tJ-ZlkJK6",
+        videoUrl: process.env.NEXT_PUBLIC_YT_S1_E1 || "https://youtu.be/T5rmd-vKQeM?si=FFfRVj_tJ-ZlkJK6",
         summary: "In this introductory episode, we cover the fundamentals of robotics including basic electrical concepts, safety practices, and hardware setup. You'll learn how to use Arduino, sensors, and motors effectively.",
         files: [
           { name: "starter_circuit.ino", type: "Code" },
@@ -32,7 +32,7 @@ export const SEASONS_DATA = [
         title: "Episode 2: Arduino Basics",
         description: "Deep dive into Arduino programming. Learn how to write code, debug, and interact with your first sensor.",
         duration: "50 min",
-        videoUrl: "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2",
+        videoUrl: process.env.NEXT_PUBLIC_YT_S1_E2 || "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2",
         summary: "Explore Arduino fundamentals including setup, loops, digital and analog I/O, and serial communication.",
         files: [],
         codes: [],
@@ -42,7 +42,7 @@ export const SEASONS_DATA = [
         title: "Episode 3: Sensor Integration",
         description: "Master PID tuning algorithms and implement digital filters on Arduino hardware.",
         duration: "55 min",
-        videoUrl: "https://www.youtube.com/watch?v=t3U3x_kUIbc&list=RDMMt3U3x_kUIbc&start_radio=1",
+        videoUrl: process.env.NEXT_PUBLIC_YT_S1_E3 || "https://www.youtube.com/watch?v=t3U3x_kUIbc&list=RDMMt3U3x_kUIbc&start_radio=1",
         isFree: true,
         summary: "Learn how to connect and read from various sensors, process data, and make decisions based on sensor inputs.",
         files: [],
@@ -53,7 +53,7 @@ export const SEASONS_DATA = [
         title: "Episode 4: Motor Control",
         description: "Control DC motors, servo motors, and stepper motors. Build a simple moving robot.",
         duration: "60 min",
-        videoUrl: "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2",
+        videoUrl: process.env.NEXT_PUBLIC_YT_S1_E4 || "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2",
         summary: "Master motor control techniques including PWM, direction control, and speed regulation.",
         files: [],
         codes: [],
@@ -69,7 +69,7 @@ export const SEASONS_DATA = [
     image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/S2-QmmZlnDwcmtzEALHQbEehK5kvnfbIx.png",
     releaseDate: "Coming Soon",
     episodes: [
-      { id: 1, title: "Episode 1: Arm Design", description: "Design your first robotic arm", duration: "45 min", videoUrl: "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2", summary: "", files: [], codes: [] },
+      { id: 1, title: "Episode 1: Arm Design", description: "Design your first robotic arm", duration: "45 min", videoUrl: process.env.NEXT_PUBLIC_YT_S2_E1 || "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2", summary: "", files: [], codes: [] },
     ],
   },
   {
@@ -81,7 +81,7 @@ export const SEASONS_DATA = [
     image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/S3-dkcfTAzYPs8lhaNyjRDyonuxfNOGQH.png",
     releaseDate: "Coming Soon",
     episodes: [
-      { id: 1, title: "Episode 1: Rover Basics", description: "Build your autonomous rover", duration: "45 min", videoUrl: "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2", summary: "", files: [], codes: [] },
+      { id: 1, title: "Episode 1: Rover Basics", description: "Build your autonomous rover", duration: "45 min", videoUrl: process.env.NEXT_PUBLIC_YT_S3_E1 || "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2", summary: "", files: [], codes: [] },
     ],
   },
   {
@@ -93,7 +93,7 @@ export const SEASONS_DATA = [
     image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/S4-kHT4MtQZ9WUHGDkrQ8ongThvdIiScx.png",
     releaseDate: "Coming Soon",
     episodes: [
-      { id: 1, title: "Episode 1: Quadruped Design", description: "Design a four-legged robot", duration: "45 min", videoUrl: "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2", summary: "", files: [], codes: [] },
+      { id: 1, title: "Episode 1: Quadruped Design", description: "Design a four-legged robot", duration: "45 min", videoUrl: process.env.NEXT_PUBLIC_YT_S4_E1 || "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2", summary: "", files: [], codes: [] },
     ],
   },
   {
@@ -105,7 +105,7 @@ export const SEASONS_DATA = [
     image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/S5-7V6V5sXMn0k6ncMoo91fe8Ck0CpCpX.png",
     releaseDate: "Coming Soon",
     episodes: [
-      { id: 1, title: "Episode 1: Global Deployment", description: "Deploy robots worldwide", duration: "45 min", videoUrl: "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2", summary: "", files: [], codes: [] },
+      { id: 1, title: "Episode 1: Global Deployment", description: "Deploy robots worldwide", duration: "45 min", videoUrl: process.env.NEXT_PUBLIC_YT_S5_E1 || "https://youtu.be/yqWX86uT5jM?si=iUXKyNpoJE0lIYk2", summary: "", files: [], codes: [] },
     ],
   },
 ]
