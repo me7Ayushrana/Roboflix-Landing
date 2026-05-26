@@ -26,6 +26,12 @@ export default function VideoPlayerPage() {
   useEffect(() => {
     const checkSession = async () => {
       try {
+        // Bypass authentication check if the episode is marked as free/preview
+        if (episode && (episode as any).isFree) {
+          setIsLoading(false)
+          return
+        }
+
         if (isSupabaseConfigured()) {
           const { data: { session } } = await supabase.auth.getSession()
           if (session && session.user) {
@@ -47,7 +53,7 @@ export default function VideoPlayerPage() {
     }
 
     checkSession()
-  }, [router])
+  }, [router, episode])
 
   if (isLoading) {
     return (
@@ -90,7 +96,15 @@ export default function VideoPlayerPage() {
 
   // Generate YouTube nocookie embed URL - completely hides YouTube branding
   const getYouTubeEmbedUrl = () => {
-    const videoId = "yqWX86uT5jM"
+    let videoId = "yqWX86uT5jM" // Fallback video ID
+    if (episode.videoUrl) {
+      // Extract video ID from standard YouTube URL patterns (youtu.be/ID or youtube.com/watch?v=ID)
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
+      const match = episode.videoUrl.match(regExp)
+      if (match && match[2].length === 11) {
+        videoId = match[2]
+      }
+    }
     // modestbranding=1 hides YouTube logo, rel=0 removes related videos, showinfo=0 hides info
     return `https://www.youtube-nocookie.com/embed/${videoId}?modestbranding=1&rel=0&showinfo=0&controls=1&fs=1&autoplay=0&playsinline=1&iv_load_policy=3`
   }
