@@ -504,9 +504,6 @@ export default function VideoPlayerPage() {
                   <span className="text-sm font-semibold tracking-widest text-gray-300 uppercase select-none">
                     Click to Resume Lecture
                   </span>
-                  <span className="text-[10px] text-gray-500 tracking-wider mt-1 select-none">
-                    ROBOFLIX PREMIUM PLATFORM
-                  </span>
                 </div>
               )}
 
