@@ -431,11 +431,17 @@ export default function VideoPlayerPage() {
                 </div>
               </div>
 
-              {/* Permanent Premium Watermark Pill - Completely covers the native YouTube logo with a high-end streaming indicator */}
-              <div className="absolute bottom-4 right-4 px-3 py-1.5 bg-black/85 backdrop-blur-md border border-red-950/50 rounded-full text-[10px] font-semibold tracking-wider text-red-500 select-none pointer-events-none z-20 shadow-lg flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
-                ROBOFLIX PRO
-              </div>
+              {/* Flat Opaque Black Mask (Top-Left): Blackout native YouTube title & avatar completely (0 brightness) */}
+              <div className="absolute top-0 left-0 w-[300px] h-[55px] bg-black z-20 pointer-events-none" />
+
+              {/* Flat Opaque Black Mask (Top-Right): Blackout native YouTube share & watch-later buttons completely (0 brightness) */}
+              <div className="absolute top-0 right-0 w-[140px] h-[55px] bg-black z-20 pointer-events-none" />
+
+              {/* Flat Opaque Black Mask (Bottom-Left): Blackout native YouTube share link icon completely (0 brightness) */}
+              <div className="absolute bottom-0 left-0 w-[110px] h-[55px] bg-black z-20 pointer-events-none" />
+
+              {/* Flat Opaque Black Mask (Bottom-Right): Blackout native YouTube logo & "More videos" button completely (0 brightness) */}
+              <div className="absolute bottom-0 right-0 w-[320px] h-[60px] bg-black z-20 pointer-events-none" />
 
               {/* Clickable Overlay - Single click to toggle Play/Pause, Double click to toggle Fullscreen */}
               <div 
