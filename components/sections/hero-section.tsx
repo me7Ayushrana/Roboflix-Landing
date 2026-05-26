@@ -524,11 +524,6 @@ export function HeroSection() {
                     </div>
                   </div>
 
-                  {/* ROBOFLIX PRO watermark pill */}
-                  <div className="absolute bottom-[88px] right-4 px-3 py-1.5 bg-black border border-red-950/50 rounded-full text-[10px] font-semibold tracking-wider text-red-500 select-none pointer-events-none z-20 shadow-2xl flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
-                    ROBOFLIX PRO
-                  </div>
 
                   {/* Click overlay — single click play/pause, double click fullscreen */}
                   <div
