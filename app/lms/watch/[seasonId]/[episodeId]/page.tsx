@@ -4,9 +4,16 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
-import { ArrowLeft, Menu, X, MessageCircle } from "lucide-react"
+import { ArrowLeft, Menu, X, MessageCircle, Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize, Gauge } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
+
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: (() => void) | undefined;
+  }
+}
 
 export default function VideoPlayerPage() {
   const params = useParams()
@@ -23,10 +30,21 @@ export default function VideoPlayerPage() {
   const [showDoubtForm, setShowDoubtForm] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
+  // Custom Video Player States
+  const [player, setPlayer] = useState<any>(null)
+  const [isPlaying, setIsPlaying] = useState(false)
+  const [duration, setDuration] = useState(0)
+  const [volume, setVolume] = useState(100)
+  const [isMuted, setIsMuted] = useState(false)
+  const [playbackSpeed, setPlaybackSpeed] = useState(1)
+  const [showSpeedMenu, setShowSpeedMenu] = useState(false)
+  const [isFullscreen, setIsFullscreen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // 1. Session verification & login guard bypass for free/preview episodes
   useEffect(() => {
     const checkSession = async () => {
       try {
-        // Bypass authentication check if the episode is marked as free/preview
         if (episode && (episode as any).isFree) {
           setIsLoading(false)
           return
@@ -40,7 +58,6 @@ export default function VideoPlayerPage() {
           }
         }
         
-        // Fallback to local storage if Supabase is not configured or has no active session
         const storedUser = localStorage.getItem("lms_user")
         if (storedUser) {
           setIsLoading(false)
@@ -54,6 +71,103 @@ export default function VideoPlayerPage() {
 
     checkSession()
   }, [router, episode])
+
+  // Get dynamic YouTube video ID from episode videoUrl
+  const getVideoId = (url: string) => {
+    let videoId = "yqWX86uT5jM" // Fallback video ID
+    if (url) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
+      const match = url.match(regExp)
+      if (match && match[2].length === 11) {
+        videoId = match[2]
+      }
+    }
+    return videoId
+  }
+
+  const currentVideoId = getVideoId(episode?.videoUrl || "")
+
+  // 2. Initialize YouTube Player API
+  useEffect(() => {
+    if (isLoading) return
+
+    // Load standard YouTube API script asynchronously
+    if (!window.YT) {
+      const tag = document.createElement("script")
+      tag.src = "https://www.youtube.com/iframe_api"
+      const firstScriptTag = document.getElementsByTagName("script")[0]
+      firstScriptTag.parentNode?.insertBefore(tag, firstScriptTag)
+    }
+
+    const initYTPlayer = () => {
+      if (window.YT && window.YT.Player) {
+        new window.YT.Player("roboflix-player-iframe", {
+          events: {
+            onReady: (event: any) => {
+              setPlayer(event.target)
+              setDuration(event.target.getDuration() || 0)
+              event.target.setVolume(volume)
+            },
+            onStateChange: (event: any) => {
+              if (event.data === window.YT.PlayerState.PLAYING) {
+                setIsPlaying(true)
+              } else if (
+                event.data === window.YT.PlayerState.PAUSED ||
+                event.data === window.YT.PlayerState.ENDED
+              ) {
+                setIsPlaying(false)
+              }
+            }
+          }
+        })
+      }
+    }
+
+    if (window.YT && window.YT.Player) {
+      initYTPlayer()
+    } else {
+      window.onYouTubeIframeAPIReady = initYTPlayer
+    }
+
+    return () => {
+      window.onYouTubeIframeAPIReady = undefined
+    }
+  }, [isLoading])
+
+  // 3. Track current playback position and duration
+  useEffect(() => {
+    let interval: any
+    if (player && isPlaying) {
+      interval = setInterval(() => {
+        if (player.getCurrentTime) {
+          setCurrentTime(player.getCurrentTime())
+        }
+        if (player.getDuration && duration === 0) {
+          setDuration(player.getDuration())
+        }
+      }, 250)
+    }
+    return () => clearInterval(interval)
+  }, [player, isPlaying, duration])
+
+  // 4. Handle video switches dynamically
+  useEffect(() => {
+    if (player && player.loadVideoById) {
+      player.loadVideoById({ videoId: currentVideoId })
+      setIsPlaying(false)
+      setCurrentTime(0)
+      setDuration(0)
+    }
+  }, [currentVideoId, player])
+
+  // 5. Fullscreen event handling
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener("fullscreenchange", handleFsChange)
+    return () => document.removeEventListener("fullscreenchange", handleFsChange)
+  }, [])
 
   if (isLoading) {
     return (
@@ -94,19 +208,88 @@ export default function VideoPlayerPage() {
     setShowDoubtForm(false)
   }
 
-  // Generate YouTube nocookie embed URL - completely hides YouTube branding
-  const getYouTubeEmbedUrl = () => {
-    let videoId = "yqWX86uT5jM" // Fallback video ID
-    if (episode.videoUrl) {
-      // Extract video ID from standard YouTube URL patterns (youtu.be/ID or youtube.com/watch?v=ID)
-      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
-      const match = episode.videoUrl.match(regExp)
-      if (match && match[2].length === 11) {
-        videoId = match[2]
-      }
+  // Custom playback controller functions
+  const togglePlay = () => {
+    if (!player) return
+    if (isPlaying) {
+      player.pauseVideo()
+      setIsPlaying(false)
+    } else {
+      player.playVideo()
+      setIsPlaying(true)
     }
-    // modestbranding=1 hides YouTube logo, rel=0 removes related videos, showinfo=0 hides info
-    return `https://www.youtube-nocookie.com/embed/${videoId}?modestbranding=1&rel=0&showinfo=0&controls=1&fs=1&autoplay=0&playsinline=1&iv_load_policy=3`
+  }
+
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!player) return
+    const time = parseFloat(e.target.value)
+    setCurrentTime(time)
+    player.seekTo(time, true)
+  }
+
+  const skipForward = () => {
+    if (!player) return
+    const newTime = Math.min(currentTime + 10, duration)
+    setCurrentTime(newTime)
+    player.seekTo(newTime, true)
+  }
+
+  const skipBackward = () => {
+    if (!player) return
+    const newTime = Math.max(currentTime - 10, 0)
+    setCurrentTime(newTime)
+    player.seekTo(newTime, true)
+  }
+
+  const toggleMute = () => {
+    if (!player) return
+    if (isMuted) {
+      player.unmute()
+      player.setVolume(volume || 50)
+      setIsMuted(false)
+    } else {
+      player.mute()
+      setIsMuted(true)
+    }
+  }
+
+  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!player) return
+    const vol = parseInt(e.target.value)
+    setVolume(vol)
+    player.setVolume(vol)
+    if (vol === 0) {
+      player.mute()
+      setIsMuted(true)
+    } else {
+      player.unmute()
+      setIsMuted(false)
+    }
+  }
+
+  const changeSpeed = (speed: number) => {
+    if (!player) return
+    setPlaybackSpeed(speed)
+    player.setPlaybackRate(speed)
+    setShowSpeedMenu(false)
+  }
+
+  const handleFullscreen = () => {
+    if (!containerRef.current) return
+    if (!document.fullscreenElement) {
+      containerRef.current.requestFullscreen().catch((err) => {
+        console.error("Error entering fullscreen:", err)
+      })
+    } else {
+      document.exitFullscreen()
+    }
+  }
+
+  const getYouTubeEmbedUrl = () => {
+    // enablejsapi=1 is REQUIRED to control the iframe programmatically
+    // controls=0 disables standard player bar, disablekb=1 disables shortcut keys
+    // modestbranding=1 disables logo overlays, fs=0 disables standard fullscreen button
+    return `https://www.youtube-nocookie.com/embed/${currentVideoId}?enablejsapi=1&controls=0&disablekb=1&fs=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&autoplay=0&playsinline=1`
   }
 
   return (
@@ -136,16 +319,147 @@ export default function VideoPlayerPage() {
       <main className="flex gap-0 md:gap-6 px-4 sm:px-6 py-6">
         {/* Video Player - Center */}
         <div className="flex-1 min-w-0 order-2 md:order-1">
-          {/* Video Container */}
+          {/* Custom Video Player Container */}
           <div className="mb-6">
-            <div className="relative w-full bg-black rounded-lg overflow-hidden" style={{ aspectRatio: "16/9" }}>
-              <iframe
-                src={getYouTubeEmbedUrl()}
-                title={episode.title}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-                className="w-full h-full border-0"
-              />
+            <div 
+              ref={containerRef}
+              className="relative w-full bg-black rounded-lg overflow-hidden group aspect-video border border-gray-800/80 shadow-2xl"
+            >
+              {/* YouTube Iframe - scaled to cut off branding border and pointer-events-none to prevent direct YouTube redirection */}
+              <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none scale-110">
+                <iframe
+                  id="roboflix-player-iframe"
+                  src={getYouTubeEmbedUrl()}
+                  title={episode.title}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  className="w-full h-full border-0 absolute top-0 left-0"
+                />
+              </div>
+
+              {/* Big play overlay that shows on hover if paused */}
+              {!isPlaying && player && (
+                <div 
+                  onClick={togglePlay}
+                  className="absolute inset-0 flex items-center justify-center bg-black/30 cursor-pointer transition-colors duration-300 z-10"
+                >
+                  <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-lg hover:bg-red-700 hover:scale-105 active:scale-95 transition-all">
+                    <Play className="w-8 h-8 fill-current text-white ml-1" />
+                  </div>
+                </div>
+              )}
+
+              {/* Custom Glassmorphic Controls overlay */}
+              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/95 via-black/60 to-transparent flex flex-col gap-3 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-300 z-10">
+                {/* Progress Bar (Timeline Seek) */}
+                <div className="flex items-center gap-3 w-full">
+                  <span className="text-xs font-mono text-gray-300 select-none">{formatTime(currentTime)}</span>
+                  <input
+                    type="range"
+                    min={0}
+                    max={duration || 100}
+                    value={currentTime}
+                    onChange={handleSeek}
+                    className="flex-1 h-1.5 bg-gray-700/50 rounded-lg appearance-none cursor-pointer accent-red-600 outline-none focus:ring-1 focus:ring-red-600"
+                    style={{
+                      background: `linear-gradient(to right, #dc2626 0%, #dc2626 ${(currentTime / (duration || 1)) * 100}%, rgba(55, 65, 81, 0.5) ${(currentTime / (duration || 1)) * 100}%, rgba(55, 65, 81, 0.5) 100%)`
+                    }}
+                  />
+                  <span className="text-xs font-mono text-gray-300 select-none">{formatTime(duration)}</span>
+                </div>
+
+                {/* Buttons Container */}
+                <div className="flex items-center justify-between w-full">
+                  {/* Left side controls: Play/Pause, Seek back/forward, Volume slider */}
+                  <div className="flex items-center gap-4">
+                    {/* Play/Pause Button */}
+                    <button
+                      onClick={togglePlay}
+                      className="p-1.5 bg-white/10 hover:bg-white/20 rounded-full hover:text-red-500 text-white transition-all active:scale-95"
+                      title={isPlaying ? "Pause" : "Play"}
+                    >
+                      {isPlaying ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current ml-0.5" />}
+                    </button>
+
+                    {/* Skip Back 10s */}
+                    <button
+                      onClick={skipBackward}
+                      className="p-1.5 hover:text-red-500 text-gray-300 transition-colors"
+                      title="Skip Backward 10s"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                    </button>
+
+                    {/* Skip Forward 10s */}
+                    <button
+                      onClick={skipForward}
+                      className="p-1.5 hover:text-red-500 text-gray-300 transition-colors"
+                      title="Skip Forward 10s"
+                    >
+                      <RotateCw className="w-4 h-4" />
+                    </button>
+
+                    {/* Volume controls group */}
+                    <div className="flex items-center gap-2 group/volume">
+                      <button
+                        onClick={toggleMute}
+                        className="p-1.5 hover:text-red-500 text-gray-300 transition-colors"
+                        title={isMuted ? "Unmute" : "Mute"}
+                      >
+                        {isMuted ? <VolumeX className="w-5 h-5" /> : <Volume2 className="w-5 h-5" />}
+                      </button>
+                      <input
+                        type="range"
+                        min={0}
+                        max={100}
+                        value={isMuted ? 0 : volume}
+                        onChange={handleVolumeChange}
+                        className="w-0 group-hover/volume:w-20 transition-all duration-300 origin-left scale-x-0 group-hover/volume:scale-x-100 h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-red-600 outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Right side controls: Playback speed, Fullscreen */}
+                  <div className="flex items-center gap-4 relative">
+                    {/* Playback speed trigger */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setShowSpeedMenu(!showSpeedMenu)}
+                        className="p-1.5 hover:text-red-500 text-gray-300 transition-colors flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider"
+                        title="Playback Speed"
+                      >
+                        <Gauge className="w-4 h-4" />
+                        <span>{playbackSpeed === 1 ? "Normal" : `${playbackSpeed}x`}</span>
+                      </button>
+
+                      {/* Speed Selection Dropdown */}
+                      {showSpeedMenu && (
+                        <div className="absolute bottom-10 right-0 p-2 bg-gray-900/95 border border-gray-800 rounded-lg shadow-xl flex flex-col gap-1 z-20 min-w-[100px] backdrop-blur-md">
+                          {[0.5, 0.75, 1, 1.25, 1.5, 2].map((speed) => (
+                            <button
+                              key={speed}
+                              onClick={() => changeSpeed(speed)}
+                              className={`px-3 py-1 text-left text-xs font-semibold rounded hover:bg-red-600 hover:text-white transition-colors ${
+                                playbackSpeed === speed ? "text-red-500 bg-red-600/10" : "text-gray-300"
+                              }`}
+                            >
+                              {speed === 1 ? "Normal" : `${speed}x`}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Fullscreen Button */}
+                    <button
+                      onClick={handleFullscreen}
+                      className="p-1.5 hover:text-red-500 text-gray-300 transition-colors"
+                      title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                    >
+                      {isFullscreen ? <Minimize className="w-5 h-5" /> : <Maximize className="w-5 h-5" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
