@@ -674,7 +674,7 @@ export default function VideoPlayerPage() {
               ref={containerRef}
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
-              className="relative w-full bg-black rounded-lg overflow-hidden aspect-video border border-gray-800/80 shadow-2xl"
+              className="relative w-full bg-[#080808] rounded-[24px] overflow-hidden aspect-video border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.95)] transition-all duration-300"
             >
               {/* YouTube Iframe - 100% dimensions, pointer-isolated, always rendered for API control */}
               <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
@@ -688,21 +688,6 @@ export default function VideoPlayerPage() {
                   }`}
                   tabIndex={-1}
                 />
-              </div>
-
-              {/* Four Solid Black Corner Privacy Shields (Completely hides all YouTube corner branding with 0% video cropping in the center) */}
-              <div className="absolute inset-0 pointer-events-none z-18 overflow-hidden select-none">
-                {/* Top-Left Shield: Covers channel titles & avatar */}
-                <div className="absolute top-0 left-0 w-[200px] h-[50px] bg-black" />
-                
-                {/* Top-Right Shield: Covers 'Share' and 'Watch Later' buttons */}
-                <div className="absolute top-0 right-0 w-[140px] h-[50px] bg-black" />
-                
-                {/* Bottom-Left Shield: Covers chain link sharing icon */}
-                <div className="absolute bottom-0 left-0 w-[120px] h-[55px] bg-black" />
-                
-                {/* Bottom-Right Shield: Covers 'More videos' and white YouTube watermark logo */}
-                <div className="absolute bottom-0 right-0 w-[260px] h-[55px] bg-black" />
               </div>
 
               {/* Permanent Privacy Shield — controlled via DOM ref (zero React async delay). Opacity toggled synchronously inside YouTube's own onStateChange callback. Always mounted so there is never a missing-frame gap. */}
@@ -742,35 +727,14 @@ export default function VideoPlayerPage() {
                 </div>
               </div>
 
-              {/* Four Premium HUD Telemetry Guards (Completely blocks all 4 corners of native YouTube elements without cropping the canvas) */}
+              {/* Permanent Premium Subtle Watermark Pill - Floating perfectly above the bottom control dock, covering any possible native logo trace */}
               <div 
-                className={`absolute inset-0 pointer-events-none z-20 select-none transition-opacity duration-300 ${
-                  showControls ? "opacity-90" : "opacity-45"
+                className={`absolute bottom-[92px] right-6 px-3 py-1.5 bg-black/60 backdrop-blur-sm border border-white/5 rounded-full text-[10px] font-semibold tracking-wider text-red-500/80 select-none pointer-events-none z-20 shadow-2xl flex items-center gap-1.5 transition-all duration-300 ${
+                  showControls ? "opacity-100" : "opacity-0"
                 }`}
               >
-                {/* Top-Left: LMS Course / Session identifier */}
-                <div className="absolute top-4 left-4 px-2.5 py-1.5 bg-black/85 backdrop-blur-sm border border-red-950/30 rounded text-[9px] font-mono tracking-widest text-red-500/90 shadow-2xl flex items-center gap-1.5 transition-all">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse shadow-[0_0_8px_#dc2626]" />
-                  ROBOFLIX SECURE LMS // S{seasonId}:E{episode.id}
-                </div>
-
-                {/* Top-Right: Secure Telemetry / Resolution lock */}
-                <div className="absolute top-4 right-4 px-2.5 py-1.5 bg-black/85 backdrop-blur-sm border border-red-950/30 rounded text-[9px] font-mono tracking-widest text-red-500/90 shadow-2xl flex items-center gap-1.5 transition-all">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_#10b981]" />
-                  SYS STATUS: OK // 1080P HD
-                </div>
-
-                {/* Bottom-Left: Decrypted Stream Identifier (floats cleanly above control bar) */}
-                <div className="absolute bottom-[92px] left-6 px-2.5 py-1.5 bg-black/85 backdrop-blur-sm border border-red-950/30 rounded text-[9px] font-mono tracking-widest text-red-500/90 shadow-2xl flex items-center gap-1.5 transition-all">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse shadow-[0_0_8px_#dc2626]" />
-                  DECRYPTED FEED // {episode.isFree ? "MOCK_GUEST" : "AUTH_STUDENT"}
-                </div>
-
-                {/* Bottom-Right: Roboflix Pro Branding Guard (fully covers any possible YouTube watermark/logo) */}
-                <div className="absolute bottom-[92px] right-6 px-2.5 py-1.5 bg-black border border-red-950/50 rounded text-[9px] font-mono tracking-widest text-red-500 shadow-2xl flex items-center gap-1.5 transition-all">
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
-                  ROBOFLIX PRO // ENGINEv2
-                </div>
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
+                ROBOFLIX PRO
               </div>
 
               {/* Clickable Overlay - Single click to toggle Play/Pause, Double click to toggle Fullscreen */}
