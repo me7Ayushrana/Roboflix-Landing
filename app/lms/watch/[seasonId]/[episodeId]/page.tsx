@@ -407,14 +407,14 @@ export default function VideoPlayerPage() {
               ref={containerRef}
               className="relative w-full bg-black rounded-lg overflow-hidden group aspect-video border border-gray-800/80 shadow-2xl"
             >
-              {/* YouTube Iframe - 104% dimensions to hide native edges/headers safely without cropping slide content, with pointer-events-none to prevent direct native redirects */}
+              {/* YouTube Iframe - 110% dimensions with pointer-events-none to fully prevent native hover events and completely push headers/watermarks off-screen */}
               <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
                 <iframe
                   id="roboflix-player-iframe"
                   src={getYouTubeEmbedUrl()}
                   title={episode.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  className="w-[104%] h-[104%] border-0 absolute top-[-2%] left-[-2%]"
+                  className="w-[110%] h-[110%] border-0 absolute top-[-5%] left-[-5%] pointer-events-none"
                 />
               </div>
 
@@ -425,10 +425,10 @@ export default function VideoPlayerPage() {
                 className="absolute inset-0 cursor-pointer z-10"
               />
 
-              {/* Premium Pause/Load Overlay - Darkens and blurs the YouTube native pause elements (More videos, share, etc.) */}
+              {/* Premium Pause/Load Overlay - Deeply darkens (0 brightness) and blurs (0 visibility) the YouTube native pause elements */}
               {!isPlaying && (
                 <div 
-                  className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 backdrop-blur-md pointer-events-none transition-all duration-300 z-20 animate-fade-in"
+                  className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-lg pointer-events-none transition-all duration-300 z-20 animate-fade-in"
                 >
                   <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-all mb-4">
                     <Play className="w-8 h-8 fill-current text-white ml-1 animate-pulse" />
