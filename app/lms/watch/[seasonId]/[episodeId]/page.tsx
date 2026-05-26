@@ -407,14 +407,14 @@ export default function VideoPlayerPage() {
               ref={containerRef}
               className="relative w-full bg-black rounded-lg overflow-hidden group aspect-video border border-gray-800/80 shadow-2xl"
             >
-              {/* YouTube Iframe - shifted and expanded to 135% width and height to crop out all branding, title bars, and watermark overlays */}
+              {/* YouTube Iframe - 100% dimensions to fit the entire video perfectly without cropping any lecture content, with pointer-events-none to prevent direct native redirects */}
               <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
                 <iframe
                   id="roboflix-player-iframe"
                   src={getYouTubeEmbedUrl()}
                   title={episode.title}
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  className="w-[135%] h-[135%] border-0 absolute -top-[17.5%] -left-[17.5%]"
+                  className="w-full h-full border-0 absolute top-0 left-0"
                 />
               </div>
 
