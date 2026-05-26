@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, Menu, X, MessageCircle } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 
 export default function VideoPlayerPage() {
   const params = useParams()
+  const router = useRouter()
   const seasonId = parseInt(params.seasonId as string)
   const episodeId = parseInt(params.episodeId as string)
   
@@ -19,13 +20,24 @@ export default function VideoPlayerPage() {
   const [currentTime, setCurrentTime] = useState(0)
   const [doubt, setDoubt] = useState("")
   const [showDoubtForm, setShowDoubtForm] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     const storedUser = localStorage.getItem("lms_user")
     if (!storedUser) {
-      window.location.href = "/lms/login"
+      router.push("/lms/login")
+    } else {
+      setIsLoading(false)
     }
-  }, [])
+  }, [router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-xl font-medium">Loading...</div>
+      </div>
+    )
+  }
 
   if (!season || !episode) {
     return (

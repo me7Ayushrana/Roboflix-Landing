@@ -2,25 +2,37 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useParams } from "next/navigation"
+import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { ArrowLeft, PlayCircle, ChevronDown } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 
 export default function SeasonPage() {
   const params = useParams()
+  const router = useRouter()
   const seasonId = parseInt(params.seasonId as string)
   const season = SEASONS_DATA.find((s) => s.id === seasonId)
   const [showAllEpisodes, setShowAllEpisodes] = useState(false)
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<number | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     // Check if user is logged in
     const storedUser = localStorage.getItem("lms_user")
     if (!storedUser) {
-      window.location.href = "/lms/login"
+      router.push("/lms/login")
+    } else {
+      setIsLoading(false)
     }
-  }, [])
+  }, [router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-white text-xl font-medium">Loading...</div>
+      </div>
+    )
+  }
 
   if (!season) {
     return (
