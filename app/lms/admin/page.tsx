@@ -405,12 +405,38 @@ export default function LmsAdminPanel() {
           try {
             const parsed = JSON.parse(stored)
             setSeasonsData(parsed)
+            
+            // Auto-heal background synchronization: Since Supabase was empty or offline 
+            // but we have custom local changes on the admin browser, automatically sync them to the cloud!
+            if (isSupabaseConfigured()) {
+              supabase
+                .from("roboflix_lms_settings")
+                .upsert({ key: "seasons_data", value: parsed, updated_at: new Date().toISOString() })
+                .then(({ error: upsertErr }) => {
+                  if (!upsertErr) {
+                    console.log("Database Auto-Heal: Synchronized custom videos and links to Supabase! 🌐")
+                    setDbStatus("connected")
+                  }
+                })
+            }
           } catch (e) {
             setSeasonsData(SEASONS_DATA)
           }
         } else {
           setSeasonsData(SEASONS_DATA)
           localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
+          
+          // Seed the database with default SEASONS_DATA in the background since it was empty
+          if (isSupabaseConfigured()) {
+            supabase
+              .from("roboflix_lms_settings")
+              .insert([{ key: "seasons_data", value: SEASONS_DATA, updated_at: new Date().toISOString() }])
+              .then(({ error: insertErr }) => {
+                if (!insertErr) {
+                  setDbStatus("connected")
+                }
+              })
+          }
         }
       }
     }

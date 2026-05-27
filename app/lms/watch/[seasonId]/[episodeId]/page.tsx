@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
@@ -22,8 +22,43 @@ export default function VideoPlayerPage() {
   const episodeId = parseInt(params.episodeId as string)
   
   const [seasonsData, setSeasonsData] = useState(SEASONS_DATA)
+  const [seasonsLoaded, setSeasonsLoaded] = useState(false)
+  const [iframeVideoId, setIframeVideoId] = useState<string>("")
+  const lastLoadedVideoIdRef = useRef<string>("")
+  
   const season = seasonsData.find((s) => s.id === seasonId) || SEASONS_DATA.find((s) => s.id === seasonId)
   const episode = season?.episodes.find((e) => e.id === episodeId)
+
+  // Get dynamic YouTube video ID from episode videoUrl
+  const getVideoId = (url: string) => {
+    let videoId = "yqWX86uT5jM" // Fallback video ID
+    if (url) {
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
+      const match = url.match(regExp)
+      if (match && match[2].length === 11) {
+        videoId = match[2]
+      }
+    }
+    return videoId
+  }
+
+  const currentVideoId = getVideoId(episode?.videoUrl || "")
+
+  const isGDriveUrl = (url: string): boolean => {
+    return url ? url.includes("drive.google.com") : false
+  }
+
+  const getGDriveEmbedUrl = (url: string): string => {
+    if (!url) return ""
+    // Convert view link to preview link
+    const match = url.match(/\/file\/d\/([a-zA-Z0-9_-]+)/)
+    if (match && match[1]) {
+      return `https://drive.google.com/file/d/${match[1]}/preview`
+    }
+    return url
+  }
+
+  const isGdrive = isGDriveUrl(episode?.videoUrl || "")
 
   useEffect(() => {
     const loadSeasons = async () => {
@@ -40,6 +75,15 @@ export default function VideoPlayerPage() {
             setSeasonsData(data.value as any)
             localStorage.setItem("roboflix_lms_seasons", JSON.stringify(data.value))
             loadedFromDb = true
+          } else if (!error && !data) {
+            // Seed cloud database in the background since it is empty!
+            await supabase
+              .from("roboflix_lms_settings")
+              .insert([{ key: "seasons_data", value: SEASONS_DATA, updated_at: new Date().toISOString() }])
+            
+            setSeasonsData(SEASONS_DATA)
+            localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
+            loadedFromDb = true
           }
         } catch (err) {
           console.error("Supabase load seasons error:", err)
@@ -54,18 +98,57 @@ export default function VideoPlayerPage() {
           } catch (e) {
             console.error(e)
           }
+        } else {
+          setSeasonsData(SEASONS_DATA)
+          localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
+          
+          // Seed cloud database offline fallback
+          if (isSupabaseConfigured()) {
+            (async () => {
+              try {
+                await supabase
+                  .from("roboflix_lms_settings")
+                  .insert([{ key: "seasons_data", value: SEASONS_DATA, updated_at: new Date().toISOString() }])
+              } catch (e) {
+                console.error("Background seeding error:", e)
+              }
+            })()
+          }
         }
       }
+      setSeasonsLoaded(true)
     }
 
     loadSeasons()
   }, [])
   
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const [isMobileDevice, setIsMobileDevice] = useState(false)
+  const [showDesktopPopup, setShowDesktopPopup] = useState(false)
   const [currentTime, setCurrentTime] = useState(0)
   const [doubt, setDoubt] = useState("")
   const [showDoubtForm, setShowDoubtForm] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Detect mobile and show popup
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
+      setIsMobileDevice(mobile)
+      if (mobile) {
+        setIsSidebarOpen(false) // Close sidebar by default on mobile
+        if (!sessionStorage.getItem("desktop_popup_dismissed")) {
+          setTimeout(() => setShowDesktopPopup(true), 1000)
+        }
+      }
+    }
+    checkMobile()
+  }, [])
+
+  const dismissDesktopPopup = useCallback(() => {
+    sessionStorage.setItem("desktop_popup_dismissed", "1")
+    setShowDesktopPopup(false)
+  }, [])
 
   // Custom Video Player States
   const [player, setPlayer] = useState<any>(null)
@@ -134,6 +217,8 @@ export default function VideoPlayerPage() {
 
   // 1. Session verification & login guard bypass for free/preview episodes
   useEffect(() => {
+    if (!seasonsLoaded) return
+
     const checkSession = async () => {
       try {
         if (episode && (episode as any).isFree) {
@@ -161,26 +246,24 @@ export default function VideoPlayerPage() {
     }
 
     checkSession()
-  }, [router, episode])
+  }, [router, episode, seasonsLoaded])
 
-  // Get dynamic YouTube video ID from episode videoUrl
-  const getVideoId = (url: string) => {
-    let videoId = "yqWX86uT5jM" // Fallback video ID
-    if (url) {
-      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
-      const match = url.match(regExp)
-      if (match && match[2].length === 11) {
-        videoId = match[2]
-      }
+  // Set the initial iframe video ID once the seasons are loaded
+  useEffect(() => {
+    if (!isLoading && currentVideoId && !iframeVideoId) {
+      setIframeVideoId(currentVideoId)
     }
-    return videoId
-  }
+  }, [isLoading, currentVideoId, iframeVideoId])
 
-  const currentVideoId = getVideoId(episode?.videoUrl || "")
+
 
   // 2. Initialize YouTube Player API
   useEffect(() => {
     if (isLoading) return
+    if (isGdrive) {
+      setPlayer(null)
+      return
+    }
 
     // Load standard YouTube API script asynchronously
     if (!window.YT) {
@@ -192,6 +275,13 @@ export default function VideoPlayerPage() {
 
     const initYTPlayer = () => {
       if (window.YT && window.YT.Player) {
+        const iframeElement = document.getElementById("roboflix-player-iframe")
+        if (!iframeElement) {
+          // If not in DOM yet, retry in 100ms
+          setTimeout(initYTPlayer, 100)
+          return
+        }
+
         new window.YT.Player("roboflix-player-iframe", {
           events: {
             onReady: (event: any) => {
@@ -239,7 +329,7 @@ export default function VideoPlayerPage() {
     return () => {
       window.onYouTubeIframeAPIReady = undefined
     }
-  }, [isLoading])
+  }, [isLoading, isGdrive])
 
   // 3. Track current playback position and duration
   useEffect(() => {
@@ -259,13 +349,20 @@ export default function VideoPlayerPage() {
 
   // 4. Handle video switches dynamically
   useEffect(() => {
-    if (player && player.loadVideoById) {
-      player.loadVideoById({ videoId: currentVideoId })
-      setIsPlaying(false)
-      setCurrentTime(0)
-      setDuration(0)
+    if (player && player.loadVideoById && currentVideoId) {
+      if (lastLoadedVideoIdRef.current !== currentVideoId) {
+        lastLoadedVideoIdRef.current = currentVideoId
+        
+        // If this is not the very first video load (which the iframe src handles natively), load it dynamically
+        if (iframeVideoId && iframeVideoId !== currentVideoId) {
+          player.loadVideoById({ videoId: currentVideoId })
+          setIsPlaying(false)
+          setCurrentTime(0)
+          setDuration(0)
+        }
+      }
     }
-  }, [currentVideoId, player])
+  }, [currentVideoId, player, iframeVideoId])
 
   // 5. Fullscreen event handling
   useEffect(() => {
@@ -314,6 +411,29 @@ export default function VideoPlayerPage() {
       }, 2500)
     }
   }
+
+  // Touch tap handler — toggle controls visibility on first tap, play/pause on second tap (mobile)
+  const handleTouchToggleControls = useCallback(() => {
+    if (!showControls) {
+      setShowControls(true)
+      if (isPlaying) {
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+        controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 2500)
+      }
+    } else if (player) {
+      // Second tap — inline toggle to avoid forward reference
+      if (isPlaying) {
+        player.pauseVideo()
+        setIsPlaying(false)
+      } else {
+        player.unMute()
+        player.playVideo()
+        setIsPlaying(true)
+        if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
+        controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 2500)
+      }
+    }
+  }, [showControls, isPlaying, player])
 
   const handleMouseLeave = () => {
     if (isPlaying) {
@@ -631,7 +751,7 @@ export default function VideoPlayerPage() {
     // enablejsapi=1 is REQUIRED to control the iframe programmatically
     // controls=0 disables standard player bar, disablekb=1 disables shortcut keys
     // modestbranding=1 disables logo overlays, fs=0 disables standard fullscreen button
-    return `https://www.youtube-nocookie.com/embed/${currentVideoId}?enablejsapi=1&controls=0&disablekb=1&fs=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&autoplay=0&playsinline=1`
+    return `https://www.youtube-nocookie.com/embed/${iframeVideoId || currentVideoId}?enablejsapi=1&controls=0&disablekb=1&fs=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&autoplay=0&playsinline=1`
   }
 
   const renderHudIcon = () => {
@@ -688,37 +808,53 @@ export default function VideoPlayerPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex gap-0 md:gap-6 px-4 sm:px-6 py-6">
+      <main className="flex flex-col md:flex-row gap-0 md:gap-6 px-2 sm:px-4 md:px-6 py-4 md:py-6">
         {/* Video Player - Center */}
-        <div className="flex-1 min-w-0 order-2 md:order-1">
+        <div className="flex-1 min-w-0 order-1">
           {/* Custom Video Player Container */}
-          <div className="mb-6">
+          <div className="mb-4 md:mb-6">
             <div 
               ref={containerRef}
               onMouseMove={handleMouseMove}
               onMouseLeave={handleMouseLeave}
-              className="relative w-full bg-[#080808] rounded-[24px] overflow-hidden aspect-video border border-white/10 shadow-[0_30px_70px_rgba(0,0,0,0.95)] transition-all duration-300"
+              onTouchStart={!isGdrive ? handleTouchToggleControls : undefined}
+              className="relative w-full bg-[#080808] rounded-[16px] md:rounded-[24px] overflow-hidden aspect-video border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.95)] md:shadow-[0_30px_70px_rgba(0,0,0,0.95)] transition-all duration-300"
             >
-              {/* YouTube Iframe - 100% dimensions, pointer-isolated, always rendered for API control */}
-              <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
-                <iframe
-                  id="roboflix-player-iframe"
-                  src={getYouTubeEmbedUrl()}
-                  title={episode.title}
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  className={`w-full h-full border-0 absolute top-0 left-0 pointer-events-none transition-opacity duration-150 ${
-                    isPlaying ? "opacity-100" : "opacity-0"
-                  }`}
-                  tabIndex={-1}
-                />
-              </div>
+              {/* Conditional Video Players */}
+              {isGdrive ? (
+                <div className="absolute inset-0 w-full h-full">
+                  <iframe
+                    src={getGDriveEmbedUrl(episode.videoUrl)}
+                    title={episode.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    className="w-full h-full border-0 absolute top-0 left-0 z-30 bg-black rounded-[24px]"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                /* YouTube Iframe - 100% dimensions, pointer-isolated, always rendered for API control */
+                <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+                  <iframe
+                    id="roboflix-player-iframe"
+                    src={getYouTubeEmbedUrl()}
+                    title={episode.title}
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    className={`w-full h-full border-0 absolute top-0 left-0 pointer-events-none transition-opacity duration-150 ${
+                      isPlaying ? "opacity-100" : "opacity-0"
+                    }`}
+                    tabIndex={-1}
+                  />
+                </div>
+              )}
 
               {/* Permanent Privacy Shield — controlled via DOM ref (zero React async delay). Opacity toggled synchronously inside YouTube's own onStateChange callback. Always mounted so there is never a missing-frame gap. */}
-              <div
-                ref={shieldRef}
-                style={{ opacity: 1, pointerEvents: "auto", transition: "opacity 80ms linear" }}
-                className="absolute inset-0 bg-black z-[15]"
-              />
+              {!isGdrive && (
+                <div
+                  ref={shieldRef}
+                  style={{ opacity: 1, pointerEvents: "auto", transition: "opacity 80ms linear" }}
+                  className="absolute inset-0 bg-black z-[15]"
+                />
+              )}
 
               {/* YouTube Native Title Blocker Overlay (Privacy Control) - completely blocks native header titles at start/seeks with zero cropping */}
               <AnimatePresence>
@@ -751,63 +887,70 @@ export default function VideoPlayerPage() {
               </div>
 
               {/* Permanent Premium Subtle Watermark Pill - Floating perfectly above the bottom control dock, covering any possible native logo trace */}
-              <div 
-                className={`absolute bottom-[92px] right-6 px-3 py-1.5 bg-black/60 backdrop-blur-sm border border-white/5 rounded-full text-[10px] font-semibold tracking-wider text-red-500/80 select-none pointer-events-none z-20 shadow-2xl flex items-center gap-1.5 transition-all duration-300 ${
-                  showControls ? "opacity-100" : "opacity-0"
-                }`}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
-                ROBOFLIX PRO
-              </div>
+              {!isGdrive && (
+                <div 
+                  className={`absolute bottom-[92px] right-6 px-3 py-1.5 bg-black/60 backdrop-blur-sm border border-white/5 rounded-full text-[10px] font-semibold tracking-wider text-red-500/80 select-none pointer-none z-20 shadow-2xl flex items-center gap-1.5 transition-all duration-300 ${
+                    showControls ? "opacity-100" : "opacity-0"
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-ping" />
+                  ROBOFLIX PRO
+                </div>
+              )}
 
               {/* Clickable Overlay - Single click to toggle Play/Pause, Double click to toggle Fullscreen */}
-              <div 
-                onClick={togglePlay}
-                onDoubleClick={handleFullscreen}
-                className="absolute inset-0 cursor-pointer z-10"
-              />
+              {!isGdrive && (
+                <div 
+                  onClick={togglePlay}
+                  onDoubleClick={handleFullscreen}
+                  className="absolute inset-0 cursor-pointer z-10"
+                />
+              )}
 
               {/* Premium Pause/Load Overlay - 100% opaque solid black to completely cover native pause recommends and logos */}
-              {!isPlaying && (
+              {!isGdrive && !isPlaying && (
                 <div 
                   className="absolute inset-0 flex flex-col items-center justify-center bg-black pointer-events-none transition-all duration-300 z-20 animate-fade-in"
                 >
                   <div className="w-16 h-16 bg-red-600 rounded-full flex items-center justify-center shadow-2xl hover:scale-105 transition-all mb-4">
                     <Play className="w-8 h-8 fill-current text-white ml-1 animate-pulse" />
                   </div>
-                  <span className="text-sm font-semibold tracking-widest text-gray-300 uppercase select-none">
+                  <span className="text-sm font-semibold tracking-widest text-gray-305 uppercase select-none">
                     Click to Resume Lecture
                   </span>
                 </div>
               )}
 
               {/* Centered Premium Glassmorphic HUD Toast Notification with dynamic crimson pulse glow */}
-              <AnimatePresence>
-                {hud && (
-                  <motion.div
-                    key={hud.key}
-                    initial={{ opacity: 0, scale: 0.6, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.6, y: -20 }}
-                    transition={{ type: "spring", stiffness: 450, damping: 22 }}
-                    className="absolute inset-0 m-auto w-32 h-32 bg-black/85 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col items-center justify-center pointer-events-none z-40 shadow-[0_12px_45px_rgba(0,0,0,0.8)] border-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.15)] animate-pulse"
-                  >
-                    <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 text-red-500 mb-2.5 shadow-[0_0_15px_rgba(239,68,68,0.15)]">
-                      {renderHudIcon()}
-                    </div>
-                    <span className="text-[10px] font-extrabold tracking-widest text-gray-200 uppercase font-mono text-center px-2 truncate max-w-full">
-                      {hud.label}
-                    </span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              {!isGdrive && (
+                <AnimatePresence>
+                  {hud && (
+                    <motion.div
+                      key={hud.key}
+                      initial={{ opacity: 0, scale: 0.6, y: 20 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.6, y: -20 }}
+                      transition={{ type: "spring", stiffness: 450, damping: 22 }}
+                      className="absolute inset-0 m-auto w-32 h-32 bg-black/85 backdrop-blur-md border border-white/10 rounded-2xl flex flex-col items-center justify-center pointer-events-none z-40 shadow-[0_12px_45px_rgba(0,0,0,0.8)] border-red-500/10 shadow-[0_0_20px_rgba(239,68,68,0.15)] animate-pulse"
+                    >
+                      <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center border border-red-500/20 text-red-500 mb-2.5 shadow-[0_0_15px_rgba(239,68,68,0.15)]">
+                        {renderHudIcon()}
+                      </div>
+                      <span className="text-[10px] font-extrabold tracking-widest text-gray-200 uppercase font-mono text-center px-2 truncate max-w-full">
+                        {hud.label}
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              )}
 
               {/* Custom Widescreen Floating Control Dock - high z-index (z-30) to capture click actions */}
-              <div 
-                className={`absolute bottom-4 left-4 right-4 p-4 bg-black/80 backdrop-blur-md border border-white/5 rounded-xl flex flex-col gap-3.5 transition-all duration-300 z-30 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] ${
-                  showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-                }`}
-              >
+              {!isGdrive && (
+                <div 
+                  className={`absolute bottom-4 left-4 right-4 p-4 bg-black/80 backdrop-blur-md border border-white/5 rounded-xl flex flex-col gap-3.5 transition-all duration-300 z-30 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] ${
+                    showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+                  }`}
+                >
                 {/* Progress Bar (Timeline Seek) */}
                 <div className="flex items-center gap-3.5 w-full">
                   <span className="text-xs font-semibold font-mono text-gray-400 select-none">{formatTime(currentTime)}</span>
@@ -968,6 +1111,7 @@ export default function VideoPlayerPage() {
                   </div>
                 </div>
               </div>
+              )}
             </div>
           </div>
 
@@ -1078,10 +1222,10 @@ export default function VideoPlayerPage() {
         {/* Sidebar - Episodes Navigation */}
         {isSidebarOpen && (
           <motion.div
-            initial={{ x: 400, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            exit={{ x: 400, opacity: 0 }}
-            className="w-full md:w-80 order-1 md:order-2 flex flex-col h-fit sticky top-20"
+            initial={isMobileDevice ? { y: 40, opacity: 0 } : { x: 400, opacity: 0 }}
+            animate={isMobileDevice ? { y: 0, opacity: 1 } : { x: 0, opacity: 1 }}
+            exit={isMobileDevice ? { y: 40, opacity: 0 } : { x: 400, opacity: 0 }}
+            className="w-full md:w-80 order-2 flex flex-col h-fit md:sticky md:top-20"
           >
             <div className="bg-gray-900 border border-gray-800 rounded-lg overflow-hidden">
               {/* All Episodes Header */}
@@ -1134,6 +1278,39 @@ export default function VideoPlayerPage() {
           </motion.div>
         )}
       </main>
+
+      {/* Desktop Recommended Popup — mobile only, once per session */}
+      <AnimatePresence>
+        {showDesktopPopup && (
+          <motion.div
+            key="desktop-popup"
+            initial={{ opacity: 0, y: 60, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 60, scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28 }}
+            className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[9998] w-[calc(100vw-32px)] max-w-sm pointer-events-auto"
+            role="alert"
+          >
+            <div className="relative flex items-start gap-3.5 px-4 py-3.5 bg-black/95 border border-red-600/40 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.9)] backdrop-blur-md">
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-red-600/20 via-transparent to-transparent pointer-events-none" />
+              <div className="mt-0.5 flex-shrink-0 w-9 h-9 rounded-xl bg-red-600/15 border border-red-600/30 flex items-center justify-center text-xl">
+                🖥️
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-sm leading-snug">Desktop Recommended</p>
+                <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">For the best Roboflix experience, open on a desktop or laptop.</p>
+              </div>
+              <button
+                onClick={dismissDesktopPopup}
+                aria-label="Dismiss"
+                className="flex-shrink-0 p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors mt-0.5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

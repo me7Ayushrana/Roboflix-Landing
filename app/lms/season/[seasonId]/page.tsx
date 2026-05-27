@@ -33,6 +33,15 @@ export default function SeasonPage() {
             setSeasonsData(data.value as any)
             localStorage.setItem("roboflix_lms_seasons", JSON.stringify(data.value))
             loadedFromDb = true
+          } else if (!error && !data) {
+            // Seed cloud database in the background since it is empty!
+            await supabase
+              .from("roboflix_lms_settings")
+              .insert([{ key: "seasons_data", value: SEASONS_DATA, updated_at: new Date().toISOString() }])
+            
+            setSeasonsData(SEASONS_DATA)
+            localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
+            loadedFromDb = true
           }
         } catch (err) {
           console.error("Supabase load seasons error:", err)
@@ -46,6 +55,22 @@ export default function SeasonPage() {
             setSeasonsData(JSON.parse(stored))
           } catch (e) {
             console.error(e)
+          }
+        } else {
+          setSeasonsData(SEASONS_DATA)
+          localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
+          
+          // Seed cloud database offline fallback
+          if (isSupabaseConfigured()) {
+            (async () => {
+              try {
+                await supabase
+                  .from("roboflix_lms_settings")
+                  .insert([{ key: "seasons_data", value: SEASONS_DATA, updated_at: new Date().toISOString() }])
+              } catch (e) {
+                console.error("Background seeding error:", e)
+              }
+            })()
           }
         }
       }

@@ -18,6 +18,35 @@ function formatTime(seconds: number) {
 }
 
 export function HeroSection() {
+  // ── mobile detection ──
+  const [isMobile, setIsMobile] = useState(false)
+  const [showDesktopPopup, setShowDesktopPopup] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
+      setIsMobile(mobile)
+      // Show "Desktop Recommended" popup once per session on mobile
+      if (mobile && !sessionStorage.getItem("desktop_popup_dismissed")) {
+        // Small delay so page has settled
+        setTimeout(() => setShowDesktopPopup(true), 800)
+      }
+    }
+    checkMobile()
+    window.addEventListener("resize", checkMobile)
+    return () => window.removeEventListener("resize", checkMobile)
+  }, [])
+
+  const dismissDesktopPopup = () => {
+    sessionStorage.setItem("desktop_popup_dismissed", "1")
+    setShowDesktopPopup(false)
+  }
+
+  // ── open trailer: always open on YouTube (all devices) ──
+  const openTrailer = useCallback(() => {
+    window.open(`https://www.youtube.com/watch?v=${TRAILER_VIDEO_ID}`, "_blank", "noopener,noreferrer")
+  }, [])
+
   // ── modal open/close ──
   const [trailerOpen, setTrailerOpen]   = useState(false)
 
@@ -366,10 +395,10 @@ export function HeroSection() {
         <div className="absolute inset-0 bg-gradient-to-b from-red-950/30 via-transparent to-transparent" />
 
         <div className="relative z-10 w-full max-w-5xl mx-auto">
-          {/* Thumbnail — clicking opens trailer */}
+          {/* Thumbnail — clicking opens trailer (YouTube on mobile, modal on desktop) */}
           <div
             className="mb-12 group cursor-pointer"
-            onClick={() => setTrailerOpen(true)}
+            onClick={openTrailer}
             role="button"
             aria-label="Watch Roboflix Trailer"
           >
@@ -429,7 +458,7 @@ export function HeroSection() {
               {/* ── WATCH TRAILER BUTTON ── */}
               <button
                 id="hero-watch-trailer-btn"
-                onClick={() => setTrailerOpen(true)}
+                onClick={openTrailer}
                 className="group w-full sm:w-auto relative flex items-center justify-center gap-3 px-8 py-4 rounded-lg text-base sm:text-lg font-semibold text-white border border-red-600/50 bg-black/60 backdrop-blur-sm hover:border-red-500 hover:bg-red-950/30 transition-all duration-300 overflow-hidden shadow-lg shadow-black/40"
               >
                 <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-red-600/15 to-transparent" />
@@ -461,6 +490,44 @@ export function HeroSection() {
           </div>
         </div>
       </section>
+
+      {/* ── DESKTOP RECOMMENDED POPUP (mobile only, once per session) ── */}
+      <AnimatePresence>
+        {showDesktopPopup && (
+          <motion.div
+            key="desktop-popup"
+            initial={{ opacity: 0, y: 60, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 60, scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28 }}
+            className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[9998] w-[calc(100vw-32px)] max-w-sm pointer-events-auto"
+            role="alert"
+            aria-live="polite"
+          >
+            <div className="relative flex items-start gap-3.5 px-4 py-3.5 bg-black/95 border border-red-600/40 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.9)] backdrop-blur-md">
+              {/* Glow accent */}
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-red-600/20 via-transparent to-transparent pointer-events-none" />
+              {/* Icon */}
+              <div className="mt-0.5 flex-shrink-0 w-9 h-9 rounded-xl bg-red-600/15 border border-red-600/30 flex items-center justify-center text-xl">
+                🖥️
+              </div>
+              {/* Text */}
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-sm leading-snug">Desktop Recommended</p>
+                <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">For the best Roboflix experience, open on a desktop or laptop.</p>
+              </div>
+              {/* Close */}
+              <button
+                onClick={dismissDesktopPopup}
+                aria-label="Dismiss"
+                className="flex-shrink-0 p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors mt-0.5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── TRAILER MODAL ──────────────────────────────────────── */}
       <AnimatePresence>
