@@ -373,20 +373,49 @@ export default function LmsAdminPanel() {
 
   // ─── Data Initialization ───────────────────────────────────────
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("roboflix_lms_seasons")
-      if (stored) {
+    const loadSeasons = async () => {
+      let loadedFromDb = false
+      if (isSupabaseConfigured()) {
         try {
-          const parsed = JSON.parse(stored)
-          setSeasonsData(parsed)
-        } catch (e) {
-          setSeasonsData(SEASONS_DATA)
+          const { data, error } = await supabase
+            .from("roboflix_lms_settings")
+            .select("value")
+            .eq("key", "seasons_data")
+            .maybeSingle()
+
+          if (error) {
+            console.error("Supabase load seasons error:", error)
+            const errMsg = error.message || ""
+            if (error.code === "42P01" || errMsg.includes("does not exist") || errMsg.includes("schema cache")) {
+              setDbStatus("missing_table")
+            }
+          } else if (data && data.value) {
+            setSeasonsData(data.value as any)
+            localStorage.setItem("roboflix_lms_seasons", JSON.stringify(data.value))
+            loadedFromDb = true
+          }
+        } catch (err) {
+          console.error("Supabase load seasons error:", err)
         }
-      } else {
-        setSeasonsData(SEASONS_DATA)
-        localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
+      }
+
+      if (!loadedFromDb && typeof window !== "undefined") {
+        const stored = localStorage.getItem("roboflix_lms_seasons")
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored)
+            setSeasonsData(parsed)
+          } catch (e) {
+            setSeasonsData(SEASONS_DATA)
+          }
+        } else {
+          setSeasonsData(SEASONS_DATA)
+          localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
+        }
       }
     }
+
+    loadSeasons()
   }, [])
 
   // ─── Parse YouTube Video ID on Input Change ───────────────────
@@ -475,7 +504,36 @@ export default function LmsAdminPanel() {
     setTimeout(() => setToastMessage(""), 3000)
   }
 
-  const saveEpisode = () => {
+  const saveSeasonsToCloud = async (updated: Season[]) => {
+    let isSavedInSupabase = false
+    if (isSupabaseConfigured() && dbStatus !== "missing_table") {
+      try {
+        const { error } = await supabase
+          .from("roboflix_lms_settings")
+          .upsert({ key: "seasons_data", value: updated, updated_at: new Date().toISOString() })
+
+        if (error) {
+          console.error("Supabase upsert seasons error:", error)
+          const errMsg = error.message || ""
+          if (error.code === "42P01" || errMsg.includes("does not exist") || errMsg.includes("schema cache")) {
+            setDbStatus("missing_table")
+          }
+          alert(`⚠️ Database Write Failed: ${error.message || "Failed to save to cloud database"}.\n\nYour changes are saved locally to this device but won't be accessible on other devices until the Supabase table 'roboflix_lms_settings' is configured.`)
+        } else {
+          isSavedInSupabase = true
+          setDbStatus("connected")
+        }
+      } catch (err: any) {
+        console.error("Supabase upsert seasons exception:", err)
+        alert(`⚠️ Database Sync Offline: ${err.message || "Connection timed out"}.\n\nYour changes are saved locally to this device.`)
+      }
+    } else if (dbStatus === "missing_table") {
+      alert("⚠️ Database Sync Offline: The 'roboflix_lms_settings' table is missing in Supabase.\n\nYour changes are saved locally to this device but won't be accessible on other devices until table configuration is applied.")
+    }
+    return isSavedInSupabase
+  }
+
+  const saveEpisode = async () => {
     if (!epTitle.trim()) {
       alert("Episode Title is required")
       return
@@ -527,10 +585,12 @@ export default function LmsAdminPanel() {
 
     setSeasonsData(updatedSeasons)
     localStorage.setItem("roboflix_lms_seasons", JSON.stringify(updatedSeasons))
-    showToast("Episode saved successfully! 🚀")
+    
+    const isCloudSaved = await saveSeasonsToCloud(updatedSeasons)
+    showToast(isCloudSaved ? "Episode saved globally! 🚀" : "Episode saved locally. 💻")
   }
 
-  const deleteEpisode = () => {
+  const deleteEpisode = async () => {
     if (selectedEpisodeId === "new") return
     if (!confirm("Are you sure you want to delete this episode? This cannot be undone.")) return
 
@@ -548,16 +608,20 @@ export default function LmsAdminPanel() {
     // Select first episode of season after deletion
     const firstEp = updatedSeasons.find(s => s.id === selectedSeasonId)?.episodes[0]
     setSelectedEpisodeId(firstEp ? firstEp.id : "new")
-    showToast("Episode deleted successfully")
+    
+    const isCloudSaved = await saveSeasonsToCloud(updatedSeasons)
+    showToast(isCloudSaved ? "Episode deleted globally" : "Episode deleted locally")
   }
 
-  const resetAllData = () => {
+  const resetAllData = async () => {
     if (!confirm("This will erase all custom episodes, YouTube links, and media uploads, restoring Roboflix data to defaults. Continue?")) return
     setSeasonsData(SEASONS_DATA)
     localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
     setSelectedSeasonId(1)
     setSelectedEpisodeId(1)
-    showToast("All data restored to system defaults 🔄")
+    
+    const isCloudSaved = await saveSeasonsToCloud(SEASONS_DATA)
+    showToast(isCloudSaved ? "All data restored to system defaults globally 🔄" : "All data restored to system defaults locally 🔄")
   }
 
   if (isLoading || seasonsData.length === 0) {
@@ -1247,7 +1311,12 @@ export default function LmsAdminPanel() {
                   <span>PostgreSQL Schema Script</span>
                   <button
                     onClick={() => {
-                      const sqlText = `create table public.roboflix_lms_users (
+                      const sqlText = `-- Drop existing tables to ensure a clean, fresh setup
+drop table if exists public.roboflix_lms_users cascade;
+drop table if exists public.roboflix_lms_settings cascade;
+
+-- 1. Create Student Subscriptions Table
+create table public.roboflix_lms_users (
   id uuid default gen_random_uuid() primary key,
   email text unique not null,
   phone text not null, -- Password
@@ -1256,14 +1325,28 @@ export default function LmsAdminPanel() {
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Enable Row Level Security
+-- Enable Row Level Security on Users
 alter table public.roboflix_lms_users enable row level security;
 
--- Create Open Access Policies for simplified public operations
+-- Create Open Access Policies for simplified public operations on Users
 create policy "Allow public read" on public.roboflix_lms_users for select using (true);
 create policy "Allow public insert" on public.roboflix_lms_users for insert with check (true);
 create policy "Allow public update" on public.roboflix_lms_users for update using (true) with check (true);
-create policy "Allow public delete" on public.roboflix_lms_users for delete using (true);`
+create policy "Allow public delete" on public.roboflix_lms_users for delete using (true);
+
+-- 2. Create LMS settings & Widescreen Lecture settings table
+create table public.roboflix_lms_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable Row Level Security on Settings
+alter table public.roboflix_lms_settings enable row level security;
+
+-- Create Open Access Policies for Settings
+create policy "Allow public read settings" on public.roboflix_lms_settings for select using (true);
+create policy "Allow public write settings" on public.roboflix_lms_settings for all using (true) with check (true);`
                       navigator.clipboard.writeText(sqlText)
                       showToast("SQL Script copied to clipboard! 📋")
                     }}
@@ -1273,7 +1356,11 @@ create policy "Allow public delete" on public.roboflix_lms_users for delete usin
                   </button>
                 </div>
                 <pre className="p-4 overflow-x-auto text-gray-300 max-h-[220px] overflow-y-auto leading-relaxed select-text font-mono text-left">
-{`create table public.roboflix_lms_users (
+{`drop table if exists public.roboflix_lms_users cascade;
+drop table if exists public.roboflix_lms_settings cascade;
+
+-- 1. Create Student Subscriptions Table
+create table public.roboflix_lms_users (
   id uuid default gen_random_uuid() primary key,
   email text unique not null,
   phone text not null, -- Password
@@ -1282,14 +1369,28 @@ create policy "Allow public delete" on public.roboflix_lms_users for delete usin
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
--- Enable Row Level Security
+-- Enable Row Level Security on Users
 alter table public.roboflix_lms_users enable row level security;
 
--- Create Open Access Policies for simplified public operations
+-- Create Open Access Policies for simplified public operations on Users
 create policy "Allow public read" on public.roboflix_lms_users for select using (true);
 create policy "Allow public insert" on public.roboflix_lms_users for insert with check (true);
 create policy "Allow public update" on public.roboflix_lms_users for update using (true) with check (true);
-create policy "Allow public delete" on public.roboflix_lms_users for delete using (true);`}
+create policy "Allow public delete" on public.roboflix_lms_users for delete using (true);
+
+-- 2. Create LMS settings & Widescreen Lecture settings table
+create table public.roboflix_lms_settings (
+  key text primary key,
+  value jsonb not null,
+  updated_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable Row Level Security on Settings
+alter table public.roboflix_lms_settings enable row level security;
+
+-- Create Open Access Policies for Settings
+create policy "Allow public read settings" on public.roboflix_lms_settings for select using (true);
+create policy "Allow public write settings" on public.roboflix_lms_settings for all using (true) with check (true);`}
                 </pre>
               </div>
 

@@ -26,18 +26,41 @@ export default function LmsDashboardPage() {
   const [passwordSuccess, setPasswordSuccess] = useState("")
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("roboflix_lms_seasons")
-      if (stored) {
+    const loadSeasons = async () => {
+      let loadedFromDb = false
+      if (isSupabaseConfigured()) {
         try {
-          setSeasonsData(JSON.parse(stored))
-        } catch (e) {
-          console.error(e)
+          const { data, error } = await supabase
+            .from("roboflix_lms_settings")
+            .select("value")
+            .eq("key", "seasons_data")
+            .maybeSingle()
+
+          if (!error && data && data.value) {
+            setSeasonsData(data.value as any)
+            localStorage.setItem("roboflix_lms_seasons", JSON.stringify(data.value))
+            loadedFromDb = true
+          }
+        } catch (err) {
+          console.error("Supabase load seasons error:", err)
         }
-      } else {
-        localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
+      }
+
+      if (!loadedFromDb && typeof window !== "undefined") {
+        const stored = localStorage.getItem("roboflix_lms_seasons")
+        if (stored) {
+          try {
+            setSeasonsData(JSON.parse(stored))
+          } catch (e) {
+            console.error(e)
+          }
+        } else {
+          localStorage.setItem("roboflix_lms_seasons", JSON.stringify(SEASONS_DATA))
+        }
       }
     }
+
+    loadSeasons()
   }, [])
 
   useEffect(() => {
