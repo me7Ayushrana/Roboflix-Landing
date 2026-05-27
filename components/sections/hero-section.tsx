@@ -606,44 +606,44 @@ export function HeroSection() {
                   </AnimatePresence>
 
                   {/* ── BOTTOM CONTROL DOCK ── */}
-                  <div className={`absolute bottom-3 left-3 right-3 p-3.5 bg-black/80 backdrop-blur-md border border-white/5 rounded-xl flex flex-col gap-3 transition-all duration-300 z-30 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] ${showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
+                  <div className={`absolute bottom-2 left-2 right-2 sm:bottom-3 sm:left-3 sm:right-3 p-2 sm:p-3.5 bg-black/85 backdrop-blur-md border border-white/5 rounded-xl flex flex-col gap-2.5 sm:gap-3 transition-all duration-300 z-30 shadow-[0_8px_32px_0_rgba(0,0,0,0.8)] ${showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"}`}>
 
                     {/* Progress bar */}
-                    <div className="flex items-center gap-3 w-full">
-                      <span className="text-[11px] font-semibold font-mono text-gray-400 select-none">{formatTime(currentTime)}</span>
+                    <div className="flex items-center gap-2 sm:gap-3 w-full">
+                      <span className="text-[9px] sm:text-[11px] font-semibold font-mono text-gray-400 select-none">{formatTime(currentTime)}</span>
                       <input
                         type="range" min={0} max={duration || 100} value={currentTime}
                         onChange={handleSeek}
                         className="flex-1 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-red-600 outline-none hover:h-2 transition-all"
                         style={{ background: `linear-gradient(to right, #dc2626 0%, #dc2626 ${(currentTime/(duration||1))*100}%, rgba(255,255,255,0.1) ${(currentTime/(duration||1))*100}%, rgba(255,255,255,0.1) 100%)` }}
                       />
-                      <span className="text-[11px] font-semibold font-mono text-gray-400 select-none">{formatTime(duration)}</span>
+                      <span className="text-[9px] sm:text-[11px] font-semibold font-mono text-gray-400 select-none">{formatTime(duration)}</span>
                     </div>
 
                     {/* Buttons row */}
                     <div className="flex items-center justify-between w-full">
                       {/* Left: Play/Pause, Skip, Volume */}
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5 sm:gap-3">
                         {/* Play / Pause */}
                         <button onClick={(e) => { e.stopPropagation(); togglePlay() }} title={isPlaying ? "Pause" : "Play"}
-                          className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg shadow-red-600/35 hover:scale-105 active:scale-95 transition-all">
-                          {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+                          className="p-1.5 sm:p-2 bg-red-600 hover:bg-red-700 text-white rounded-full shadow-lg shadow-red-600/35 hover:scale-105 active:scale-95 transition-all">
+                          {isPlaying ? <Pause className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current" /> : <Play className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current ml-0.5" />}
                         </button>
                         {/* Skip back */}
                         <button onClick={(e) => { e.stopPropagation(); skipBackward() }} title="Rewind 10s"
-                          className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95">
-                          <RotateCcw className="w-4 h-4" />
+                          className="p-1.5 sm:p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95">
+                          <RotateCcw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                         {/* Skip forward */}
                         <button onClick={(e) => { e.stopPropagation(); skipForward() }} title="Forward 10s"
-                          className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95">
-                          <RotateCw className="w-4 h-4" />
+                          className="p-1.5 sm:p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95">
+                          <RotateCw className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         </button>
                         {/* Volume */}
                         <div className="flex items-center group/vol" onClick={(e) => e.stopPropagation()}>
                           <button onClick={(e) => { e.stopPropagation(); toggleMute() }} title={isMuted ? "Unmute" : "Mute"}
-                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all z-10">
-                            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+                            className="p-1.5 sm:p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all z-10">
+                            {isMuted ? <VolumeX className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Volume2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                           </button>
                           <div className="w-0 group-hover/vol:w-20 group-hover/vol:ml-2 overflow-hidden transition-all duration-300 flex items-center h-8"
                             onClick={(e) => e.stopPropagation()}
@@ -661,12 +661,12 @@ export function HeroSection() {
                       </div>
 
                       {/* Right: Speed, Quality, Fullscreen */}
-                      <div className="flex items-center gap-3 relative">
+                      <div className="flex items-center gap-1.5 sm:gap-3 relative">
                         {/* Speed */}
                         <div className="relative">
                           <button onClick={(e) => { e.stopPropagation(); setShowSpeedMenu(p => !p); setShowQualityMenu(false) }} title="Playback Speed"
-                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase">
-                            <Gauge className="w-3.5 h-3.5" />
+                            className="p-1.5 sm:p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all flex items-center gap-1 sm:gap-1.5 text-[8px] sm:text-[10px] font-bold tracking-wider sm:tracking-widest uppercase">
+                            <Gauge className="w-3 sm:w-3.5 sm:h-3.5" />
                             <span>{playbackSpeed === 1 ? "1.0x" : `${playbackSpeed}x`}</span>
                           </button>
                           {showSpeedMenu && (
@@ -685,8 +685,8 @@ export function HeroSection() {
                         {/* Quality */}
                         <div className="relative">
                           <button onClick={(e) => { e.stopPropagation(); setShowQualityMenu(p => !p); setShowSpeedMenu(false) }} title="Video Quality"
-                            className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase">
-                            <Settings className="w-3.5 h-3.5" />
+                            className="p-1.5 sm:p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all flex items-center gap-1 sm:gap-1.5 text-[8px] sm:text-[10px] font-bold tracking-wider sm:tracking-widest uppercase">
+                            <Settings className="w-3 sm:w-3.5 sm:h-3.5" />
                             <span>{getQualityName(playbackQuality)}</span>
                           </button>
                           {showQualityMenu && (
@@ -709,10 +709,10 @@ export function HeroSection() {
                           rel="noopener noreferrer"
                           title="Watch on YouTube"
                           onClick={(e) => e.stopPropagation()}
-                          className="p-2 bg-white/5 hover:bg-[#ff0000]/20 rounded-full text-gray-300 hover:text-[#ff0000] transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-lg"
+                          className="p-1.5 sm:p-2 bg-white/5 hover:bg-[#ff0000]/20 rounded-full text-gray-300 hover:text-[#ff0000] transition-all hover:scale-105 active:scale-95 flex items-center justify-center shadow-lg"
                         >
                           <svg
-                            className="w-4 h-4 fill-current"
+                            className="w-3.5 h-3.5 sm:w-4 sm:h-4 fill-current"
                             viewBox="0 0 24 24"
                             xmlns="http://www.w3.org/2000/svg"
                           >
@@ -722,8 +722,8 @@ export function HeroSection() {
 
                         {/* Fullscreen */}
                         <button onClick={(e) => { e.stopPropagation(); handleFullscreen() }} title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                          className="p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95">
-                          {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                          className="p-1.5 sm:p-2 bg-white/5 hover:bg-white/10 rounded-full hover:text-red-500 text-gray-300 transition-all hover:scale-105 active:scale-95">
+                          {isFullscreen ? <Minimize className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Maximize className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                         </button>
                       </div>
                     </div>
@@ -731,8 +731,8 @@ export function HeroSection() {
                 </div>
 
                 {/* ── BOTTOM BAR ── */}
-                <div className="flex items-center justify-between px-5 py-3 bg-black/70 backdrop-blur-sm border-t border-white/5">
-                  <p className="text-xs text-gray-500 tracking-wide">
+                <div className="flex items-center justify-center md:justify-between px-5 py-3 bg-black/70 backdrop-blur-sm border-t border-white/5">
+                  <p className="hidden md:block text-xs text-gray-500 tracking-wide">
                     <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white/5 border border-white/10 rounded text-gray-400">Space</kbd>{" "}
                     Play/Pause &nbsp;·&nbsp;
                     <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-white/5 border border-white/10 rounded text-gray-400">F</kbd>{" "}
@@ -741,7 +741,7 @@ export function HeroSection() {
                     Close
                   </p>
                   <Link href="#pricing" onClick={closeTrailer}>
-                    <button className="flex items-center gap-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold tracking-wider uppercase rounded-lg transition-colors duration-200 shadow-lg shadow-red-600/30">
+                    <button className="flex items-center gap-2 px-5 py-2.5 md:px-4 md:py-2 bg-red-600 hover:bg-red-700 text-white text-xs font-bold tracking-wider uppercase rounded-lg transition-colors duration-200 shadow-lg shadow-red-600/35 hover:scale-105">
                       <Play className="w-3 h-3 fill-white" />
                       Join Now
                     </button>
