@@ -141,30 +141,40 @@ export default function LmsAdminPanel() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("roboflix_lms_users")
+      const defaultList = [
+        { email: "hloshishirdwivedi@gmail.com", phone: "6260087052", status: "Active", tier: "Founding Batch" },
+        { email: "rkrohan0718@gmail.com", phone: "8449844821", status: "Active", tier: "Pro" },
+        { email: "sid22prakash@gmail.com", phone: "9074423858", status: "Active", tier: "Pro" },
+        { email: "ansh.ritesh.singh.2010@gmail.com", phone: "9049410576", status: "Active", tier: "Pro" },
+        { email: "jemit57@gmail.com", phone: "437-224-3735", status: "Active", tier: "Founding Batch" },
+        { email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" },
+      ] as UserAccess[]
+
       if (stored) {
         try {
-          setUsersList(JSON.parse(stored))
+          const parsed = JSON.parse(stored) as UserAccess[]
+          const ishinder = parsed.find(u => u.email.toLowerCase() === "ishinder@gmail.com")
+          let updated = false
+          
+          if (!ishinder) {
+            parsed.push({ email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" })
+            updated = true
+          } else if (ishinder.status !== "Active") {
+            ishinder.status = "Active"
+            updated = true
+          }
+          
+          if (updated) {
+            localStorage.setItem("roboflix_lms_users", JSON.stringify(parsed))
+            setUsersList(parsed)
+          } else {
+            setUsersList(parsed)
+          }
         } catch (e) {
-          const defaultList = [
-            { email: "hloshishirdwivedi@gmail.com", phone: "6260087052", status: "Active", tier: "Founding Batch" },
-            { email: "rkrohan0718@gmail.com", phone: "8449844821", status: "Active", tier: "Pro" },
-            { email: "sid22prakash@gmail.com", phone: "9074423858", status: "Active", tier: "Pro" },
-            { email: "ansh.ritesh.singh.2010@gmail.com", phone: "9049410576", status: "Active", tier: "Pro" },
-            { email: "jemit57@gmail.com", phone: "437-224-3735", status: "Active", tier: "Founding Batch" },
-            { email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" },
-          ] as UserAccess[]
           setUsersList(defaultList)
           localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
         }
       } else {
-        const defaultList = [
-          { email: "hloshishirdwivedi@gmail.com", phone: "6260087052", status: "Active", tier: "Founding Batch" },
-          { email: "rkrohan0718@gmail.com", phone: "8449844821", status: "Active", tier: "Pro" },
-          { email: "sid22prakash@gmail.com", phone: "9074423858", status: "Active", tier: "Pro" },
-          { email: "ansh.ritesh.singh.2010@gmail.com", phone: "9049410576", status: "Active", tier: "Pro" },
-          { email: "jemit57@gmail.com", phone: "437-224-3735", status: "Active", tier: "Founding Batch" },
-          { email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" },
-        ] as UserAccess[]
         setUsersList(defaultList)
         localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
       }

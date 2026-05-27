@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { motion } from "framer-motion"
-import { LogOut, Clock, Lock } from "lucide-react"
+import { LogOut, Clock, Lock, Key, X, CheckCircle2, AlertCircle } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
@@ -16,6 +16,14 @@ export default function LmsDashboardPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [timeLeft, setTimeLeft] = useState("")
   const [seasonsData, setSeasonsData] = useState(SEASONS_DATA)
+
+  // Change Password States
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState("")
+  const [newPassword, setNewPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [passwordSuccess, setPasswordSuccess] = useState("")
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -95,6 +103,70 @@ export default function LmsDashboardPage() {
     }
   }
 
+  const handleChangePassword = (e: React.FormEvent) => {
+    e.preventDefault()
+    setPasswordError("")
+    setPasswordSuccess("")
+
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setPasswordError("All fields are required.")
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.")
+      return
+    }
+
+    if (newPassword.length < 4) {
+      setPasswordError("New password must be at least 4 characters.")
+      return
+    }
+
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("roboflix_lms_users")
+      if (stored) {
+        try {
+          const users = JSON.parse(stored)
+          const userEmail = user?.email || ""
+          
+          // Find the student in the dynamic database
+          const userIdx = users.findIndex((u: any) => u.email.toLowerCase() === userEmail.toLowerCase())
+          
+          if (userIdx !== -1) {
+            // Verify current password (which is stored in phone field)
+            if (users[userIdx].phone !== currentPassword) {
+              setPasswordError("Current password is incorrect.")
+              return
+            }
+            
+            // Update the password
+            users[userIdx].phone = newPassword
+            localStorage.setItem("roboflix_lms_users", JSON.stringify(users))
+            setPasswordSuccess("Password updated successfully! 🎉")
+            
+            // Reset input fields
+            setCurrentPassword("")
+            setNewPassword("")
+            setConfirmPassword("")
+            
+            // Auto close after 2 seconds
+            setTimeout(() => {
+              setShowPasswordModal(false)
+              setPasswordSuccess("")
+            }, 2000)
+          } else {
+            setPasswordError("Admin accounts cannot change their password dynamically (locked to static credentials).")
+          }
+        } catch (err) {
+          setPasswordError("Failed to update password. Try again.")
+        }
+      } else {
+        setPasswordError("Database not found. Contact administrator.")
+      }
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -129,6 +201,17 @@ export default function LmsDashboardPage() {
                 Admin Panel
               </Link>
             )}
+            <button
+              onClick={() => {
+                setPasswordError("")
+                setPasswordSuccess("")
+                setShowPasswordModal(true)
+              }}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-white/5 border border-white/10 hover:bg-white/10 rounded text-sm font-semibold transition-colors text-white"
+            >
+              <Key className="w-4 h-4 text-red-500" />
+              <span className="hidden md:inline">Change Password</span>
+            </button>
             <button
               onClick={handleLogout}
               className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-600 hover:bg-red-700 rounded text-sm font-semibold transition-colors"
@@ -228,6 +311,104 @@ export default function LmsDashboardPage() {
           </div>
         </section>
       </main>
+
+      {/* Change Password Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-zinc-950 border border-zinc-800 rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden text-left"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Key className="w-5 h-5 text-red-500" />
+                <h3 className="text-xl font-bold text-white">Change Password</h3>
+              </div>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                className="p-1 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Error and Success Indicators */}
+            {passwordError && (
+              <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 text-red-400 rounded-lg flex items-center gap-2 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{passwordError}</span>
+              </div>
+            )}
+            {passwordSuccess && (
+              <div className="mb-4 p-3 bg-emerald-900/20 border border-emerald-500/30 text-emerald-400 rounded-lg flex items-center gap-2 text-sm">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{passwordSuccess}</span>
+              </div>
+            )}
+
+            {/* Form */}
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Current Password
+                </label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-zinc-900 border border-zinc-800 focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none rounded-lg px-3.5 py-2 text-sm text-white placeholder-zinc-600 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                  New Password
+                </label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-zinc-900 border border-zinc-800 focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none rounded-lg px-3.5 py-2 text-sm text-white placeholder-zinc-600 transition-colors"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5">
+                  Confirm New Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-zinc-900 border border-zinc-800 focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none rounded-lg px-3.5 py-2 text-sm text-white placeholder-zinc-600 transition-colors"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowPasswordModal(false)}
+                  className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-sm font-semibold transition-colors text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 rounded text-sm font-semibold transition-colors text-white flex items-center gap-1.5"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

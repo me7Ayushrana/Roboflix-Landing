@@ -30,16 +30,33 @@ export default function LmsLoginPage() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       const stored = localStorage.getItem("roboflix_lms_users")
+      const defaultList = [
+        { email: "hloshishirdwivedi@gmail.com", phone: "6260087052", status: "Active", tier: "Founding Batch" },
+        { email: "rkrohan0718@gmail.com", phone: "8449844821", status: "Active", tier: "Pro" },
+        { email: "sid22prakash@gmail.com", phone: "9074423858", status: "Active", tier: "Pro" },
+        { email: "ansh.ritesh.singh.2010@gmail.com", phone: "9049410576", status: "Active", tier: "Pro" },
+        { email: "jemit57@gmail.com", phone: "437-224-3735", status: "Active", tier: "Founding Batch" },
+        { email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" },
+      ]
+      
       if (!stored) {
-        const defaultList = [
-          { email: "hloshishirdwivedi@gmail.com", phone: "6260087052", status: "Active", tier: "Founding Batch" },
-          { email: "rkrohan0718@gmail.com", phone: "8449844821", status: "Active", tier: "Pro" },
-          { email: "sid22prakash@gmail.com", phone: "9074423858", status: "Active", tier: "Pro" },
-          { email: "ansh.ritesh.singh.2010@gmail.com", phone: "9049410576", status: "Active", tier: "Pro" },
-          { email: "jemit57@gmail.com", phone: "437-224-3735", status: "Active", tier: "Founding Batch" },
-          { email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" },
-        ]
         localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
+      } else {
+        try {
+          const parsed = JSON.parse(stored)
+          const ishinder = parsed.find((u: any) => u.email.toLowerCase() === "ishinder@gmail.com")
+          if (!ishinder) {
+            // Deleted entirely, add him back as Active
+            parsed.push({ email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" })
+            localStorage.setItem("roboflix_lms_users", JSON.stringify(parsed))
+          } else if (ishinder.status !== "Active") {
+            // Revoked, restore to Active
+            ishinder.status = "Active"
+            localStorage.setItem("roboflix_lms_users", JSON.stringify(parsed))
+          }
+        } catch (e) {
+          localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
+        }
       }
     }
   }, [])
