@@ -103,7 +103,7 @@ export default function LmsDashboardPage() {
     }
   }
 
-  const handleChangePassword = (e: React.FormEvent) => {
+  const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault()
     setPasswordError("")
     setPasswordSuccess("")
@@ -140,10 +140,36 @@ export default function LmsDashboardPage() {
               return
             }
             
-            // Update the password
+            // Attempt to update in Supabase in real-time
+            let isSavedInSupabase = false
+            if (isSupabaseConfigured()) {
+              try {
+                const { error } = await supabase
+                  .from("roboflix_lms_users")
+                  .update({ phone: newPassword })
+                  .eq("email", userEmail)
+
+                if (error) {
+                  console.error("Supabase password update error:", error)
+                } else {
+                  isSavedInSupabase = true
+                }
+              } catch (err) {
+                console.error("Supabase password update exception:", err)
+              }
+            }
+
+            // Update the password locally
             users[userIdx].phone = newPassword
             localStorage.setItem("roboflix_lms_users", JSON.stringify(users))
-            setPasswordSuccess("Password updated successfully! 🎉")
+            
+            if (isSavedInSupabase) {
+              setPasswordSuccess("Password updated successfully globally! 🎉")
+            } else if (isSupabaseConfigured()) {
+              setPasswordSuccess("Password updated locally (offline). 💻")
+            } else {
+              setPasswordSuccess("Password updated successfully! 🎉")
+            }
             
             // Reset input fields
             setCurrentPassword("")

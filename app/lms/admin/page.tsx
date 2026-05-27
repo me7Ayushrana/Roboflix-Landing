@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, Plus, Trash2, FileText, Code, CheckCircle, RefreshCw, Sparkles, Youtube, ExternalLink } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, FileText, Code, CheckCircle, RefreshCw, Sparkles, Youtube, ExternalLink, AlertCircle, X } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
@@ -91,6 +91,9 @@ export default function LmsAdminPanel() {
   const [newSubPassword, setNewSubPassword] = useState("")
   const [newSubTier, setNewSubTier] = useState<"Pro" | "Founding Batch">("Pro")
   const [searchQuery, setSearchQuery] = useState("")
+  const [dbStatus, setDbStatus] = useState<"checking" | "connected" | "missing_table" | "error">("checking")
+  const [dbErrorMessage, setDbErrorMessage] = useState("")
+  const [showSqlModal, setShowSqlModal] = useState(false)
 
   // ─── Authentication Check ─────────────────────────────────────
   useEffect(() => {
@@ -139,8 +142,9 @@ export default function LmsAdminPanel() {
 
   // ─── Subscriptions Data Load ───────────────────────────────────
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("roboflix_lms_users")
+    const loadSubscriptions = async () => {
+      if (typeof window === "undefined") return
+
       const defaultList = [
         { email: "hloshishirdwivedi@gmail.com", phone: "6260087052", status: "Active", tier: "Founding Batch" },
         { email: "rkrohan0718@gmail.com", phone: "8449844821", status: "Active", tier: "Pro" },
@@ -150,39 +154,98 @@ export default function LmsAdminPanel() {
         { email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" },
       ] as UserAccess[]
 
-      if (stored) {
+      let dbLoadedSuccess = false
+
+      if (isSupabaseConfigured()) {
         try {
-          const parsed = JSON.parse(stored) as UserAccess[]
-          const ishinder = parsed.find(u => u.email.toLowerCase() === "ishinder@gmail.com")
-          let updated = false
-          
-          if (!ishinder) {
-            parsed.push({ email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" })
-            updated = true
-          } else if (ishinder.status !== "Active") {
-            ishinder.status = "Active"
-            updated = true
+          // Attempt to fetch from live Supabase table in real-time
+          const { data, error } = await supabase
+            .from("roboflix_lms_users")
+            .select("*")
+            .order("created_at", { ascending: true })
+
+          if (error) {
+            console.error("Supabase error fetching users:", error)
+            const errMsg = error.message || ""
+            if (error.code === "42P01" || errMsg.includes("does not exist") || errMsg.includes("schema cache")) {
+              setDbStatus("missing_table")
+            } else {
+              setDbStatus("error")
+            }
+            setDbErrorMessage(errMsg)
+          } else if (data) {
+            setDbStatus("connected")
+            dbLoadedSuccess = true
+            if (data.length > 0) {
+              const formatted = data.map((u: any) => ({
+                email: u.email,
+                phone: u.phone,
+                status: u.status,
+                tier: u.tier
+              }))
+              setUsersList(formatted)
+              localStorage.setItem("roboflix_lms_users", JSON.stringify(formatted))
+              return
+            } else {
+              // Table is empty, seed it with defaults in the cloud database!
+              const { error: seedError } = await supabase.from("roboflix_lms_users").insert(defaultList)
+              if (seedError) {
+                console.error("Supabase seeding error:", seedError)
+              }
+              setUsersList(defaultList)
+              localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
+              return
+            }
           }
-          
-          if (updated) {
-            localStorage.setItem("roboflix_lms_users", JSON.stringify(parsed))
-            setUsersList(parsed)
-          } else {
-            setUsersList(parsed)
+        } catch (e: any) {
+          console.error("Supabase load exception:", e)
+          setDbStatus("error")
+          setDbErrorMessage(e?.message || "Unknown connection error")
+        }
+      } else {
+        setDbStatus("error")
+        setDbErrorMessage("Supabase is not configured in environmental variables.")
+      }
+
+      // Fallback to local storage if Supabase is offline/not configured/errored
+      if (!dbLoadedSuccess) {
+        const stored = localStorage.getItem("roboflix_lms_users")
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored) as UserAccess[]
+            const ishinder = parsed.find(u => u.email.toLowerCase() === "ishinder@gmail.com")
+            let updated = false
+            
+            if (!ishinder) {
+              parsed.push({ email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" })
+              updated = true
+            } else if (ishinder.status !== "Active") {
+              ishinder.status = "Active"
+              updated = true
+            }
+            
+            if (updated) {
+              localStorage.setItem("roboflix_lms_users", JSON.stringify(parsed))
+              setUsersList(parsed)
+            } else {
+              setUsersList(parsed)
+            }
+          } catch (e) {
+            setUsersList(defaultList)
+            localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
           }
-        } catch (e) {
+        } else {
           setUsersList(defaultList)
           localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
         }
-      } else {
-        setUsersList(defaultList)
-        localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
       }
     }
+
+    loadSubscriptions()
   }, [])
 
   // ─── Subscription Actions ─────────────────────────────────────
-  const addSubscription = () => {
+  const addSubscription = async () => {
     if (!newSubEmail.trim() || !newSubPassword.trim()) {
       alert("Email and Password are required to grant access.")
       return
@@ -207,32 +270,105 @@ export default function LmsAdminPanel() {
       tier: newSubTier
     }
 
+    let isSavedInSupabase = false
+    if (isSupabaseConfigured() && dbStatus !== "missing_table") {
+      try {
+        const { error } = await supabase
+          .from("roboflix_lms_users")
+          .insert([{ email: newUser.email, phone: newUser.phone, status: newUser.status, tier: newUser.tier }])
+        
+        if (error) {
+          console.error("Supabase add error:", error)
+          const errMsg = error.message || ""
+          if (error.code === "42P01" || errMsg.includes("does not exist") || errMsg.includes("schema cache")) {
+            setDbStatus("missing_table")
+          }
+          alert(`⚠️ Database Write Failed: ${error.message || "Failed to save to cloud database"}.\n\nYour changes are saved locally to this device but won't be accessible on other devices until the Supabase table is configured.`)
+        } else {
+          isSavedInSupabase = true
+          setDbStatus("connected")
+        }
+      } catch (err: any) {
+        console.error("Supabase add exception:", err)
+        alert(`⚠️ Database Sync Offline: ${err.message || "Connection timed out"}.\n\nYour changes are saved locally to this device.`)
+      }
+    } else if (dbStatus === "missing_table") {
+      alert("⚠️ Database Sync Offline: The 'roboflix_lms_users' table is missing in Supabase.\n\nYour changes are saved locally to this device but won't be accessible on other devices until table configuration is applied.")
+    }
+
     const updated = [...usersList, newUser]
     setUsersList(updated)
     localStorage.setItem("roboflix_lms_users", JSON.stringify(updated))
     
     setNewSubEmail("")
     setNewSubPassword("")
-    showToast(`LMS access granted to ${newUser.email} 🎉`)
+    showToast(isSavedInSupabase ? `LMS access granted to ${newUser.email} globally! 🌐` : `LMS access granted to ${newUser.email} locally. 💻`)
   }
 
-  const toggleSubscriptionStatus = (email: string) => {
+  const toggleSubscriptionStatus = async (email: string) => {
+    let newStatus: "Active" | "Revoked" = "Active"
+    
     const updated = usersList.map(u => {
       if (u.email.toLowerCase() !== email.toLowerCase()) return u
-      const newStatus: "Active" | "Revoked" = u.status === "Active" ? "Revoked" : "Active"
+      newStatus = u.status === "Active" ? "Revoked" : "Active"
       return { ...u, status: newStatus }
     })
+
+    let isSavedInSupabase = false
+    if (isSupabaseConfigured() && dbStatus !== "missing_table") {
+      try {
+        const { error } = await supabase
+          .from("roboflix_lms_users")
+          .update({ status: newStatus })
+          .eq("email", email)
+        
+        if (error) {
+          console.error("Supabase toggle error:", error)
+          alert(`⚠️ Database Update Failed: ${error.message}.\n\nStatus updated locally but could not sync with Supabase.`)
+        } else {
+          isSavedInSupabase = true
+          setDbStatus("connected")
+        }
+      } catch (err: any) {
+        console.error("Supabase toggle exception:", err)
+        alert(`⚠️ Database Update Failed: ${err.message}.\n\nStatus updated locally.`)
+      }
+    }
+
     setUsersList(updated)
     localStorage.setItem("roboflix_lms_users", JSON.stringify(updated))
-    showToast(`Access status updated for ${email}`)
+    showToast(isSavedInSupabase ? `Access status updated globally 🌐` : `Access status updated locally 💻`)
   }
 
-  const deleteSubscription = (email: string) => {
+  const deleteSubscription = async (email: string) => {
     if (!confirm(`Are you sure you want to completely delete LMS access for ${email}?`)) return
+    
     const updated = usersList.filter(u => u.email.toLowerCase() !== email.toLowerCase())
+
+    let isSavedInSupabase = false
+    if (isSupabaseConfigured() && dbStatus !== "missing_table") {
+      try {
+        const { error } = await supabase
+          .from("roboflix_lms_users")
+          .delete()
+          .eq("email", email)
+        
+        if (error) {
+          console.error("Supabase delete error:", error)
+          alert(`⚠️ Database Delete Failed: ${error.message}.\n\nUser removed locally but could not sync with Supabase.`)
+        } else {
+          isSavedInSupabase = true
+          setDbStatus("connected")
+        }
+      } catch (err: any) {
+        console.error("Supabase delete exception:", err)
+        alert(`⚠️ Database Delete Failed: ${err.message}.\n\nUser removed locally.`)
+      }
+    }
+
     setUsersList(updated)
     localStorage.setItem("roboflix_lms_users", JSON.stringify(updated))
-    showToast(`Removed access record for ${email}`)
+    showToast(isSavedInSupabase ? `Removed access record globally 🌐` : `Removed access record locally 💻`)
   }
 
   // ─── Data Initialization ───────────────────────────────────────
@@ -880,7 +1016,41 @@ export default function LmsAdminPanel() {
 
         </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          <div className="space-y-6 w-full">
+            {/* Supabase Status Warning Banner */}
+            {(dbStatus === "missing_table" || dbStatus === "error") && (
+              <div className="p-5 rounded-2xl bg-red-950/20 border border-red-500/20 backdrop-blur-md relative overflow-hidden group shadow-2xl">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-red-600/5 rounded-full blur-3xl pointer-events-none group-hover:scale-110 transition-transform duration-700"></div>
+                
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5 relative z-10">
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-red-600/10 border border-red-500/20 flex items-center justify-center text-red-500 shrink-0 shadow-lg shadow-red-600/5 animate-pulse">
+                      <AlertCircle className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white text-base">Supabase Database Sync is Offline</h3>
+                      <p className="text-gray-400 text-xs mt-1 leading-relaxed max-w-2xl text-left">
+                        {dbStatus === "missing_table" 
+                          ? "We detected that the custom database table 'roboflix_lms_users' does not exist in your Supabase project yet. Additions and deletions will only save locally to this device's browser and won't sync globally across all devices."
+                          : `An error occurred while connecting to Supabase: ${dbErrorMessage || "Connection error"}. Currently operating in local-only fallback mode.`}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 shrink-0 w-full md:w-auto">
+                    <button
+                      onClick={() => setShowSqlModal(true)}
+                      className="px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-red-600/20 active:scale-[0.98] text-center flex items-center justify-center gap-2"
+                    >
+                      <Code className="w-4 h-4" />
+                      <span>View SQL Setup Script</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             {/* Left Column: Grant Access Form */}
             <div className="lg:col-span-4 space-y-6">
@@ -1024,9 +1194,118 @@ export default function LmsAdminPanel() {
             </div>
 
           </div>
+        </div>
         )}
 
       </main>
+
+      {/* Interactive SQL Copier Modal */}
+      <AnimatePresence>
+        {showSqlModal && (
+          <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="bg-[#0b0b0b] border border-gray-800 rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden text-left"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-800">
+                <div className="flex items-center gap-3.5">
+                  <div className="w-9 h-9 rounded-lg bg-red-600/10 border border-red-500/20 flex items-center justify-center text-red-500">
+                    <Code className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white leading-tight">Database Table Configuration</h3>
+                    <p className="text-gray-400 text-xs mt-0.5">Initialize the real-time student subscriptions schema in Supabase</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowSqlModal(false)}
+                  className="p-1.5 hover:bg-white/5 border border-transparent hover:border-white/10 rounded-lg transition-colors text-gray-400 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Instructions */}
+              <div className="space-y-4 mb-6 text-sm text-gray-300 leading-relaxed text-left">
+                <p>
+                  To sync student subscriptions dynamically across all devices globally in real-time, you need to create the <code className="text-red-500 px-1 py-0.5 bg-red-500/10 rounded font-mono">roboflix_lms_users</code> table in your Supabase project.
+                </p>
+                <div className="bg-red-600/5 border border-red-500/10 rounded-xl p-4 flex gap-3 text-xs leading-relaxed text-red-400/90 font-medium">
+                  <span className="text-base leading-none">💡</span>
+                  <span>
+                    <strong>How to apply:</strong> Go to your <strong>Supabase Dashboard</strong> ➡️ <strong>SQL Editor</strong> ➡️ Click <strong>"New Query"</strong> ➡️ Paste the code block below ➡️ Click <strong>"Run"</strong>. That's it!
+                  </span>
+                </div>
+              </div>
+
+              {/* SQL Code Box */}
+              <div className="relative group rounded-xl border border-gray-800 overflow-hidden bg-black/60 font-mono text-xs">
+                <div className="flex justify-between items-center px-4 py-2.5 bg-[#121212] border-b border-gray-800 text-[10px] uppercase font-bold tracking-wider text-gray-500">
+                  <span>PostgreSQL Schema Script</span>
+                  <button
+                    onClick={() => {
+                      const sqlText = `create table public.roboflix_lms_users (
+  id uuid default gen_random_uuid() primary key,
+  email text unique not null,
+  phone text not null, -- Password
+  status text not null default 'Active' check (status in ('Active', 'Revoked')),
+  tier text not null default 'Pro' check (tier in ('Pro', 'Founding Batch')),
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable Row Level Security
+alter table public.roboflix_lms_users enable row level security;
+
+-- Create Open Access Policies for simplified public operations
+create policy "Allow public read" on public.roboflix_lms_users for select using (true);
+create policy "Allow public insert" on public.roboflix_lms_users for insert with check (true);
+create policy "Allow public update" on public.roboflix_lms_users for update using (true) with check (true);
+create policy "Allow public delete" on public.roboflix_lms_users for delete using (true);`
+                      navigator.clipboard.writeText(sqlText)
+                      showToast("SQL Script copied to clipboard! 📋")
+                    }}
+                    className="text-red-500 hover:text-red-400 transition-colors flex items-center gap-1 cursor-pointer font-sans normal-case text-xs font-semibold"
+                  >
+                    Copy Script
+                  </button>
+                </div>
+                <pre className="p-4 overflow-x-auto text-gray-300 max-h-[220px] overflow-y-auto leading-relaxed select-text font-mono text-left">
+{`create table public.roboflix_lms_users (
+  id uuid default gen_random_uuid() primary key,
+  email text unique not null,
+  phone text not null, -- Password
+  status text not null default 'Active' check (status in ('Active', 'Revoked')),
+  tier text not null default 'Pro' check (tier in ('Pro', 'Founding Batch')),
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable Row Level Security
+alter table public.roboflix_lms_users enable row level security;
+
+-- Create Open Access Policies for simplified public operations
+create policy "Allow public read" on public.roboflix_lms_users for select using (true);
+create policy "Allow public insert" on public.roboflix_lms_users for insert with check (true);
+create policy "Allow public update" on public.roboflix_lms_users for update using (true) with check (true);
+create policy "Allow public delete" on public.roboflix_lms_users for delete using (true);`}
+                </pre>
+              </div>
+
+              {/* Footer */}
+              <div className="mt-6 pt-4 border-t border-gray-800 flex justify-end">
+                <button
+                  onClick={() => setShowSqlModal(false)}
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-lg shadow-red-600/20 active:scale-[0.98]"
+                >
+                  Close & Refresh
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Floating interactive feedback toast */}
       <AnimatePresence>

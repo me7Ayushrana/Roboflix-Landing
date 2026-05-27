@@ -108,63 +108,73 @@ export default function LmsLoginPage() {
           setError("Invalid administrator password.")
         }
       } else {
-        // 1. Search dynamic LMS users (created/managed in Admin Panel)
-        let usersList: any[] = []
-        const storedUsers = localStorage.getItem("roboflix_lms_users")
-        if (storedUsers) {
+        // Look up student record dynamically
+        let studentRecord: any = null
+
+        if (isSupabaseConfigured()) {
           try {
-            usersList = JSON.parse(storedUsers)
+            const { data, error } = await supabase
+              .from("roboflix_lms_users")
+              .select("*")
+              .eq("email", trimmedEmail)
+              .maybeSingle()
+
+            if (!error && data) {
+              studentRecord = {
+                email: data.email,
+                phone: data.phone,
+                status: data.status,
+                tier: data.tier
+              }
+            }
           } catch (e) {
-            usersList = []
+            console.error("Supabase login search error:", e)
           }
         }
 
-        const localUserRecord = usersList.find(u => u.email.toLowerCase() === trimmedEmail)
-        const isDefaultAccount = VALID_CREDENTIALS[trimmedEmail] !== undefined
-        
-        // If the user was explicitly deleted from the dynamic list by the admin, block them
-        const isExplicitlyDeleted = usersList.length > 0 && !localUserRecord
-
-        if (localUserRecord && localUserRecord.status === "Revoked") {
-          setError("Your RoboFlix LMS subscription access has been revoked. Contact admin.")
-        } else if (isExplicitlyDeleted) {
-          setError("Access Denied: No active LMS subscription profile found for this email.")
-        } else if (isDefaultAccount && VALID_CREDENTIALS[trimmedEmail] === trimmedPassword) {
-          // Allow login from default static credentials if not revoked or deleted
-          localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
-          router.push("/lms/dashboard")
-        } else if (localUserRecord && localUserRecord.phone === trimmedPassword && localUserRecord.status === "Active") {
-          // Allow login from dynamically added/updated admin panel users
-          localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
-          router.push("/lms/dashboard")
-        } else {
-          // Fallback to Supabase Auth if configured
-          let supabaseLoginSuccess = false
-          if (isSupabaseConfigured()) {
+        // Fallback to local storage if Supabase lookup failed or wasn't configured
+        if (!studentRecord) {
+          const storedUsers = localStorage.getItem("roboflix_lms_users")
+          if (storedUsers) {
             try {
-              const { data, error: authError } = await supabase.auth.signInWithPassword({
-                email: trimmedEmail,
-                password: trimmedPassword,
-              })
-
-              if (!authError && data.user) {
-                localStorage.setItem("lms_user", JSON.stringify({ email: data.user.email }))
-                router.push("/lms/dashboard")
-                supabaseLoginSuccess = true
+              const usersList = JSON.parse(storedUsers) as any[]
+              const localRecord = usersList.find(u => u.email.toLowerCase() === trimmedEmail)
+              if (localRecord) {
+                studentRecord = localRecord
               }
-            } catch (err) {
-              // Ignore and proceed
+            } catch (e) {
+              // Ignore
             }
           }
+        }
 
-          if (!supabaseLoginSuccess) {
-            const userExistsInLocal = localUserRecord !== undefined
-            const userExistsInStatic = isDefaultAccount
-            if (userExistsInLocal || userExistsInStatic) {
-              setError("Invalid password.")
-            } else {
-              setError("Access Denied: No active LMS subscription profile found for this email.")
-            }
+        const isDefaultAccount = VALID_CREDENTIALS[trimmedEmail] !== undefined
+
+        // Process Authentication State
+        if (studentRecord) {
+          if (studentRecord.status === "Revoked") {
+            setError("Your RoboFlix LMS subscription access has been revoked. Contact admin.")
+          } else if (studentRecord.phone === trimmedPassword && studentRecord.status === "Active") {
+            // Success: Log in with dynamic profile password
+            localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
+            router.push("/lms/dashboard")
+          } else if (isDefaultAccount && VALID_CREDENTIALS[trimmedEmail] === trimmedPassword) {
+            // Success: Log in with static default password fallback
+            localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
+            router.push("/lms/dashboard")
+          } else {
+            setError("Invalid password.")
+          }
+        } else {
+          // No profile record found in Supabase or local fallback
+          if (isDefaultAccount && VALID_CREDENTIALS[trimmedEmail] === trimmedPassword) {
+            // Success: Allow static defaults if not explicitly revoked
+            localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
+            router.push("/lms/dashboard")
+          } else if (isDefaultAccount) {
+            setError("Invalid password.")
+          } else {
+            setError("Access Denied: No active LMS subscription profile found for this email.")
           }
         }
       }
