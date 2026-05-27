@@ -26,6 +26,24 @@ export default function LmsLoginPage() {
   const [loading, setLoading] = useState(false)
   const [timeLeft, setTimeLeft] = useState("")
 
+  // Initialize default users list in localStorage if it doesn't exist yet
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("roboflix_lms_users")
+      if (!stored) {
+        const defaultList = [
+          { email: "hloshishirdwivedi@gmail.com", phone: "6260087052", status: "Active", tier: "Founding Batch" },
+          { email: "rkrohan0718@gmail.com", phone: "8449844821", status: "Active", tier: "Pro" },
+          { email: "sid22prakash@gmail.com", phone: "9074423858", status: "Active", tier: "Pro" },
+          { email: "ansh.ritesh.singh.2010@gmail.com", phone: "9049410576", status: "Active", tier: "Pro" },
+          { email: "jemit57@gmail.com", phone: "437-224-3735", status: "Active", tier: "Founding Batch" },
+          { email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" },
+        ]
+        localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
+      }
+    }
+  }, [])
+
   // Countdown timer to June 15, 2026
   useEffect(() => {
     const calculateTimeLeft = () => {
@@ -70,36 +88,54 @@ export default function LmsLoginPage() {
         }
       } else {
         // Fallback to static mock credentials list if Supabase env is not configured
-        const trimmedEmail = email.trim()
+        const trimmedEmail = email.trim().toLowerCase()
         const trimmedPassword = password.trim()
 
-        // Search dynamic LMS users first
-        let usersList: any[] = []
-        const storedUsers = localStorage.getItem("roboflix_lms_users")
-        if (storedUsers) {
-          try {
-            usersList = JSON.parse(storedUsers)
-          } catch (e) {
-            usersList = []
-          }
-        }
+        const isAdminEmail = trimmedEmail === "ayushamit007@gmail.com" ||
+                             trimmedEmail === "ishinder.dev@gmail.com" ||
+                             trimmedEmail === "admin@roboflix.pro" ||
+                             trimmedEmail.includes("admin")
 
-        const matchedUser = usersList.find(
-          u => u.email.toLowerCase() === trimmedEmail.toLowerCase() && u.phone === trimmedPassword
-        )
-
-        if (matchedUser) {
-          if (matchedUser.status === "Active") {
+        if (isAdminEmail) {
+          // Administrators authenticate using static credentials dictionary
+          if (VALID_CREDENTIALS[trimmedEmail] === trimmedPassword) {
             localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
             router.push("/lms/dashboard")
           } else {
-            setError("Your RoboFlix LMS subscription access has been revoked. Contact admin.")
+            setError("Invalid administrator password.")
           }
-        } else if (VALID_CREDENTIALS[trimmedEmail.toLowerCase()] === trimmedPassword) {
-          localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail.toLowerCase() }))
-          router.push("/lms/dashboard")
         } else {
-          setError("Invalid email or password. (Local Fallback Mode)")
+          // Regular students must authenticate dynamically using roboflix_lms_users database
+          let usersList: any[] = []
+          const storedUsers = localStorage.getItem("roboflix_lms_users")
+          if (storedUsers) {
+            try {
+              usersList = JSON.parse(storedUsers)
+            } catch (e) {
+              usersList = []
+            }
+          }
+
+          const matchedUser = usersList.find(
+            u => u.email.toLowerCase() === trimmedEmail && u.phone === trimmedPassword
+          )
+
+          if (matchedUser) {
+            if (matchedUser.status === "Active") {
+              localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
+              router.push("/lms/dashboard")
+            } else {
+              setError("Your RoboFlix LMS subscription access has been revoked. Contact admin.")
+            }
+          } else {
+            // Check if user exists but password was wrong, or does not exist at all (meaning access was deleted)
+            const userExists = usersList.some(u => u.email.toLowerCase() === trimmedEmail)
+            if (userExists) {
+              setError("Invalid password.")
+            } else {
+              setError("Access Denied: No active LMS subscription profile found for this email.")
+            }
+          }
         }
       }
     } catch (err: any) {
