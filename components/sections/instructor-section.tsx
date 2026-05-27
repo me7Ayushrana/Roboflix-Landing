@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 
@@ -38,13 +38,30 @@ const instructors = [
 export function InstructorSection() {
   const [activeIdx, setActiveIdx] = useState(0)
   const [direction, setDirection] = useState(1)
+  const [isAutoShuffling, setIsAutoShuffling] = useState(true)
 
-  const goTo = (idx: number) => {
+  // Auto-shuffle cards every 3 seconds
+  useEffect(() => {
+    if (!isAutoShuffling) return
+
+    const interval = setInterval(() => {
+      setDirection(1)
+      setActiveIdx((prevIdx) => (prevIdx === instructors.length - 1 ? 0 : prevIdx + 1))
+    }, 3000)
+
+    return () => clearInterval(interval)
+  }, [isAutoShuffling])
+
+  const goTo = (idx: number, isManual = false) => {
+    if (isManual) {
+      setIsAutoShuffling(false)
+    }
     setDirection(idx > activeIdx ? 1 : -1)
     setActiveIdx(idx)
   }
-  const prev = () => goTo(activeIdx === 0 ? instructors.length - 1 : activeIdx - 1)
-  const next = () => goTo(activeIdx === instructors.length - 1 ? 0 : activeIdx + 1)
+  
+  const prev = () => goTo(activeIdx === 0 ? instructors.length - 1 : activeIdx - 1, true)
+  const next = () => goTo(activeIdx === instructors.length - 1 ? 0 : activeIdx + 1, true)
 
   const variants = {
     enter: (dir: number) => ({ opacity: 0, x: dir > 0 ? 60 : -60 }),
