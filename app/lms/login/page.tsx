@@ -107,21 +107,8 @@ export default function LmsLoginPage() {
         } else {
           setError("Invalid administrator password.")
         }
-      } else if (isSupabaseConfigured()) {
-        // Regular students authenticate using Supabase Auth
-        const { data, error: authError } = await supabase.auth.signInWithPassword({
-          email: trimmedEmail,
-          password: trimmedPassword,
-        })
-
-        if (authError) {
-          setError(authError.message)
-        } else if (data.user) {
-          localStorage.setItem("lms_user", JSON.stringify({ email: data.user.email }))
-          router.push("/lms/dashboard")
-        }
       } else {
-        // Regular students fallback to dynamic local database
+        // 1. Prioritize looking up in the dynamic LMS users list (created/managed in Admin Panel)
         let usersList: any[] = []
         const storedUsers = localStorage.getItem("roboflix_lms_users")
         if (storedUsers) {
@@ -144,12 +131,33 @@ export default function LmsLoginPage() {
             setError("Your RoboFlix LMS subscription access has been revoked. Contact admin.")
           }
         } else {
-          // Check if user exists but password was wrong, or does not exist at all (meaning access was deleted)
-          const userExists = usersList.some(u => u.email.toLowerCase() === trimmedEmail)
-          if (userExists) {
-            setError("Invalid password.")
-          } else {
-            setError("Access Denied: No active LMS subscription profile found for this email.")
+          // 2. Fallback to Supabase Auth only if not found or active in the local database
+          let supabaseLoginSuccess = false
+          if (isSupabaseConfigured()) {
+            try {
+              const { data, error: authError } = await supabase.auth.signInWithPassword({
+                email: trimmedEmail,
+                password: trimmedPassword,
+              })
+
+              if (!authError && data.user) {
+                localStorage.setItem("lms_user", JSON.stringify({ email: data.user.email }))
+                router.push("/lms/dashboard")
+                supabaseLoginSuccess = true
+              }
+            } catch (err) {
+              // Ignore and proceed to handle errors below
+            }
+          }
+
+          if (!supabaseLoginSuccess) {
+            // Check if user exists but password was wrong, or does not exist at all
+            const userExists = usersList.some(u => u.email.toLowerCase() === trimmedEmail)
+            if (userExists) {
+              setError("Invalid password.")
+            } else {
+              setError("Access Denied: No active LMS subscription profile found for this email.")
+            }
           }
         }
       }
