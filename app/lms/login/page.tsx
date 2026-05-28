@@ -6,17 +6,11 @@ import { useRouter } from "next/navigation"
 import { Mail, Lock, ArrowRight } from "lucide-react"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
-// Valid credentials - email: password/phone
-const VALID_CREDENTIALS: Record<string, string> = {
-  "hloshishirdwivedi@gmail.com": "6260087052",
-  "rkrohan0718@gmail.com": "8449844821",
-  "sid22prakash@gmail.com": "9074423858",
-  "ansh.ritesh.singh.2010@gmail.com": "9049410576",
-  "jemit57@gmail.com": "437-224-3735",
-  "ishinder@gmail.com": "8288898544",
-  "ayushamit007@gmail.com": "sexyroboflix",
-  "ishinder.dev@gmail.com": "sexyroboflix",
-}
+// The ONE admin email allowed
+const ADMIN_EMAIL = "ayushamit007@gmail.com"
+
+// Default admin password fallback (overridden by Supabase if set)
+const DEFAULT_ADMIN_PASSWORD = "sexyroboflix"
 
 export default function LmsLoginPage() {
   const router = useRouter()
@@ -38,25 +32,8 @@ export default function LmsLoginPage() {
         { email: "jemit57@gmail.com", phone: "437-224-3735", status: "Active", tier: "Founding Batch" },
         { email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" },
       ]
-      
       if (!stored) {
         localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
-      } else {
-        try {
-          const parsed = JSON.parse(stored)
-          const ishinder = parsed.find((u: any) => u.email.toLowerCase() === "ishinder@gmail.com")
-          if (!ishinder) {
-            // Deleted entirely, add him back as Active
-            parsed.push({ email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" })
-            localStorage.setItem("roboflix_lms_users", JSON.stringify(parsed))
-          } else if (ishinder.status !== "Active") {
-            // Revoked, restore to Active
-            ishinder.status = "Active"
-            localStorage.setItem("roboflix_lms_users", JSON.stringify(parsed))
-          }
-        } catch (e) {
-          localStorage.setItem("roboflix_lms_users", JSON.stringify(defaultList))
-        }
       }
     }
   }, [])
@@ -94,14 +71,23 @@ export default function LmsLoginPage() {
       const trimmedEmail = email.trim().toLowerCase()
       const trimmedPassword = password.trim()
 
-      const isAdminEmail = trimmedEmail === "ayushamit007@gmail.com" ||
-                           trimmedEmail === "ishinder.dev@gmail.com" ||
-                           trimmedEmail === "admin@roboflix.pro" ||
-                           trimmedEmail.includes("admin")
+      const isAdminEmail = trimmedEmail === ADMIN_EMAIL
 
       if (isAdminEmail) {
-        // Administrators always authenticate using static credentials dictionary for immediate and secure setup
-        if (VALID_CREDENTIALS[trimmedEmail] === trimmedPassword) {
+        // Load admin password from Supabase if configured, else use default
+        let adminPassword = DEFAULT_ADMIN_PASSWORD
+        if (isSupabaseConfigured()) {
+          try {
+            const { data } = await supabase
+              .from("roboflix_lms_settings")
+              .select("value")
+              .eq("key", "admin_password")
+              .maybeSingle()
+            if (data?.value) adminPassword = data.value as string
+          } catch {}
+        }
+
+        if (trimmedPassword === adminPassword) {
           localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
           router.push("/lms/dashboard")
         } else {
@@ -148,34 +134,19 @@ export default function LmsLoginPage() {
           }
         }
 
-        const isDefaultAccount = VALID_CREDENTIALS[trimmedEmail] !== undefined
-
         // Process Authentication State
         if (studentRecord) {
           if (studentRecord.status === "Revoked") {
             setError("Your RoboFlix LMS subscription access has been revoked. Contact admin.")
           } else if (studentRecord.phone === trimmedPassword && studentRecord.status === "Active") {
-            // Success: Log in with dynamic profile password
-            localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
-            router.push("/lms/dashboard")
-          } else if (isDefaultAccount && VALID_CREDENTIALS[trimmedEmail] === trimmedPassword) {
-            // Success: Log in with static default password fallback
+            // Success: Log in with dynamic profile password (phone number)
             localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
             router.push("/lms/dashboard")
           } else {
             setError("Invalid password.")
           }
         } else {
-          // No profile record found in Supabase or local fallback
-          if (isDefaultAccount && VALID_CREDENTIALS[trimmedEmail] === trimmedPassword) {
-            // Success: Allow static defaults if not explicitly revoked
-            localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
-            router.push("/lms/dashboard")
-          } else if (isDefaultAccount) {
-            setError("Invalid password.")
-          } else {
-            setError("Access Denied: No active LMS subscription profile found for this email.")
-          }
+          setError("Access Denied: No active LMS subscription profile found for this email.")
         }
       }
     } catch (err: any) {

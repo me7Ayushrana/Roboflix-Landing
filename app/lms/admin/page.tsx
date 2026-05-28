@@ -78,6 +78,12 @@ export default function LmsAdminPanel() {
   const [newCodeLang, setNewCodeLang] = useState("Arduino")
   const [newCodeSnippet, setNewCodeSnippet] = useState("")
 
+  // Change Admin Password states
+  const [showChangePassword, setShowChangePassword] = useState(false)
+  const [newAdminPass, setNewAdminPass] = useState("")
+  const [confirmAdminPass, setConfirmAdminPass] = useState("")
+  const [changePassLoading, setChangePassLoading] = useState(false)
+
   // UI Toast states
   const [toastMessage, setToastMessage] = useState("")
   const [parsedVideoId, setParsedVideoId] = useState("")
@@ -116,11 +122,8 @@ export default function LmsAdminPanel() {
         }
 
         if (loggedInEmail) {
-          const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL || "admin@roboflix.pro"
-          const isUserAdmin = loggedInEmail.toLowerCase() === adminEmail.toLowerCase() ||
-                              loggedInEmail.toLowerCase().includes("admin") ||
-                              loggedInEmail.toLowerCase() === "ayushamit007@gmail.com" ||
-                              loggedInEmail.toLowerCase() === "ishinder.dev@gmail.com"
+          // ONLY one admin allowed
+          const isUserAdmin = loggedInEmail.toLowerCase() === "ayushamit007@gmail.com"
           
           if (isUserAdmin) {
             setUser({ email: loggedInEmail })
@@ -650,6 +653,40 @@ export default function LmsAdminPanel() {
     showToast(isCloudSaved ? "All data restored to system defaults globally 🔄" : "All data restored to system defaults locally 🔄")
   }
 
+  const changeAdminPassword = async () => {
+    if (!newAdminPass.trim()) {
+      showToast("Please enter a new password")
+      return
+    }
+    if (newAdminPass.trim().length < 6) {
+      showToast("Password must be at least 6 characters")
+      return
+    }
+    if (newAdminPass !== confirmAdminPass) {
+      showToast("Passwords do not match")
+      return
+    }
+    setChangePassLoading(true)
+    try {
+      if (isSupabaseConfigured()) {
+        const { error } = await supabase
+          .from("roboflix_lms_settings")
+          .upsert([{ key: "admin_password", value: newAdminPass.trim(), updated_at: new Date().toISOString() }], { onConflict: "key" })
+        if (error) throw error
+        showToast("Admin password updated successfully! ✅")
+      } else {
+        showToast("Supabase not configured — password not saved to cloud")
+      }
+      setNewAdminPass("")
+      setConfirmAdminPass("")
+      setShowChangePassword(false)
+    } catch (err) {
+      showToast("Failed to update password. Try again.")
+    } finally {
+      setChangePassLoading(false)
+    }
+  }
+
   if (isLoading || seasonsData.length === 0) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -674,14 +711,68 @@ export default function LmsAdminPanel() {
           </span>
         </div>
 
-        <button
-          onClick={resetAllData}
-          className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 hover:bg-red-600/10 hover:border-red-500/30 hover:text-red-500 rounded-lg text-xs font-bold uppercase transition-all"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          <span>Reset Defaults</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Change Password Button */}
+          <button
+            onClick={() => setShowChangePassword(!showChangePassword)}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 hover:bg-blue-600/10 hover:border-blue-500/30 hover:text-blue-400 rounded-lg text-xs font-bold uppercase transition-all"
+          >
+            <span>🔑</span>
+            <span className="hidden sm:inline">Change Password</span>
+          </button>
+
+          <button
+            onClick={resetAllData}
+            className="flex items-center gap-2 px-3 py-1.5 bg-white/5 border border-white/10 hover:bg-red-600/10 hover:border-red-500/30 hover:text-red-500 rounded-lg text-xs font-bold uppercase transition-all"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Reset Defaults</span>
+          </button>
+        </div>
       </header>
+
+      {/* Change Password Dropdown Panel */}
+      <AnimatePresence>
+        {showChangePassword && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            transition={{ duration: 0.2 }}
+            className="sticky top-[73px] z-40 bg-[#0d0d0d] border-b border-blue-500/20 px-4 sm:px-6 py-5 shadow-2xl"
+          >
+            <div className="max-w-md mx-auto">
+              <p className="text-xs font-bold uppercase tracking-widest text-blue-400 mb-4 flex items-center gap-2">
+                <span>🔑</span> Change Admin Password
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <input
+                  type="password"
+                  value={newAdminPass}
+                  onChange={e => setNewAdminPass(e.target.value)}
+                  placeholder="New password (min 6 chars)"
+                  className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
+                />
+                <input
+                  type="password"
+                  value={confirmAdminPass}
+                  onChange={e => setConfirmAdminPass(e.target.value)}
+                  placeholder="Confirm new password"
+                  className="flex-1 px-3 py-2 bg-white/5 border border-white/10 rounded-lg text-white text-sm placeholder-gray-600 focus:outline-none focus:border-blue-500/50"
+                />
+                <button
+                  onClick={changeAdminPassword}
+                  disabled={changePassLoading}
+                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg text-sm font-bold transition-all shrink-0"
+                >
+                  {changePassLoading ? "Saving..." : "Save"}
+                </button>
+              </div>
+              <p className="text-gray-600 text-xs mt-2">Password is stored securely in Supabase and takes effect immediately on all devices.</p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Grid */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
