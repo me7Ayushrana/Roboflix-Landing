@@ -152,9 +152,10 @@ export default function VideoPlayerPage() {
 
   // Custom Video Player States
   const [player, setPlayer] = useState<any>(null)
+  const playerRef = useRef<any>(null)
   const [isPlaying, setIsPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
-  const [volume, setVolume] = useState(100)
+  const [volume, setVolume] = useState(1) // scale from 0 to 1
   const [isMuted, setIsMuted] = useState(false)
   const [playbackSpeed, setPlaybackSpeed] = useState(1)
   const [showSpeedMenu, setShowSpeedMenu] = useState(false)
@@ -262,6 +263,7 @@ export default function VideoPlayerPage() {
     if (isLoading) return
     if (isGdrive) {
       setPlayer(null)
+      playerRef.current = null
       return
     }
 
@@ -286,8 +288,9 @@ export default function VideoPlayerPage() {
           events: {
             onReady: (event: any) => {
               setPlayer(event.target)
+              playerRef.current = event.target
               setDuration(event.target.getDuration() || 0)
-              event.target.setVolume(volume)
+              event.target.setVolume(volume * 100)
             },
             onStateChange: (event: any) => {
               const state = event.data
@@ -328,8 +331,20 @@ export default function VideoPlayerPage() {
 
     return () => {
       window.onYouTubeIframeAPIReady = undefined
+      if (playerRef.current && playerRef.current.destroy) {
+        try {
+          playerRef.current.destroy()
+        } catch (e) {
+          console.error("Error destroying YouTube player:", e)
+        }
+        playerRef.current = null
+      }
+      setPlayer(null)
+      setIsPlaying(false)
+      setCurrentTime(0)
+      setDuration(0)
     }
-  }, [isLoading, isGdrive])
+  }, [isLoading, isGdrive, currentVideoId])
 
   // 3. Track current playback position and duration
   useEffect(() => {
@@ -346,23 +361,6 @@ export default function VideoPlayerPage() {
     }
     return () => clearInterval(interval)
   }, [player, isPlaying, duration])
-
-  // 4. Handle video switches dynamically
-  useEffect(() => {
-    if (player && player.loadVideoById && currentVideoId) {
-      if (lastLoadedVideoIdRef.current !== currentVideoId) {
-        lastLoadedVideoIdRef.current = currentVideoId
-        
-        // If this is not the very first video load (which the iframe src handles natively), load it dynamically
-        if (iframeVideoId && iframeVideoId !== currentVideoId) {
-          player.loadVideoById({ videoId: currentVideoId })
-          setIsPlaying(false)
-          setCurrentTime(0)
-          setDuration(0)
-        }
-      }
-    }
-  }, [currentVideoId, player, iframeVideoId])
 
   // 5. Fullscreen event handling
   useEffect(() => {
@@ -387,7 +385,7 @@ export default function VideoPlayerPage() {
       }
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false)
-      }, 2500)
+      }, 3000)
 
       // Trigger the YouTube native title blocker overlay whenever video starts/resumes playing
       triggerTitleBlocker()
@@ -408,7 +406,7 @@ export default function VideoPlayerPage() {
     if (isPlaying) {
       controlsTimeoutRef.current = setTimeout(() => {
         setShowControls(false)
-      }, 2500)
+      }, 3000)
     }
   }
 
@@ -418,7 +416,7 @@ export default function VideoPlayerPage() {
       setShowControls(true)
       if (isPlaying) {
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
-        controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 2500)
+        controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000)
       }
     } else if (player) {
       // Second tap — inline toggle to avoid forward reference
@@ -430,7 +428,7 @@ export default function VideoPlayerPage() {
         player.playVideo()
         setIsPlaying(true)
         if (controlsTimeoutRef.current) clearTimeout(controlsTimeoutRef.current)
-        controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 2500)
+        controlsTimeoutRef.current = setTimeout(() => setShowControls(false), 3000)
       }
     }
   }, [showControls, isPlaying, player])
@@ -519,13 +517,13 @@ export default function VideoPlayerPage() {
         case "ArrowUp":
           e.preventDefault()
           setVolume((prev) => {
-            const nextVol = Math.min(prev + 5, 100)
-            player.setVolume(nextVol)
+            const nextVol = Math.min(prev + 0.05, 1)
+            player.setVolume(nextVol * 100)
             if (nextVol > 0 && isMuted) {
               player.unMute()
               setIsMuted(false)
             }
-            showHUD("volume", `Volume ${nextVol}%`)
+            showHUD("volume", `Volume ${Math.round(nextVol * 100)}%`)
             return nextVol
           })
           handleMouseMove()
@@ -533,14 +531,14 @@ export default function VideoPlayerPage() {
         case "ArrowDown":
           e.preventDefault()
           setVolume((prev) => {
-            const nextVol = Math.max(prev - 5, 0)
-            player.setVolume(nextVol)
+            const nextVol = Math.max(prev - 0.05, 0)
+            player.setVolume(nextVol * 100)
             if (nextVol === 0 && !isMuted) {
               player.mute()
               setIsMuted(true)
               showHUD("mute", "Muted")
             } else {
-              showHUD("volume", `Volume ${nextVol}%`)
+              showHUD("volume", `Volume ${Math.round(nextVol * 100)}%`)
             }
             return nextVol
           })
@@ -548,12 +546,12 @@ export default function VideoPlayerPage() {
           break
         case "ArrowRight":
           e.preventDefault()
-          skipForward(5)
+          skipForward(10)
           handleMouseMove()
           break
         case "ArrowLeft":
           e.preventDefault()
-          skipBackward(5)
+          skipBackward(10)
           handleMouseMove()
           break
         default:
@@ -614,7 +612,7 @@ export default function VideoPlayerPage() {
     } else {
       if (!isMuted) {
         player.unMute()
-        player.setVolume(volume === 0 ? 50 : volume)
+        player.setVolume(volume === 0 ? 50 : volume * 100)
       } else {
         player.mute()
         player.setVolume(0)
@@ -656,12 +654,12 @@ export default function VideoPlayerPage() {
   const toggleMute = () => {
     if (!player) return
     if (isMuted) {
-      const targetVol = volume || 50
+      const targetVol = volume || 0.5
       player.unMute()
-      player.setVolume(targetVol)
+      player.setVolume(targetVol * 100)
       setVolume(targetVol)
       setIsMuted(false)
-      showHUD("unmute", `Volume ${targetVol}%`)
+      showHUD("unmute", `Volume ${Math.round(targetVol * 100)}%`)
     } else {
       player.mute()
       setIsMuted(true)
@@ -671,9 +669,9 @@ export default function VideoPlayerPage() {
 
   const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!player) return
-    const vol = parseInt(e.target.value)
+    const vol = parseFloat(e.target.value)
     setVolume(vol)
-    player.setVolume(vol)
+    player.setVolume(vol * 100)
     if (vol === 0) {
       player.mute()
       setIsMuted(true)
@@ -681,7 +679,7 @@ export default function VideoPlayerPage() {
     } else {
       player.unMute()
       setIsMuted(false)
-      showHUD("volume", `Volume ${vol}%`)
+      showHUD("volume", `Volume ${Math.round(vol * 100)}%`)
     }
   }
 
@@ -748,10 +746,7 @@ export default function VideoPlayerPage() {
   }
 
   const getYouTubeEmbedUrl = () => {
-    // enablejsapi=1 is REQUIRED to control the iframe programmatically
-    // controls=0 disables standard player bar, disablekb=1 disables shortcut keys
-    // modestbranding=1 disables logo overlays, fs=0 disables standard fullscreen button
-    return `https://www.youtube-nocookie.com/embed/${iframeVideoId || currentVideoId}?enablejsapi=1&controls=0&disablekb=1&fs=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&autoplay=0&playsinline=1`
+    return `https://www.youtube-nocookie.com/embed/${currentVideoId}?enablejsapi=1&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&fs=0`
   }
 
   const renderHudIcon = () => {
@@ -832,14 +827,15 @@ export default function VideoPlayerPage() {
                   />
                 </div>
               ) : (
-                /* YouTube Iframe - 100% dimensions, pointer-isolated, always rendered for API control */
-                <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+                /* YouTube Iframe - 16:9 aspect crop mask, pointer-isolated, always rendered for API control */
+                <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-10">
                   <iframe
+                    key={currentVideoId}
                     id="roboflix-player-iframe"
                     src={getYouTubeEmbedUrl()}
                     title={episode.title}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    className={`w-full h-full border-0 absolute top-0 left-0 pointer-events-none transition-opacity duration-150 ${
+                    className={`w-full h-[calc(100%+120px)] border-0 absolute -top-[60px] left-0 pointer-events-none transition-opacity duration-150 ${
                       isPlaying ? "opacity-100" : "opacity-0"
                     }`}
                     tabIndex={-1}
@@ -960,9 +956,9 @@ export default function VideoPlayerPage() {
                     max={duration || 100}
                     value={currentTime}
                     onChange={handleSeek}
-                    className="flex-1 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-red-600 outline-none focus:ring-1 focus:ring-red-600/50 hover:h-2 transition-all"
+                    className="flex-1 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-[#E50914] outline-none focus:ring-1 focus:ring-[#E50914]/50 hover:h-2 transition-all"
                     style={{
-                      background: `linear-gradient(to right, #dc2626 0%, #dc2626 ${(currentTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.1) ${(currentTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.1) 100%)`
+                      background: `linear-gradient(to right, #E50914 0%, #E50914 ${(currentTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.1) ${(currentTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.1) 100%)`
                     }}
                   />
                   <span className="text-xs font-semibold font-mono text-gray-400 select-none">{formatTime(duration)}</span>
@@ -1015,12 +1011,16 @@ export default function VideoPlayerPage() {
                         <input
                           type="range"
                           min={0}
-                          max={100}
+                          max={1}
+                          step={0.01}
                           value={isMuted ? 0 : volume}
                           onChange={handleVolumeChange}
                           onClick={(e) => e.stopPropagation()}
                           onMouseDown={(e) => e.stopPropagation()}
-                          className="w-20 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-red-600 outline-none"
+                          className="w-20 h-1 bg-white/20 rounded-full appearance-none cursor-pointer accent-[#E50914] outline-none"
+                          style={{
+                            background: `linear-gradient(to right, #E50914 0%, #E50914 ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.2) ${(isMuted ? 0 : volume) * 100}%, rgba(255, 255, 255, 0.2) 100%)`
+                          }}
                         />
                       </div>
                     </div>
