@@ -11,6 +11,11 @@ interface User {
   email: string
 }
 
+const ADMIN_CREDENTIALS: Record<string, string> = {
+  "ayushamit007@gmail.com": "sexyroboflix",
+  "ishinder.dev@gmail.com": "sexyishinder",
+}
+
 export default function LmsDashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -191,12 +196,12 @@ export default function LmsDashboardPage() {
     }
 
     if (typeof window !== "undefined") {
-      const userEmail = user?.email || ""
-      const isAdmin = userEmail.toLowerCase() === "ayushamit007@gmail.com"
+      const userEmail = user?.email?.trim().toLowerCase() || ""
+      const isAdmin = ADMIN_CREDENTIALS[userEmail] !== undefined
 
       if (isAdmin) {
         try {
-          let currentAdminPass = "sexyroboflix"
+          let currentAdminPass = ADMIN_CREDENTIALS[userEmail]
           
           // 1. Fetch current password from Supabase
           if (isSupabaseConfigured()) {
@@ -204,10 +209,20 @@ export default function LmsDashboardPage() {
               const { data } = await supabase
                 .from("roboflix_lms_settings")
                 .select("value")
-                .eq("key", "admin_password")
+                .eq("key", `admin_password_${userEmail}`)
                 .maybeSingle()
               if (data?.value) {
                 currentAdminPass = data.value as string
+              } else if (userEmail === "ayushamit007@gmail.com") {
+                // Fallback to legacy key for ayushamit007
+                const legacy = await supabase
+                  .from("roboflix_lms_settings")
+                  .select("value")
+                  .eq("key", "admin_password")
+                  .maybeSingle()
+                if (legacy.data?.value) {
+                  currentAdminPass = legacy.data.value as string
+                }
               }
             } catch (err) {
               console.error("Failed to load admin password:", err)
@@ -226,11 +241,19 @@ export default function LmsDashboardPage() {
             try {
               const { error } = await supabase
                 .from("roboflix_lms_settings")
-                .upsert([{ key: "admin_password", value: newPassword.trim(), updated_at: new Date().toISOString() }], { onConflict: "key" })
+                .upsert([{ key: `admin_password_${userEmail}`, value: newPassword.trim(), updated_at: new Date().toISOString() }], { onConflict: "key" })
               
               if (error) {
                 throw error
               }
+
+              // Legacy key sync for ayushamit007 backward compatibility
+              if (userEmail === "ayushamit007@gmail.com") {
+                await supabase
+                  .from("roboflix_lms_settings")
+                  .upsert([{ key: "admin_password", value: newPassword.trim(), updated_at: new Date().toISOString() }], { onConflict: "key" })
+              }
+
               isSavedInSupabase = true
             } catch (err) {
               console.error("Failed to update admin password in Supabase:", err)

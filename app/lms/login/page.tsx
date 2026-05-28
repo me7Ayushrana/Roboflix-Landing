@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation"
 import { Mail, Lock, ArrowRight } from "lucide-react"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
-// The ONE admin email allowed
-const ADMIN_EMAIL = "ayushamit007@gmail.com"
-
-// Default admin password fallback (overridden by Supabase if set)
-const DEFAULT_ADMIN_PASSWORD = "sexyroboflix"
+// The allowed admin accounts and their default password fallbacks
+const ADMIN_CREDENTIALS: Record<string, string> = {
+  "ayushamit007@gmail.com": "sexyroboflix",
+  "ishinder.dev@gmail.com": "sexyishinder",
+}
 
 export default function LmsLoginPage() {
   const router = useRouter()
@@ -80,20 +80,32 @@ export default function LmsLoginPage() {
       const trimmedEmail = email.trim().toLowerCase()
       const trimmedPassword = password.trim()
 
-      const isAdminEmail = trimmedEmail === ADMIN_EMAIL
+      const isAdminEmail = ADMIN_CREDENTIALS[trimmedEmail] !== undefined
       const sessionId = Math.random().toString(36).substring(2) + Date.now().toString()
 
       if (isAdminEmail) {
         // Load admin password from Supabase if configured, else use default
-        let adminPassword = DEFAULT_ADMIN_PASSWORD
+        let adminPassword = ADMIN_CREDENTIALS[trimmedEmail]
         if (isSupabaseConfigured()) {
           try {
             const { data } = await supabase
               .from("roboflix_lms_settings")
               .select("value")
-              .eq("key", "admin_password")
+              .eq("key", `admin_password_${trimmedEmail}`)
               .maybeSingle()
-            if (data?.value) adminPassword = data.value as string
+            if (data?.value) {
+              adminPassword = data.value as string
+            } else if (trimmedEmail === "ayushamit007@gmail.com") {
+              // Legacy key fallback for ayushamit007
+              const legacy = await supabase
+                .from("roboflix_lms_settings")
+                .select("value")
+                .eq("key", "admin_password")
+                .maybeSingle()
+              if (legacy.data?.value) {
+                adminPassword = legacy.data.value as string
+              }
+            }
           } catch {}
         }
 
@@ -101,9 +113,17 @@ export default function LmsLoginPage() {
           // Track admin session token to enforce single-session control
           if (isSupabaseConfigured()) {
             try {
+              // Store session id for this specific admin
               await supabase
                 .from("roboflix_lms_settings")
-                .upsert([{ key: "admin_session_id", value: sessionId, updated_at: new Date().toISOString() }], { onConflict: "key" })
+                .upsert([{ key: `admin_session_id_${trimmedEmail}`, value: sessionId, updated_at: new Date().toISOString() }], { onConflict: "key" })
+              
+              // Legacy key for ayushamit007 backward compatibility
+              if (trimmedEmail === "ayushamit007@gmail.com") {
+                await supabase
+                  .from("roboflix_lms_settings")
+                  .upsert([{ key: "admin_session_id", value: sessionId, updated_at: new Date().toISOString() }], { onConflict: "key" })
+              }
             } catch (e) {
               console.error("Failed to write admin session ID:", e)
             }

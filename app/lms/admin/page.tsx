@@ -122,8 +122,9 @@ export default function LmsAdminPanel() {
         }
 
         if (loggedInEmail) {
-          // ONLY one admin allowed
-          const isUserAdmin = loggedInEmail.toLowerCase() === "ayushamit007@gmail.com"
+          // Admin authorization checks
+          const isUserAdmin = loggedInEmail.toLowerCase() === "ayushamit007@gmail.com" ||
+                              loggedInEmail.toLowerCase() === "ishinder.dev@gmail.com"
           
           if (isUserAdmin) {
             setUser({ email: loggedInEmail })
@@ -669,10 +670,18 @@ export default function LmsAdminPanel() {
     setChangePassLoading(true)
     try {
       if (isSupabaseConfigured()) {
+        const adminEmail = user?.email?.trim().toLowerCase() || ""
         const { error } = await supabase
           .from("roboflix_lms_settings")
-          .upsert([{ key: "admin_password", value: newAdminPass.trim(), updated_at: new Date().toISOString() }], { onConflict: "key" })
+          .upsert([{ key: `admin_password_${adminEmail}`, value: newAdminPass.trim(), updated_at: new Date().toISOString() }], { onConflict: "key" })
         if (error) throw error
+
+        // Maintain legacy key for ayushamit007 backward compatibility
+        if (adminEmail === "ayushamit007@gmail.com") {
+          await supabase
+            .from("roboflix_lms_settings")
+            .upsert([{ key: "admin_password", value: newAdminPass.trim(), updated_at: new Date().toISOString() }], { onConflict: "key" })
+        }
         showToast("Admin password updated successfully! ✅")
       } else {
         showToast("Supabase not configured — password not saved to cloud")
