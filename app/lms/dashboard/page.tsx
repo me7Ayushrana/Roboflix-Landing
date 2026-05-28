@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { LogOut, Clock, Lock, Key, X, CheckCircle2, AlertCircle } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
@@ -24,6 +24,27 @@ export default function LmsDashboardPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [passwordError, setPasswordError] = useState("")
   const [passwordSuccess, setPasswordSuccess] = useState("")
+
+  // Desktop Recommendation states & checks (Mobile only)
+  const [showDesktopPopup, setShowDesktopPopup] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      if (typeof window !== "undefined") {
+        const mobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
+        if (mobile && !sessionStorage.getItem("desktop_popup_dismissed")) {
+          // Trigger recommendation warning toast with a tiny settle delay
+          setTimeout(() => setShowDesktopPopup(true), 800)
+        }
+      }
+    }
+    checkMobile()
+  }, [])
+
+  const dismissDesktopPopup = () => {
+    sessionStorage.setItem("desktop_popup_dismissed", "1")
+    setShowDesktopPopup(false)
+  }
 
   useEffect(() => {
     const loadSeasons = async () => {
@@ -546,6 +567,39 @@ export default function LmsDashboardPage() {
           </motion.div>
         </div>
       )}
+
+      {/* Desktop Recommended Popup — mobile only, once per session */}
+      <AnimatePresence>
+        {showDesktopPopup && (
+          <motion.div
+            key="desktop-popup"
+            initial={{ opacity: 0, y: 60, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 60, scale: 0.92 }}
+            transition={{ type: "spring", stiffness: 340, damping: 28 }}
+            className="fixed bottom-5 left-1/2 -translate-x-1/2 z-[9998] w-[calc(100vw-32px)] max-w-sm pointer-events-auto"
+            role="alert"
+          >
+            <div className="relative flex items-start gap-3.5 px-4 py-3.5 bg-black/95 border border-red-600/40 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.9)] backdrop-blur-md">
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-red-600/20 via-transparent to-transparent pointer-events-none" />
+              <div className="mt-0.5 flex-shrink-0 w-9 h-9 rounded-xl bg-red-600/15 border border-red-600/30 flex items-center justify-center text-xl">
+                🖥️
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-white font-bold text-sm leading-snug">Desktop Recommended</p>
+                <p className="text-gray-400 text-xs mt-0.5 leading-relaxed">For the best Roboflix experience, open on a desktop or laptop.</p>
+              </div>
+              <button
+                onClick={dismissDesktopPopup}
+                aria-label="Dismiss"
+                className="flex-shrink-0 p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition-colors mt-0.5"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
