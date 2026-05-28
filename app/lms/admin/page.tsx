@@ -156,6 +156,22 @@ export default function LmsAdminPanel() {
         { email: "ansh.ritesh.singh.2010@gmail.com", phone: "9049410576", status: "Active", tier: "Pro" },
         { email: "jemit57@gmail.com", phone: "437-224-3735", status: "Active", tier: "Founding Batch" },
         { email: "ishinder@gmail.com", phone: "8288898544", status: "Active", tier: "Pro" },
+        { email: "ajityadav8776@gmail.com", phone: "9870723164", status: "Active", tier: "Pro" },
+        { email: "kalemanthan8@gmail.com", phone: "9421600978", status: "Active", tier: "Pro" },
+        { email: "aditya.jayrobotics92@gmail.com", phone: "6260694595", status: "Active", tier: "Pro" },
+        { email: "sameer.kumar.sachdeva@gmail.com", phone: "9891445801", status: "Active", tier: "Pro" },
+        { email: "abdullahhabib11.mh@gmail.com", phone: "9870786706", status: "Active", tier: "Pro" },
+        { email: "divakersharma86@gmail.com", phone: "6307949742", status: "Active", tier: "Pro" },
+        { email: "kevadiyaprakruti@gmail.com", phone: "6353050746", status: "Active", tier: "Pro" },
+        { email: "mirzarahmathullahbaig@gmail.com", phone: "8309143616", status: "Active", tier: "Pro" },
+        { email: "catchswapnoroop@gmail.com", phone: "9874158966", status: "Active", tier: "Pro" },
+        { email: "yogeshprajapati7211@gmail.com", phone: "7990132748", status: "Active", tier: "Pro" },
+        { email: "guptaamarjeet636@gmail.com", phone: "6299896341", status: "Active", tier: "Pro" },
+        { email: "paulankur141@gmail.com", phone: "9864914544", status: "Active", tier: "Pro" },
+        { email: "mohitmandawat16@gmail.com", phone: "7073988591", status: "Active", tier: "Pro" },
+        { email: "parmindersinghunofficial@gmail.com", phone: "9717446891", status: "Active", tier: "Pro" },
+        { email: "kspranks@gmail.com", phone: "6783567374", status: "Active", tier: "Pro" },
+        { email: "kartikjain1312@gmail.com", phone: "8968766551", status: "Active", tier: "Pro" },
       ] as UserAccess[]
 
       let dbLoadedSuccess = false
