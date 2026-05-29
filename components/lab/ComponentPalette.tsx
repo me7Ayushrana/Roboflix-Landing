@@ -13,8 +13,12 @@ interface ComponentPaletteProps {
 export default function ComponentPalette({ config, onDragStart }: ComponentPaletteProps) {
   const [activeSubTab, setActiveSubTab] = useState<"brief" | "components">("brief")
 
-  const allowedComponents = Object.values(LAB_COMPONENTS).filter(c => 
+  const requiredComponents = Object.values(LAB_COMPONENTS).filter(c => 
     config.components.includes(c.id)
+  )
+
+  const additionalComponents = Object.values(LAB_COMPONENTS).filter(c => 
+    !config.components.includes(c.id)
   )
 
   return (
@@ -95,37 +99,77 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
               </p>
             </div>
 
-            {/* Allowed Components List */}
-            <div className="grid grid-cols-1 gap-2.5">
-              {allowedComponents.length > 0 ? (
-                allowedComponents.map(item => (
-                  <div
-                    key={item.id}
-                    draggable
-                    onDragStart={(e) => onDragStart(e, item.id)}
-                    className="p-3 bg-gray-900 border border-gray-800 hover:border-red-600/40 rounded-xl transition-all cursor-grab active:cursor-grabbing flex items-center gap-3.5 group hover:bg-red-950/5 relative overflow-hidden"
-                  >
-                    {/* Hover glow line */}
-                    <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-transparent group-hover:bg-red-600 transition-colors" />
-
-                    <div className="w-10 h-10 bg-white/5 group-hover:bg-red-600/10 border border-white/5 rounded-lg flex items-center justify-center text-xl flex-shrink-0 transition-colors">
-                      {item.icon}
+            {/* Required Components Section */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-1.5 text-[10px] text-red-500 font-bold uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+                Required Components
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {requiredComponents.length > 0 ? (
+                  requiredComponents.map(item => (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, item.id)}
+                      className="p-3 bg-gray-900 border border-red-950 hover:border-red-600/40 rounded-xl transition-all cursor-grab active:cursor-grabbing flex items-center gap-3.5 group hover:bg-red-950/5 relative overflow-hidden text-left"
+                    >
+                      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-red-600" />
+                      <div className="w-9 h-9 bg-red-600/10 border border-red-500/10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 transition-colors">
+                        {item.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-white group-hover:text-red-400 transition-colors truncate">
+                          {item.name}
+                        </p>
+                        <p className="text-[9px] text-gray-500 mt-0.5">
+                          {item.pins.length} Pins
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-semibold text-white group-hover:text-red-400 transition-colors truncate">
-                        {item.name}
-                      </p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">
-                        {item.pins.length} Connection Pins
-                      </p>
-                    </div>
+                  ))
+                ) : (
+                  <div className="text-center p-3 text-gray-600 text-xs italic">
+                    No required components.
                   </div>
-                ))
-              ) : (
-                <div className="text-center p-6 text-gray-500 text-xs">
-                  No components required for this brief.
-                </div>
-              )}
+                )}
+              </div>
+            </div>
+
+            {/* Additional Components Section */}
+            <div className="space-y-2 pt-3 border-t border-gray-800/80">
+              <div className="flex items-center gap-1.5 text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />
+                Additional Hardware Spares
+              </div>
+              <div className="grid grid-cols-1 gap-2">
+                {additionalComponents.length > 0 ? (
+                  additionalComponents.map(item => (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, item.id)}
+                      className="p-3 bg-gray-950/60 border border-gray-900 hover:border-gray-800 rounded-xl transition-all cursor-grab active:cursor-grabbing flex items-center gap-3 group hover:bg-white/5 relative overflow-hidden opacity-75 hover:opacity-100 text-left"
+                    >
+                      <div className="w-9 h-9 bg-white/5 border border-white/5 rounded-lg flex items-center justify-center text-lg flex-shrink-0 transition-colors">
+                        {item.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-gray-300 group-hover:text-white transition-colors truncate">
+                          {item.name}
+                        </p>
+                        <p className="text-[9px] text-gray-500 mt-0.5">
+                          {item.pins.length} Pins
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center p-3 text-gray-600 text-xs italic">
+                    No hardware spares.
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         )}
