@@ -17,8 +17,24 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
     config.components.includes(c.id)
   )
 
+  const allowedSpares = [
+    "arduino-uno",
+    "esp32",
+    "servo-motor",
+    "servo-mg996r",
+    "pca9685",
+    "geared-dc-motor",
+    "raspberry-pi-4",
+    "raspberry-pi-5",
+    "tp4056",
+    "lipo-battery",
+    "lm2596-buck",
+    "level-shifter",
+    "jumper-m-m"
+  ]
+
   const additionalComponents = Object.values(LAB_COMPONENTS).filter(c => 
-    !config.components.includes(c.id)
+    !config.components.includes(c.id) && allowedSpares.includes(c.id)
   )
 
   return (
