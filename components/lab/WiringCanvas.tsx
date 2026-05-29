@@ -215,35 +215,31 @@ export default function WiringCanvas({
         {/* Wire Colors */}
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mr-2">
-            Wire Type:
+            Wire Color:
           </span>
-          <button
-            onClick={() => setActiveWireColor("red")}
-            className={`w-7 h-7 rounded-full bg-red-600 border-2 transition-all flex items-center justify-center ${
-              activeWireColor === "red" ? "border-white scale-110 shadow-lg shadow-red-600/30" : "border-transparent opacity-60 hover:opacity-90"
-            }`}
-            title="VCC (+5V / +3.3V)"
-          >
-            <span className="text-[9px] font-bold text-white">VCC</span>
-          </button>
-          <button
-            onClick={() => setActiveWireColor("black")}
-            className={`w-7 h-7 rounded-full bg-gray-900 border-2 transition-all flex items-center justify-center ${
-              activeWireColor === "black" ? "border-white scale-110 shadow-lg shadow-black/60" : "border-transparent opacity-60 hover:opacity-90"
-            }`}
-            title="Ground (GND)"
-          >
-            <span className="text-[9px] font-bold text-gray-400">GND</span>
-          </button>
-          <button
-            onClick={() => setActiveWireColor("yellow")}
-            className={`w-7 h-7 rounded-full bg-yellow-500 border-2 transition-all flex items-center justify-center ${
-              activeWireColor === "yellow" ? "border-white scale-110 shadow-lg shadow-yellow-500/30" : "border-transparent opacity-60 hover:opacity-90"
-            }`}
-            title="Signal line (I/O)"
-          >
-            <span className="text-[9px] font-bold text-black font-semibold">SIG</span>
-          </button>
+          {[
+            { id: "red", bg: "bg-red-600", label: "RED", title: "VCC (+5V / +3.3V)" },
+            { id: "black", bg: "bg-gray-900", label: "BLK", title: "Ground (GND)" },
+            { id: "yellow", bg: "bg-yellow-500", label: "YEL", title: "Signal (SIG)" },
+            { id: "green", bg: "bg-green-500", label: "GRN", title: "Signal (SIG)" },
+            { id: "blue", bg: "bg-blue-500", label: "BLU", title: "Signal (SIG)" },
+            { id: "purple", bg: "bg-purple-500", label: "PUR", title: "Signal (SIG)" },
+            { id: "orange", bg: "bg-orange-500", label: "ORN", title: "Signal (SIG)" },
+            { id: "cyan", bg: "bg-cyan-500", label: "CYN", title: "Signal (SIG)" }
+          ].map(c => (
+            <button
+              key={c.id}
+              onClick={() => setActiveWireColor(c.id)}
+              className={`w-7 h-7 rounded-full ${c.bg} border-2 transition-all flex items-center justify-center ${
+                activeWireColor === c.id ? "border-white scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-90"
+              }`}
+              title={c.title}
+            >
+              <span className={`text-[8px] font-bold ${c.id === "black" ? "text-gray-400" : c.id === "yellow" ? "text-black" : "text-white"}`}>
+                {c.label}
+              </span>
+            </button>
+          ))}
         </div>
 
         {/* View Controls */}
@@ -336,8 +332,34 @@ export default function WiringCanvas({
               const dy = Math.abs(end.y - start.y) * 0.4
               const path = `M ${start.x} ${start.y} C ${start.x + dx} ${start.y + (end.y > start.y ? dy : -dy)} ${end.x - dx} ${end.y + (end.y > start.y ? -dy : dy)} ${end.x} ${end.y}`
               
-              const strokeColor = wire.color === "red" ? "#dc2626" : wire.color === "black" ? "#111827" : "#eab308"
-              const shadowColor = wire.color === "red" ? "rgba(220,38,38,0.2)" : wire.color === "black" ? "rgba(0,0,0,0.6)" : "rgba(234,179,8,0.2)"
+              let strokeColor = "#eab308"
+              let shadowColor = "rgba(234,179,8,0.2)"
+              
+              if (wire.color === "red") {
+                strokeColor = "#ef4444"
+                shadowColor = "rgba(239,68,68,0.3)"
+              } else if (wire.color === "black") {
+                strokeColor = "#1f2937"
+                shadowColor = "rgba(31,41,55,0.4)"
+              } else if (wire.color === "yellow") {
+                strokeColor = "#eab308"
+                shadowColor = "rgba(234,179,8,0.3)"
+              } else if (wire.color === "green") {
+                strokeColor = "#22c55e"
+                shadowColor = "rgba(34,197,94,0.3)"
+              } else if (wire.color === "blue") {
+                strokeColor = "#3b82f6"
+                shadowColor = "rgba(59,130,246,0.3)"
+              } else if (wire.color === "purple") {
+                strokeColor = "#a855f7"
+                shadowColor = "rgba(168,85,247,0.3)"
+              } else if (wire.color === "orange") {
+                strokeColor = "#f97316"
+                shadowColor = "rgba(249,115,22,0.3)"
+              } else if (wire.color === "cyan") {
+                strokeColor = "#06b6d4"
+                shadowColor = "rgba(6,182,212,0.3)"
+              }
 
               return (
                 <g key={idx}>
@@ -365,21 +387,37 @@ export default function WiringCanvas({
             {/* Draw Wire Drawing Preview */}
             {wireStart && (
               <g>
-                <line
-                  x1={wireStart.x}
-                  y1={wireStart.y}
-                  x2={mousePos.x}
-                  y2={mousePos.y}
-                  stroke={activeWireColor === "red" ? "#dc2626" : activeWireColor === "black" ? "#4b5563" : "#eab308"}
-                  strokeWidth="3"
-                  strokeDasharray="5,5"
-                />
-                <circle
-                  cx={mousePos.x}
-                  cy={mousePos.y}
-                  r="5"
-                  fill={activeWireColor === "red" ? "#dc2626" : activeWireColor === "black" ? "#111827" : "#eab308"}
-                />
+                {(() => {
+                  let previewColor = "#eab308"
+                  if (activeWireColor === "red") previewColor = "#ef4444"
+                  else if (activeWireColor === "black") previewColor = "#4b5563"
+                  else if (activeWireColor === "yellow") previewColor = "#eab308"
+                  else if (activeWireColor === "green") previewColor = "#22c55e"
+                  else if (activeWireColor === "blue") previewColor = "#3b82f6"
+                  else if (activeWireColor === "purple") previewColor = "#a855f7"
+                  else if (activeWireColor === "orange") previewColor = "#f97316"
+                  else if (activeWireColor === "cyan") previewColor = "#06b6d4"
+                  
+                  return (
+                    <>
+                      <line
+                        x1={wireStart.x}
+                        y1={wireStart.y}
+                        x2={mousePos.x}
+                        y2={mousePos.y}
+                        stroke={previewColor}
+                        strokeWidth="3"
+                        strokeDasharray="5,5"
+                      />
+                      <circle
+                        cx={mousePos.x}
+                        cy={mousePos.y}
+                        r="5"
+                        fill={previewColor}
+                      />
+                    </>
+                  )
+                })()}
               </g>
             )}
           </svg>
@@ -389,6 +427,70 @@ export default function WiringCanvas({
             const def = LAB_COMPONENTS[comp.componentId]
             if (!def) return null
 
+            const isImageComponent = !!def.imageUrl
+
+            if (isImageComponent) {
+              return (
+                <div
+                  key={comp.id}
+                  style={{
+                    left: comp.x,
+                    top: comp.y,
+                    width: def.width,
+                    height: def.height,
+                  }}
+                  className="absolute select-none group cursor-grab active:cursor-grabbing z-20"
+                  onMouseDown={(e) => handleCanvasMouseDown(e, comp.id)}
+                >
+                  {/* Delete Button */}
+                  <button
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={() => handleDeleteComponent(comp.id)}
+                    className="absolute -top-3 -right-3 w-6 h-6 bg-red-650 hover:bg-red-600 rounded-full border border-red-900/30 flex items-center justify-center text-[10px] text-white opacity-0 group-hover:opacity-100 transition-all duration-200 shadow-xl cursor-pointer z-40"
+                    title="Remove Component"
+                  >
+                    ✕
+                  </button>
+
+                  {/* Realistic Top-down Image with hover outline glow */}
+                  <div className="w-full h-full relative transition-all duration-200 group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)] group-hover:scale-[1.02]">
+                    <img
+                      src={def.imageUrl}
+                      alt={def.name}
+                      className="w-full h-full object-contain select-none pointer-events-none"
+                    />
+                  </div>
+
+                  {/* Render Connective Pins as Realistic Brass/Gold Solder Pads / Header Sockets */}
+                  {def.pins.map(pin => (
+                    <button
+                      key={pin.id}
+                      style={{
+                        left: pin.x - 7,
+                        top: pin.y - 7
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => handlePinClick(e, comp.id, pin.id)}
+                      className={`absolute w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center group/pin cursor-pointer transition-all duration-150 z-30 ${
+                        wireStart?.compId === comp.id && wireStart?.pinId === pin.id
+                          ? "bg-red-600 border-red-400 scale-125 animate-pulse shadow-[0_0_8px_#ef4444]"
+                          : "bg-black/90 hover:bg-red-600/60 border-[#c2a649] hover:border-red-400 shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
+                      }`}
+                    >
+                      {/* Tiny center node */}
+                      <span className="w-1.5 h-1.5 bg-[#d8b4fe]/40 group-hover/pin:bg-white rounded-full transition-colors" />
+                      
+                      {/* Tooltip Label */}
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 py-0.5 px-1.5 bg-black/95 border border-gray-800 text-[8px] font-mono text-gray-300 rounded opacity-0 group-hover/pin:opacity-100 transition duration-150 pointer-events-none whitespace-nowrap z-50 shadow-2xl">
+                        {pin.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )
+            }
+
+            // Fallback for standard cards (like Breadboard, Potentiometer, active boards without custom textures)
             return (
               <div
                 key={comp.id}
@@ -400,7 +502,7 @@ export default function WiringCanvas({
                   borderColor: def.color + "33",
                   backgroundColor: "#0d0d0df2"
                 }}
-                className="absolute border border-gray-800 rounded-xl p-2 select-none shadow-2xl transition-all flex flex-col group"
+                className="absolute border border-gray-800 rounded-xl p-2 select-none shadow-2xl transition-all flex flex-col group z-20"
                 onMouseDown={(e) => handleCanvasMouseDown(e, comp.id)}
               >
                 {/* Delete Button */}
@@ -425,20 +527,12 @@ export default function WiringCanvas({
 
                 {/* SVG/HTML Body preview block */}
                 <div className="flex-1 flex items-center justify-center relative overflow-hidden rounded-lg">
-                  {def.imageUrl ? (
-                    <img
-                      src={def.imageUrl}
-                      alt={def.name}
-                      className="w-full h-full object-contain p-1 select-none pointer-events-none"
-                    />
-                  ) : (
-                    <div
-                      style={{ backgroundColor: def.color + "1a", borderColor: def.color + "44" }}
-                      className="w-full h-full rounded border border-dashed flex items-center justify-center text-[9px] uppercase tracking-widest font-mono text-gray-500"
-                    >
-                      {def.id.slice(0, 8)}
-                    </div>
-                  )}
+                  <div
+                    style={{ backgroundColor: def.color + "1a", borderColor: def.color + "44" }}
+                    className="w-full h-full rounded border border-dashed flex items-center justify-center text-[9px] uppercase tracking-widest font-mono text-gray-500"
+                  >
+                    {def.id.slice(0, 8)}
+                  </div>
                 </div>
 
                 {/* Render Connective Pins */}
