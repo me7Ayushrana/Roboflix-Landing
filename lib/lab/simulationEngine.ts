@@ -13,6 +13,7 @@ export interface PlacedComponent {
   componentId: string
   x: number
   y: number
+  scale?: number
 }
 
 export interface SimulationResult {

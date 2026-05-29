@@ -17,6 +17,20 @@ interface WiringCanvasProps {
   passed?: boolean | null
 }
 
+const getWireHexColor = (colorName: string) => {
+  switch (colorName) {
+    case "red": return "#ef4444"
+    case "black": return "#1f2937"
+    case "yellow": return "#eab308"
+    case "green": return "#22c55e"
+    case "blue": return "#3b82f6"
+    case "purple": return "#a855f7"
+    case "orange": return "#f97316"
+    case "cyan": return "#06b6d4"
+    default: return "#ef4444"
+  }
+}
+
 export default function WiringCanvas({
   placedComponents,
   connections,
@@ -168,9 +182,10 @@ export default function WiringCanvas({
     const pin = def.pins.find(p => p.id === pinId)
     if (!pin) return { x: 0, y: 0 }
 
+    const scale = comp.scale || 1.0
     return {
-      x: comp.x + pin.x,
-      y: comp.y + pin.y
+      x: comp.x + pin.x * scale,
+      y: comp.y + pin.y * scale
     }
   }
 
@@ -245,96 +260,181 @@ export default function WiringCanvas({
     ))
   }
 
+  const handleScaleComponent = (plCompId: string, delta: number) => {
+    const updated = placedComponents.map(c => {
+      if (c.id === plCompId) {
+        const currentScale = c.scale || 1.0
+        const newScale = Math.min(2.0, Math.max(0.5, currentScale + delta))
+        return {
+          ...c,
+          scale: newScale
+        }
+      }
+      return c
+    })
+    onUpdateComponents(updated)
+  }
+
   return (
     <div className="flex-1 bg-[#070707] flex flex-col relative h-full overflow-hidden text-white select-none">
       
       {/* Top Wiring Ribbon Toolbar */}
-      <div className="h-14 border-b border-gray-800 bg-[#0d0d0d] flex items-center justify-between px-5">
-        {/* Wire Colors */}
-        <div className="flex items-center gap-2">
-          <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mr-2">
-            Wire Color:
-          </span>
-          {[
-            { id: "red", bg: "bg-red-600", label: "RED", title: "VCC (+5V / +3.3V)" },
-            { id: "black", bg: "bg-gray-900", label: "BLK", title: "Ground (GND)" },
-            { id: "yellow", bg: "bg-yellow-500", label: "YEL", title: "Signal (SIG)" },
-            { id: "green", bg: "bg-green-500", label: "GRN", title: "Signal (SIG)" },
-            { id: "blue", bg: "bg-blue-500", label: "BLU", title: "Signal (SIG)" },
-            { id: "purple", bg: "bg-purple-500", label: "PUR", title: "Signal (SIG)" },
-            { id: "orange", bg: "bg-orange-500", label: "ORN", title: "Signal (SIG)" },
-            { id: "cyan", bg: "bg-cyan-500", label: "CYN", title: "Signal (SIG)" }
-          ].map(c => (
-            <button
-              key={c.id}
-              onClick={() => setActiveWireColor(c.id)}
-              className={`w-7 h-7 rounded-full ${c.bg} border-2 transition-all flex items-center justify-center ${
-                activeWireColor === c.id ? "border-white scale-110 shadow-lg" : "border-transparent opacity-60 hover:opacity-90"
-              }`}
-              title={c.title}
-            >
-              <span className={`text-[8px] font-bold ${c.id === "black" ? "text-gray-400" : c.id === "yellow" ? "text-black" : "text-white"}`}>
-                {c.label}
-              </span>
-            </button>
-          ))}
-        </div>
+      <div className="flex flex-col border-b border-gray-800 bg-[#0d0d0d] px-5 py-3 gap-3.5 select-none flex-shrink-0">
+        {/* Row 1: Controls & Telemetry Actions */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Left: Simulation Controls Center Deck */}
+          {onUpload ? (
+            <div className="flex items-center gap-3 bg-[#141414] border border-gray-800/80 shadow-md px-3.5 py-1.5 rounded-full w-fit">
+              <div className="flex items-center gap-2 pr-3 border-r border-gray-850">
+                <span className={`w-2 h-2 rounded-full ${isSimulating ? "bg-green-500 animate-pulse shadow-[0_0_8px_#22c55e]" : passed ? "bg-green-500 shadow-[0_0_8px_#22c55e]" : passed === false ? "bg-red-500 shadow-[0_0_8px_#ef4444]" : "bg-yellow-500 animate-pulse shadow-[0_0_8px_#eab308]"} transition-all`} />
+                <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-gray-400">
+                  {isSimulating ? "RUNNING" : passed ? "PASSED" : passed === false ? "FAILED" : "STANDBY"}
+                </span>
+              </div>
 
-        {/* View Controls */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center bg-[#141414] border border-gray-800 rounded-lg p-0.5">
+              <div className="flex items-center gap-2">
+                {/* Verify/Compile Button */}
+                <button
+                  onClick={onRun}
+                  disabled={isSimulating}
+                  className="flex items-center justify-center px-3 py-1 bg-white/5 hover:bg-white/10 disabled:opacity-50 border border-white/10 rounded-full text-[10px] font-bold text-gray-300 hover:text-white transition-all cursor-pointer"
+                  title="Verify & Compile Code Sketch"
+                >
+                  Verify
+                </button>
+
+                {/* Upload & Play Button */}
+                <button
+                  onClick={onUpload}
+                  disabled={isSimulating}
+                  className="flex items-center justify-center gap-1 px-4 py-1 bg-red-650 hover:bg-red-600 disabled:opacity-50 text-[10px] font-bold text-white rounded-full transition-all shadow-lg shadow-red-600/20 cursor-pointer"
+                  title="Flash Sketch to Board & Start Loop"
+                >
+                  <Cpu className="w-3 h-3" />
+                  Upload & Run
+                </button>
+
+                {/* Clear Board Reset Button */}
+                <button
+                  onClick={onClear}
+                  className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-gray-400 hover:text-white transition cursor-pointer"
+                  title="Reset Simulated State"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div />
+          )}
+
+          {/* Right: View & Edit Actions Deck */}
+          <div className="flex items-center gap-2.5 ml-auto md:ml-0">
+            {/* Zoom Controls */}
+            <div className="flex items-center bg-[#141414] border border-gray-800 rounded-lg p-0.5">
+              <button
+                onClick={() => setZoom(Math.max(0.6, zoom - 0.1))}
+                className="p-1.5 hover:text-red-500 text-gray-400 transition"
+                title="Zoom Out"
+              >
+                <ZoomOut className="w-3.5 h-3.5" />
+              </button>
+              <span className="text-[9.5px] font-mono w-9 text-center font-bold text-gray-400">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button
+                onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
+                className="p-1.5 hover:text-red-500 text-gray-400 transition"
+                title="Zoom In"
+              >
+                <ZoomIn className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
             <button
-              onClick={() => setZoom(Math.max(0.6, zoom - 0.1))}
-              className="p-1.5 hover:text-red-500 text-gray-400 transition"
-              title="Zoom Out"
+              onClick={handleAutoArrange}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#141414] hover:bg-white/5 border border-gray-800 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition"
+              title="Auto Arrange Grid"
             >
-              <ZoomOut className="w-4 h-4" />
+              <Sliders className="w-3 h-3 text-red-500" />
+              Grid
             </button>
-            <span className="text-[10px] font-mono w-10 text-center font-bold text-gray-500">
-              {Math.round(zoom * 100)}%
-            </span>
+
             <button
-              onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
-              className="p-1.5 hover:text-red-500 text-gray-400 transition"
-              title="Zoom In"
+              onClick={() => setZoom(1.0)}
+              className="p-1.5 bg-[#141414] hover:bg-white/5 border border-gray-800 rounded-lg text-gray-400 hover:text-white transition"
+              title="Reset Zoom"
             >
-              <ZoomIn className="w-4 h-4" />
+              <RotateCcw className="w-3 h-3" />
+            </button>
+
+            <button
+              onClick={handleUndo}
+              disabled={connectionsHistory.length === 0}
+              className="p-1.5 bg-[#141414] hover:bg-white/5 border border-gray-800 disabled:opacity-30 rounded-lg text-gray-400 hover:text-white transition cursor-pointer"
+              title="Undo Last Connection"
+            >
+              <Undo className="w-3 h-3" />
+            </button>
+
+            <button
+              onClick={handleClearCanvas}
+              className="p-1.5 bg-red-650/10 hover:bg-red-600 border border-red-900/30 hover:border-red-600 rounded-lg text-red-400 hover:text-white transition"
+              title="Clear Workspace"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
+        </div>
 
-          <button
-            onClick={handleAutoArrange}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-[#141414] hover:bg-white/5 border border-gray-800 rounded-lg text-xs font-semibold text-gray-300 hover:text-white transition"
-            title="Auto Arrange Grid"
-          >
-            <Sliders className="w-3.5 h-3.5 text-red-500" />
-            Grid
-          </button>
+        {/* Row 2: Wire Colors & Helper Hints */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-gray-800/40 pt-2.5 gap-3">
+          {/* Wire Colors */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mr-1.5">
+              Jumper Color:
+            </span>
+            {[
+              { id: "red", bg: "bg-red-600", label: "RED", title: "VCC (+5V / +3.3V)" },
+              { id: "black", bg: "bg-gray-900", label: "BLK", title: "Ground (GND)" },
+              { id: "yellow", bg: "bg-yellow-500", label: "YEL", title: "Signal (SIG)" },
+              { id: "green", bg: "bg-green-500", label: "GRN", title: "Signal (SIG)" },
+              { id: "blue", bg: "bg-blue-500", label: "BLU", title: "Signal (SIG)" },
+              { id: "purple", bg: "bg-purple-500", label: "PUR", title: "Signal (SIG)" },
+              { id: "orange", bg: "bg-orange-500", label: "ORN", title: "Signal (SIG)" },
+              { id: "cyan", bg: "bg-cyan-500", label: "CYN", title: "Signal (SIG)" }
+            ].map(c => (
+              <button
+                key={c.id}
+                onClick={() => setActiveWireColor(c.id)}
+                className={`w-6 h-6 rounded-full ${c.bg} border transition-all flex items-center justify-center ${
+                  activeWireColor === c.id ? "border-white scale-110 shadow-md" : "border-transparent opacity-60 hover:opacity-90"
+                }`}
+                title={c.title}
+              >
+                <span className={`text-[7.5px] font-bold ${c.id === "black" ? "text-gray-400" : c.id === "yellow" ? "text-black" : "text-white"}`}>
+                  {c.label}
+                </span>
+              </button>
+            ))}
+          </div>
 
-          <button
-            onClick={() => setZoom(1.0)}
-            className="p-1.5 bg-[#141414] hover:bg-white/5 border border-gray-800 rounded-lg text-gray-400 hover:text-white transition"
-            title="Reset Zoom"
-          >
-            <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            onClick={handleUndo}
-            disabled={connectionsHistory.length === 0}
-            className="p-1.5 bg-[#141414] hover:bg-white/5 border border-gray-800 disabled:opacity-30 rounded-lg text-gray-400 hover:text-white transition cursor-pointer"
-            title="Undo Last Connection"
-          >
-            <Undo className="w-3.5 h-3.5" />
-          </button>
-
-          <button
-            onClick={handleClearCanvas}
-            className="p-1.5 bg-red-650/10 hover:bg-red-600 border border-red-900/30 hover:border-red-600 rounded-lg text-red-400 hover:text-white transition"
-            title="Clear Workspace"
-          >
-            <Trash2 className="w-3.5 h-3.5" />
-          </button>
+          {/* Interactive Workspace Guidance Prompt */}
+          <div className="hidden lg:flex items-center gap-2 text-gray-500">
+            <span className="text-[9px] font-mono leading-none bg-white/5 border border-white/5 rounded px-1.5 py-0.5">
+              ESC
+            </span>
+            <span className="text-[8px] uppercase font-bold tracking-wider">
+              Cancel Wire Drawing
+            </span>
+            <span className="text-gray-700 font-bold">•</span>
+            <span className="text-[9px] font-mono leading-none bg-white/5 border border-white/5 rounded px-1.5 py-0.5">
+              Scroll Wheel
+            </span>
+            <span className="text-[8px] uppercase font-bold tracking-wider">
+              Zoom Canvas
+            </span>
+          </div>
         </div>
       </div>
 
@@ -475,6 +575,7 @@ export default function WiringCanvas({
             if (!def) return null
 
             const isImageComponent = !!def.imageUrl
+            const scale = comp.scale || 1.0
 
             if (isImageComponent) {
               return (
@@ -483,8 +584,8 @@ export default function WiringCanvas({
                   style={{
                     left: comp.x,
                     top: comp.y,
-                    width: def.width,
-                    height: def.height,
+                    width: def.width * scale,
+                    height: def.height * scale,
                   }}
                   className="absolute select-none group cursor-grab active:cursor-grabbing z-20"
                   onMouseDown={(e) => handleCanvasMouseDown(e, comp.id)}
@@ -499,41 +600,80 @@ export default function WiringCanvas({
                     ✕
                   </button>
 
+                  {/* Floating Stretch Size Buttons Pill */}
+                  <div 
+                    onMouseDown={(e) => e.stopPropagation()}
+                    className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#0c0c0cd8] border border-gray-800 rounded-full px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-2xl z-30"
+                  >
+                    <button
+                      onClick={() => handleScaleComponent(comp.id, -0.1)}
+                      className="w-4 h-4 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[10px] text-gray-400 font-bold transition hover:text-white"
+                      title="Decrease Size"
+                    >
+                      －
+                    </button>
+                    <span className="text-[8.5px] font-mono font-bold text-gray-400 min-w-8 text-center select-none">
+                      {Math.round(scale * 100)}%
+                    </span>
+                    <button
+                      onClick={() => handleScaleComponent(comp.id, 0.1)}
+                      className="w-4 h-4 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[10px] text-gray-400 font-bold transition hover:text-white"
+                      title="Increase Size"
+                    >
+                      ＋
+                    </button>
+                  </div>
+
                   {/* Realistic Top-down Image with hover outline glow */}
                   <div className="w-full h-full relative transition-all duration-200 group-hover:drop-shadow-[0_0_12px_rgba(239,68,68,0.5)] group-hover:scale-[1.02]">
                     <img
                       src={def.imageUrl}
                       alt={def.name}
-                      className="w-full h-full object-contain select-none pointer-events-none"
+                      className="w-full h-full object-fill select-none pointer-events-none"
                       style={{ mixBlendMode: "screen" }}
                     />
                   </div>
 
                   {/* Render Connective Pins as Realistic Brass/Gold Solder Pads / Header Sockets */}
-                  {def.pins.map(pin => (
-                    <button
-                      key={pin.id}
-                      style={{
-                        left: pin.x - 7,
-                        top: pin.y - 7
-                      }}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onClick={(e) => handlePinClick(e, comp.id, pin.id)}
-                      className={`absolute w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center group/pin cursor-pointer transition-all duration-150 z-30 ${
-                        wireStart?.compId === comp.id && wireStart?.pinId === pin.id
-                          ? "bg-red-600 border-red-400 scale-125 animate-pulse shadow-[0_0_8px_#ef4444]"
-                          : "bg-black/90 hover:bg-red-600/60 border-[#c2a649] hover:border-red-400 shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
-                      }`}
-                    >
-                      {/* Tiny center node */}
-                      <span className="w-1.5 h-1.5 bg-[#d8b4fe]/40 group-hover/pin:bg-white rounded-full transition-colors" />
-                      
-                      {/* Tooltip Label */}
-                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 py-0.5 px-1.5 bg-black/95 border border-gray-800 text-[8px] font-mono text-gray-300 rounded opacity-0 group-hover/pin:opacity-100 transition duration-150 pointer-events-none whitespace-nowrap z-50 shadow-2xl">
-                        {pin.label}
-                      </span>
-                    </button>
-                  ))}
+                  {def.pins.map(pin => {
+                    const connectedWire = connections.find(w => 
+                      (w.fromComponentId === comp.id && w.fromPinId === pin.id) ||
+                      (w.toComponentId === comp.id && w.toPinId === pin.id)
+                    )
+                    const wireColorHex = connectedWire ? getWireHexColor(connectedWire.color) : undefined
+
+                    return (
+                      <button
+                        key={pin.id}
+                        style={{
+                          left: pin.x * scale - 7,
+                          top: pin.y * scale - 7,
+                          borderColor: wireColorHex,
+                          boxShadow: wireColorHex ? `0 0 8px ${wireColorHex}` : undefined
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={(e) => handlePinClick(e, comp.id, pin.id)}
+                        className={`absolute w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center group/pin cursor-pointer transition-all duration-150 z-30 ${
+                          wireStart?.compId === comp.id && wireStart?.pinId === pin.id
+                            ? "bg-red-600 border-red-400 scale-125 animate-pulse shadow-[0_0_8px_#ef4444]"
+                            : "bg-black/90 hover:bg-red-650/60 border-[#c2a649] hover:border-red-400 shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
+                        }`}
+                      >
+                        {/* Tiny center node */}
+                        <span 
+                          className="w-1.5 h-1.5 bg-[#d8b4fe]/40 group-hover/pin:bg-white rounded-full transition-colors" 
+                          style={{
+                            backgroundColor: wireColorHex
+                          }}
+                        />
+                        
+                        {/* Tooltip Label */}
+                        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 py-0.5 px-1.5 bg-black/95 border border-gray-800 text-[8px] font-mono text-gray-300 rounded opacity-0 group-hover/pin:opacity-100 transition duration-150 pointer-events-none whitespace-nowrap z-50 shadow-2xl">
+                          {pin.label}
+                        </span>
+                      </button>
+                    )
+                  })}
                 </div>
               )
             }
@@ -545,8 +685,8 @@ export default function WiringCanvas({
                 style={{
                   left: comp.x,
                   top: comp.y,
-                  width: def.width,
-                  height: def.height,
+                  width: def.width * scale,
+                  height: def.height * scale,
                   borderColor: def.color + "33",
                   backgroundColor: "#0d0d0df2"
                 }}
@@ -562,6 +702,30 @@ export default function WiringCanvas({
                 >
                   ✕
                 </button>
+
+                {/* Floating Stretch Size Buttons Pill */}
+                <div 
+                  onMouseDown={(e) => e.stopPropagation()}
+                  className="absolute -bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-1 bg-[#0c0c0cd8] border border-gray-800 rounded-full px-2 py-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shadow-2xl z-30"
+                >
+                  <button
+                    onClick={() => handleScaleComponent(comp.id, -0.1)}
+                    className="w-4 h-4 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[10px] text-gray-400 font-bold transition hover:text-white"
+                    title="Decrease Size"
+                  >
+                    －
+                  </button>
+                  <span className="text-[8.5px] font-mono font-bold text-gray-400 min-w-8 text-center select-none">
+                    {Math.round(scale * 100)}%
+                  </span>
+                  <button
+                    onClick={() => handleScaleComponent(comp.id, 0.1)}
+                    className="w-4 h-4 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-[10px] text-gray-400 font-bold transition hover:text-white"
+                    title="Increase Size"
+                  >
+                    ＋
+                  </button>
+                </div>
 
                 {/* Hardware header */}
                 <div className="flex items-center gap-1.5 border-b border-gray-800 pb-1.5 mb-1 text-left">
@@ -584,78 +748,51 @@ export default function WiringCanvas({
                 </div>
 
                 {/* Render Connective Pins */}
-                {def.pins.map(pin => (
-                  <button
-                    key={pin.id}
-                    style={{
-                      left: pin.x - 6,
-                      top: pin.y - 6
-                    }}
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={(e) => handlePinClick(e, comp.id, pin.id)}
-                    className={`absolute w-3.5 h-3.5 rounded-full border flex items-center justify-center group/pin cursor-pointer transition ${
-                      wireStart?.compId === comp.id && wireStart?.pinId === pin.id
-                        ? "bg-red-600 border-red-400 scale-125 animate-pulse"
-                        : "bg-gray-800 hover:bg-red-600/50 border-gray-600 hover:border-red-400"
-                    }`}
-                  >
-                    {/* Tiny Center Pin Node */}
-                    <span className="w-1.5 h-1.5 bg-gray-400 group-hover/pin:bg-white rounded-full" />
-                    
-                    {/* Tooltip Label */}
-                    <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 py-0.5 px-1.5 bg-black border border-gray-800 text-[8px] font-mono text-gray-300 rounded opacity-0 group-hover/pin:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
-                      {pin.label}
-                    </span>
-                  </button>
-                ))}
+                {def.pins.map(pin => {
+                  const connectedWire = connections.find(w => 
+                    (w.fromComponentId === comp.id && w.fromPinId === pin.id) ||
+                    (w.toComponentId === comp.id && w.toPinId === pin.id)
+                  )
+                  const wireColorHex = connectedWire ? getWireHexColor(connectedWire.color) : undefined
+
+                  return (
+                    <button
+                      key={pin.id}
+                      style={{
+                        left: pin.x * scale - 6,
+                        top: pin.y * scale - 6,
+                        borderColor: wireColorHex,
+                        boxShadow: wireColorHex ? `0 0 8px ${wireColorHex}` : undefined
+                      }}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={(e) => handlePinClick(e, comp.id, pin.id)}
+                      className={`absolute w-3.5 h-3.5 rounded-full border flex items-center justify-center group/pin cursor-pointer transition ${
+                        wireStart?.compId === comp.id && wireStart?.pinId === pin.id
+                          ? "bg-red-600 border-red-400 scale-125 animate-pulse"
+                          : "bg-gray-800 hover:bg-red-600/50 border-gray-600 hover:border-red-400"
+                      }`}
+                    >
+                      {/* Tiny Center Pin Node */}
+                      <span 
+                        className="w-1.5 h-1.5 bg-gray-400 group-hover/pin:bg-white rounded-full" 
+                        style={{
+                          backgroundColor: wireColorHex
+                        }}
+                      />
+                      
+                      {/* Tooltip Label */}
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 py-0.5 px-1.5 bg-black border border-gray-800 text-[8px] font-mono text-gray-300 rounded opacity-0 group-hover/pin:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                        {pin.label}
+                      </span>
+                    </button>
+                  )
+                })}
               </div>
             )
           })}
         </div>
 
-        {/* Floating Simulation Control Deck */}
-        {onUpload && (
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40 bg-[#0c0c0cd8] border border-red-500/20 shadow-[0_15px_50px_rgba(0,0,0,0.85)] backdrop-blur-md px-6 py-3 rounded-full flex items-center gap-5 transition-all hover:border-red-500/40 select-none">
-            <div className="flex items-center gap-2 pr-3 border-r border-gray-800">
-              <span className={`w-2.5 h-2.5 rounded-full ${isSimulating ? "bg-green-500 animate-pulse shadow-[0_0_8px_#22c55e]" : passed ? "bg-green-500 shadow-[0_0_8px_#22c55e]" : passed === false ? "bg-red-500 shadow-[0_0_8px_#ef4444]" : "bg-yellow-500 animate-pulse shadow-[0_0_8px_#eab308]"} transition-all`} />
-              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-gray-400">
-                {isSimulating ? "SIMULATION RUNNING" : passed ? "PASSED" : passed === false ? "FAILED" : "STANDBY"}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-3">
-              {/* Verify/Compile Button */}
-              <button
-                onClick={onRun}
-                disabled={isSimulating}
-                className="flex items-center justify-center gap-1.5 px-4 py-1.5 bg-white/5 hover:bg-white/10 disabled:opacity-50 border border-white/10 rounded-full text-xs font-bold text-gray-300 hover:text-white transition-all cursor-pointer"
-                title="Verify & Compile Code Sketch"
-              >
-                Verify
-              </button>
-
-              {/* Upload & Play Button */}
-              <button
-                onClick={onUpload}
-                disabled={isSimulating}
-                className="flex items-center justify-center gap-1.5 px-5 py-1.5 bg-red-650 hover:bg-red-600 disabled:opacity-50 text-xs font-bold text-white rounded-full transition-all shadow-lg shadow-red-600/20 cursor-pointer"
-                title="Flash Sketch to Board & Start Loop"
-              >
-                <Cpu className="w-3.5 h-3.5" />
-                Upload & Run
-              </button>
-
-              {/* Clear Board Reset Button */}
-              <button
-                onClick={onClear}
-                className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-gray-400 hover:text-white transition cursor-pointer"
-                title="Reset Simulated State"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          </div>
-        )}
+        {/* Simulation controls removed here and shifted to top ribbon toolbar */}
       </div>
     </div>
   )
