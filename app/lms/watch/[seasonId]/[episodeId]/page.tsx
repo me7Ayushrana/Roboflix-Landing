@@ -4,9 +4,13 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, Menu, X, MessageCircle, Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize, Gauge, Settings, ExternalLink, Code } from "lucide-react"
+import { ArrowLeft, Menu, X, MessageCircle, Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize, Gauge, Settings, ExternalLink, Code, Library } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
+import SmartSeekBar, { type Chapter } from "@/components/player/SmartSeekBar"
+import BookmarkButton from "@/components/player/BookmarkButton"
+import DoubtPinButton from "@/components/player/DoubtPinButton"
+import { trackEvent, getHeatmap, addBookmark, saveProgress, type HeatmapBucket } from "@/lib/playerEvents"
 
 declare global {
   interface Window {
@@ -167,6 +171,12 @@ export default function VideoPlayerPage() {
   const controlsTimeoutRef = useRef<any>(null)
   // Privacy shield ref — controlled directly via DOM (synchronous), bypasses React async re-render lag
   const shieldRef = useRef<HTMLDivElement>(null)
+
+  // ─── Smart Player additions ───────────────────────────────────────────────
+  const [heatmap, setHeatmap] = useState<HeatmapBucket[]>([])
+  const [heatmapMode, setHeatmapMode] = useState<"class" | "my">("class")
+  const lastTrackedSecondRef = useRef<number>(-1)
+  const episodeKey = `s${seasonId}e${episodeId}`
 
   const showShield = () => {
     if (shieldRef.current) {
@@ -346,21 +356,79 @@ export default function VideoPlayerPage() {
     }
   }, [isLoading, isGdrive, currentVideoId])
 
-  // 3. Track current playback position and duration
+  // 3. Track current playback position, duration, and fire heatmap events
   useEffect(() => {
     let interval: any
     if (player && isPlaying) {
       interval = setInterval(() => {
         if (player.getCurrentTime) {
-          setCurrentTime(player.getCurrentTime())
+          const t = player.getCurrentTime()
+          setCurrentTime(t)
+
+          // Fire replay event when user rewinds (current time goes backward significantly)
+          const tSec = Math.floor(t)
+          if (lastTrackedSecondRef.current > 0 && tSec < lastTrackedSecondRef.current - 3) {
+            trackEvent(episodeKey, "replay", tSec)
+            // Refresh heatmap after replay event
+            if (duration > 0) {
+              setHeatmap(getHeatmap(episodeKey, duration))
+            }
+          }
+          lastTrackedSecondRef.current = tSec
         }
         if (player.getDuration && duration === 0) {
-          setDuration(player.getDuration())
+          const d = player.getDuration()
+          setDuration(d)
+          if (d > 0) setHeatmap(getHeatmap(episodeKey, d))
         }
       }, 250)
     }
     return () => clearInterval(interval)
-  }, [player, isPlaying, duration])
+  }, [player, isPlaying, duration, episodeKey])
+
+  // 3b. Reload heatmap when duration becomes available
+  useEffect(() => {
+    if (duration > 0) {
+      setHeatmap(getHeatmap(episodeKey, duration))
+    }
+  }, [duration, episodeKey])
+
+  // 3c. Track tab visibility (Page Visibility API)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "hidden") {
+        trackEvent(episodeKey, "tab_hidden", Math.floor(currentTime))
+      } else {
+        trackEvent(episodeKey, "tab_visible", Math.floor(currentTime))
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisibility)
+    return () => document.removeEventListener("visibilitychange", handleVisibility)
+  }, [episodeKey, currentTime])
+
+  // 3d. Persist watch progress every 10s while playing (for Continue Watching)
+  useEffect(() => {
+    if (!isPlaying || !episode || !season || duration <= 0) return
+    const interval = setInterval(() => {
+      if (player && player.getCurrentTime) {
+        const t = player.getCurrentTime()
+        if (t > 5) {
+          saveProgress({
+            episodeId: episodeKey,
+            seasonId,
+            episodeNumber: episodeId,
+            title: episode.title,
+            thumbnailUrl: `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`,
+            currentTime: Math.floor(t),
+            duration: Math.floor(duration),
+            percent: Math.round((t / duration) * 100),
+            updatedAt: Date.now(),
+          })
+        }
+      }
+    }, 10_000)
+    return () => clearInterval(interval)
+  }, [isPlaying, episode, season, duration, episodeKey, seasonId, episodeId, currentVideoId, player])
 
   // 5. Fullscreen event handling
   useEffect(() => {
@@ -609,6 +677,7 @@ export default function VideoPlayerPage() {
       player.pauseVideo()
       setIsPlaying(false)
       showHUD("pause", "Paused")
+      trackEvent(episodeKey, "pause", Math.floor(currentTime))
     } else {
       if (!isMuted) {
         player.unMute()
@@ -620,16 +689,57 @@ export default function VideoPlayerPage() {
       player.playVideo()
       setIsPlaying(true)
       showHUD("play", "Play")
+      trackEvent(episodeKey, "play", Math.floor(currentTime))
     }
   }
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // SmartSeekBar seek handler (time in seconds)
+  const handleSmartSeek = (time: number) => {
     if (!player) return
-    const time = parseFloat(e.target.value)
+    // Track seek — will be detected as replay if going backward
+    trackEvent(episodeKey, "seek", Math.floor(time))
     setCurrentTime(time)
     player.seekTo(time, true)
     triggerTitleBlocker()
+    // Refresh heatmap
+    if (duration > 0) setHeatmap(getHeatmap(episodeKey, duration))
   }
+
+  // Legacy handleSeek kept for other callers
+  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!player) return
+    const time = parseFloat(e.target.value)
+    handleSmartSeek(time)
+  }
+
+  // Right-click on seek bar — bookmark that moment
+  const handleSeekContextMenu = (time: number) => {
+    if (!season || !episode) return
+    const epKey = episodeKey
+    addBookmark({
+      episodeId: epKey,
+      seasonId,
+      episodeNumber: episodeId,
+      title: episode.title,
+      thumbnailUrl: `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`,
+      savedTimestamp: Math.floor(time),
+      savedAt: Date.now(),
+    })
+    // Show brief toast via doubt button's toast system — handled inline
+    const toastEl = document.getElementById("seek-bookmark-toast")
+    if (toastEl) {
+      toastEl.textContent = `📌 Bookmarked at ${formatTime(Math.floor(time))}`
+      toastEl.style.opacity = "1"
+      setTimeout(() => { if (toastEl) toastEl.style.opacity = "0" }, 2500)
+    }
+  }
+
+  // Derive chapters from episode data (auto-generate if none available)
+  const episodeChapters: Chapter[] = duration > 0 ? [
+    { title: "Introduction", startSecond: 0 },
+    { title: "Core Concepts", startSecond: Math.floor(duration * 0.3) },
+    { title: "Demo & Practice", startSecond: Math.floor(duration * 0.65) },
+  ] : []
 
   const skipForward = (seconds = 10) => {
     if (!player) return
@@ -689,6 +799,7 @@ export default function VideoPlayerPage() {
     player.setPlaybackRate(speed)
     setShowSpeedMenu(false)
     showHUD("speed", `Speed ${speed}x`)
+    trackEvent(episodeKey, "speed_change", Math.floor(currentTime), `${speed}x`)
   }
 
   const changeQuality = (quality: string) => {
@@ -793,6 +904,11 @@ export default function VideoPlayerPage() {
             </span>
           </Link>
           <div className="flex-1" />
+          {/* Library Link */}
+          <Link href="/lms/library" className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-white/5 border border-white/10 hover:border-red-500/30 hover:bg-red-950/20 rounded-lg text-xs font-semibold text-gray-400 hover:text-white transition mr-2">
+            <Library className="w-3.5 h-3.5 text-red-500" />
+            My Library
+          </Link>
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
             className="md:hidden hover:text-red-500 transition-colors"
@@ -801,6 +917,7 @@ export default function VideoPlayerPage() {
           </button>
         </div>
       </header>
+
 
       {/* Main Content */}
       <main className="flex flex-col md:flex-row gap-0 md:gap-6 px-2 sm:px-4 md:px-6 py-4 md:py-6">
@@ -947,22 +1064,23 @@ export default function VideoPlayerPage() {
                     showControls ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
                   }`}
                 >
-                {/* Progress Bar (Timeline Seek) */}
-                <div className="flex items-center gap-3.5 w-full">
-                  <span className="text-xs font-semibold font-mono text-gray-400 select-none">{formatTime(currentTime)}</span>
-                  <input
-                    type="range"
-                    min={0}
-                    max={duration || 100}
-                    value={currentTime}
-                    onChange={handleSeek}
-                    className="flex-1 h-1.5 bg-white/10 rounded-full appearance-none cursor-pointer accent-[#E50914] outline-none focus:ring-1 focus:ring-[#E50914]/50 hover:h-2 transition-all"
-                    style={{
-                      background: `linear-gradient(to right, #E50914 0%, #E50914 ${(currentTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.1) ${(currentTime / (duration || 1)) * 100}%, rgba(255, 255, 255, 0.1) 100%)`
-                    }}
+                {/* Smart Seek Bar with Heatmap */}
+                <div className="w-full" onClick={e => e.stopPropagation()}>
+                  <SmartSeekBar
+                    currentTime={currentTime}
+                    duration={duration || 100}
+                    heatmap={heatmap}
+                    chapters={episodeChapters}
+                    onSeek={handleSmartSeek}
+                    onContextMenu={handleSeekContextMenu}
                   />
-                  <span className="text-xs font-semibold font-mono text-gray-400 select-none">{formatTime(duration)}</span>
                 </div>
+                {/* Seek-bar right-click bookmark toast */}
+                <div
+                  id="seek-bookmark-toast"
+                  className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9998] pointer-events-none bg-black/95 border border-white/10 rounded-xl px-4 py-2 text-[12px] font-semibold text-white shadow-xl transition-opacity duration-300"
+                  style={{ opacity: 0 }}
+                />
 
                 {/* Buttons Container */}
                 <div className="flex items-center justify-between w-full">
@@ -1108,6 +1226,39 @@ export default function VideoPlayerPage() {
                     >
                       {isFullscreen ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
                     </button>
+
+                    {/* Divider */}
+                    <span className="w-px h-4 bg-white/10 mx-1" />
+
+                    {/* Bookmark / Heart Button */}
+                    {season && episode && (
+                      <BookmarkButton
+                        episodeId={episodeKey}
+                        seasonId={seasonId}
+                        episodeNumber={episodeId}
+                        episodeTitle={episode.title}
+                        currentTime={currentTime}
+                        onBookmarkChange={(saved) => {
+                          if (saved) {
+                            addBookmark({
+                              episodeId: episodeKey,
+                              seasonId,
+                              episodeNumber: episodeId,
+                              title: episode.title,
+                              thumbnailUrl: `https://img.youtube.com/vi/${currentVideoId}/hqdefault.jpg`,
+                              savedTimestamp: Math.floor(currentTime),
+                              savedAt: Date.now(),
+                            })
+                          }
+                        }}
+                      />
+                    )}
+
+                    {/* Doubt Pin Button */}
+                    <DoubtPinButton
+                      episodeId={episodeKey}
+                      currentTime={currentTime}
+                    />
                   </div>
                 </div>
               </div>

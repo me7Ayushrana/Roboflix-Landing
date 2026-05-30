@@ -278,164 +278,158 @@ export default function WiringCanvas({
   return (
     <div className="flex-1 bg-[#070707] flex flex-col relative h-full overflow-hidden text-white select-none">
       
-      {/* Top Wiring Ribbon Toolbar */}
-      <div className="flex flex-col border-b border-gray-800 bg-[#0d0d0d] px-5 py-3 gap-3.5 select-none flex-shrink-0">
-        {/* Row 1: Controls & Telemetry Actions */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-          {/* Left: Simulation Controls Center Deck */}
+      {/* ─── Toolbar (2-row, clean) ─── */}
+      <div className="flex flex-col border-b border-gray-800 bg-[#0d0d0d] px-4 py-2.5 gap-2 select-none flex-shrink-0">
+
+        {/* Row 1 — 2-Column grid */}
+        <div className="grid grid-cols-2 gap-3 items-center">
+
+          {/* LEFT: Simulation Controls */}
           {onUpload ? (
-            <div className="flex items-center gap-3 bg-[#141414] border border-gray-800/80 shadow-md px-3.5 py-1.5 rounded-full w-fit">
-              <div className="flex items-center gap-2 pr-3 border-r border-gray-850">
-                <span className={`w-2 h-2 rounded-full ${isSimulating ? "bg-green-500 animate-pulse shadow-[0_0_8px_#22c55e]" : passed ? "bg-green-500 shadow-[0_0_8px_#22c55e]" : passed === false ? "bg-red-500 shadow-[0_0_8px_#ef4444]" : "bg-yellow-500 animate-pulse shadow-[0_0_8px_#eab308]"} transition-all`} />
-                <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-gray-400">
-                  {isSimulating ? "RUNNING" : passed ? "PASSED" : passed === false ? "FAILED" : "STANDBY"}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Status badge */}
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#111] border border-gray-800 rounded-lg shrink-0">
+                <span className={`w-2 h-2 rounded-full shrink-0 transition-all ${
+                  isSimulating  ? "bg-green-500 animate-pulse shadow-[0_0_6px_#22c55e]"
+                  : passed      ? "bg-green-500 shadow-[0_0_5px_#22c55e]"
+                  : passed===false ? "bg-red-500 shadow-[0_0_5px_#ef4444]"
+                  :                 "bg-yellow-500 animate-pulse shadow-[0_0_5px_#eab308]"
+                }`} />
+                <span className="text-[9px] font-mono font-bold uppercase tracking-widest text-gray-400 whitespace-nowrap">
+                  {isSimulating ? "RUNNING" : passed ? "PASSED" : passed===false ? "FAILED" : "STANDBY"}
                 </span>
               </div>
 
-              <div className="flex items-center gap-2">
-                {/* Verify/Compile Button */}
-                <button
-                  onClick={onRun}
-                  disabled={isSimulating}
-                  className="flex items-center justify-center px-3 py-1 bg-white/5 hover:bg-white/10 disabled:opacity-50 border border-white/10 rounded-full text-[10px] font-bold text-gray-300 hover:text-white transition-all cursor-pointer"
-                  title="Verify & Compile Code Sketch"
-                >
-                  Verify
-                </button>
+              {/* Verify */}
+              <button
+                onClick={onRun}
+                disabled={isSimulating}
+                className="px-3 py-1.5 bg-[#111] hover:bg-white/8 disabled:opacity-40 border border-gray-700 hover:border-gray-600 rounded-lg text-[10px] font-bold text-gray-300 hover:text-white transition-all cursor-pointer whitespace-nowrap"
+                title="Verify & Compile"
+              >
+                Verify
+              </button>
 
-                {/* Upload & Play Button */}
-                <button
-                  onClick={onUpload}
-                  disabled={isSimulating}
-                  className="flex items-center justify-center gap-1 px-4 py-1 bg-red-650 hover:bg-red-600 disabled:opacity-50 text-[10px] font-bold text-white rounded-full transition-all shadow-lg shadow-red-600/20 cursor-pointer"
-                  title="Flash Sketch to Board & Start Loop"
-                >
-                  <Cpu className="w-3 h-3" />
-                  Upload & Run
-                </button>
+              {/* Upload & Run */}
+              <button
+                onClick={onUpload}
+                disabled={isSimulating}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:bg-red-900 text-[10px] font-bold text-white rounded-lg transition-all shadow-md shadow-red-900/30 cursor-pointer whitespace-nowrap"
+                title="Flash & Run"
+              >
+                <Cpu className="w-3 h-3 shrink-0" />
+                Upload &amp; Run
+              </button>
 
-                {/* Clear Board Reset Button */}
-                <button
-                  onClick={onClear}
-                  className="p-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-full text-gray-400 hover:text-white transition cursor-pointer"
-                  title="Reset Simulated State"
-                >
-                  <RotateCcw className="w-3 h-3" />
-                </button>
-              </div>
+              {/* Reset */}
+              <button
+                onClick={onClear}
+                className="p-1.5 bg-[#111] hover:bg-white/8 border border-gray-700 hover:border-gray-600 rounded-lg text-gray-400 hover:text-white transition cursor-pointer"
+                title="Reset Simulation"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
             </div>
-          ) : (
-            <div />
-          )}
+          ) : <div />}
 
-          {/* Right: View & Edit Actions Deck */}
-          <div className="flex items-center gap-2.5 ml-auto md:ml-0">
-            {/* Zoom Controls */}
-            <div className="flex items-center bg-[#141414] border border-gray-800 rounded-lg p-0.5">
+          {/* RIGHT: View & Edit Controls */}
+          <div className="flex items-center justify-end gap-2">
+
+            {/* Zoom group */}
+            <div className="flex items-center bg-[#111] border border-gray-800 rounded-lg overflow-hidden divide-x divide-gray-800">
               <button
                 onClick={() => setZoom(Math.max(0.6, zoom - 0.1))}
-                className="p-1.5 hover:text-red-500 text-gray-400 transition"
+                className="px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-white/5 transition"
                 title="Zoom Out"
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </button>
-              <span className="text-[9.5px] font-mono w-9 text-center font-bold text-gray-400">
+              <span className="text-[9px] font-mono w-9 text-center font-bold text-gray-400 select-none">
                 {Math.round(zoom * 100)}%
               </span>
               <button
                 onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
-                className="p-1.5 hover:text-red-500 text-gray-400 transition"
+                className="px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-white/5 transition"
                 title="Zoom In"
               >
                 <ZoomIn className="w-3.5 h-3.5" />
               </button>
             </div>
 
+            {/* Divider */}
+            <span className="w-px h-5 bg-gray-800 shrink-0" />
+
+            {/* Auto-arrange */}
             <button
               onClick={handleAutoArrange}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#141414] hover:bg-white/5 border border-gray-800 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition"
-              title="Auto Arrange Grid"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition whitespace-nowrap"
+              title="Auto Arrange"
             >
-              <Sliders className="w-3 h-3 text-red-500" />
+              <Sliders className="w-3 h-3 text-red-500 shrink-0" />
               Grid
             </button>
 
+            {/* Reset Zoom */}
             <button
               onClick={() => setZoom(1.0)}
-              className="p-1.5 bg-[#141414] hover:bg-white/5 border border-gray-800 rounded-lg text-gray-400 hover:text-white transition"
+              className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-gray-400 hover:text-white transition"
               title="Reset Zoom"
             >
               <RotateCcw className="w-3 h-3" />
             </button>
 
+            {/* Undo */}
             <button
               onClick={handleUndo}
               disabled={connectionsHistory.length === 0}
-              className="p-1.5 bg-[#141414] hover:bg-white/5 border border-gray-800 disabled:opacity-30 rounded-lg text-gray-400 hover:text-white transition cursor-pointer"
-              title="Undo Last Connection"
+              className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 disabled:opacity-25 rounded-lg text-gray-400 hover:text-white transition cursor-pointer"
+              title="Undo Last Wire"
             >
               <Undo className="w-3 h-3" />
             </button>
 
+            {/* Clear Canvas */}
             <button
               onClick={handleClearCanvas}
-              className="p-1.5 bg-red-650/10 hover:bg-red-600 border border-red-900/30 hover:border-red-600 rounded-lg text-red-400 hover:text-white transition"
-              title="Clear Workspace"
+              className="p-1.5 bg-red-950/50 hover:bg-red-600 border border-red-900/40 hover:border-red-500 rounded-lg text-red-400 hover:text-white transition"
+              title="Clear Canvas"
             >
               <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {/* Row 2: Wire Colors & Helper Hints */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-gray-800/40 pt-2.5 gap-3">
-          {/* Wire Colors */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mr-1.5">
-              Jumper Color:
-            </span>
-            {[
-              { id: "red", bg: "bg-red-600", label: "RED", title: "VCC (+5V / +3.3V)" },
-              { id: "black", bg: "bg-gray-900", label: "BLK", title: "Ground (GND)" },
-              { id: "yellow", bg: "bg-yellow-500", label: "YEL", title: "Signal (SIG)" },
-              { id: "green", bg: "bg-green-500", label: "GRN", title: "Signal (SIG)" },
-              { id: "blue", bg: "bg-blue-500", label: "BLU", title: "Signal (SIG)" },
-              { id: "purple", bg: "bg-purple-500", label: "PUR", title: "Signal (SIG)" },
-              { id: "orange", bg: "bg-orange-500", label: "ORN", title: "Signal (SIG)" },
-              { id: "cyan", bg: "bg-cyan-500", label: "CYN", title: "Signal (SIG)" }
-            ].map(c => (
-              <button
-                key={c.id}
-                onClick={() => setActiveWireColor(c.id)}
-                className={`w-6 h-6 rounded-full ${c.bg} border transition-all flex items-center justify-center ${
-                  activeWireColor === c.id ? "border-white scale-110 shadow-md" : "border-transparent opacity-60 hover:opacity-90"
-                }`}
-                title={c.title}
-              >
-                <span className={`text-[7.5px] font-bold ${c.id === "black" ? "text-gray-400" : c.id === "yellow" ? "text-black" : "text-white"}`}>
-                  {c.label}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          {/* Interactive Workspace Guidance Prompt */}
-          <div className="hidden lg:flex items-center gap-2 text-gray-500">
-            <span className="text-[9px] font-mono leading-none bg-white/5 border border-white/5 rounded px-1.5 py-0.5">
-              ESC
-            </span>
-            <span className="text-[8px] uppercase font-bold tracking-wider">
-              Cancel Wire Drawing
-            </span>
-            <span className="text-gray-700 font-bold">•</span>
-            <span className="text-[9px] font-mono leading-none bg-white/5 border border-white/5 rounded px-1.5 py-0.5">
-              Scroll Wheel
-            </span>
-            <span className="text-[8px] uppercase font-bold tracking-wider">
-              Zoom Canvas
-            </span>
-          </div>
+        {/* Row 2 — Wire Colors */}
+        <div className="flex items-center gap-2 border-t border-gray-800/40 pt-2">
+          <span className="text-[8.5px] text-gray-600 font-bold uppercase tracking-widest shrink-0">Wire:</span>
+          {[
+            { id: "red",    hex: "#ef4444" },
+            { id: "black",  hex: "#374151" },
+            { id: "yellow", hex: "#eab308" },
+            { id: "green",  hex: "#22c55e" },
+            { id: "blue",   hex: "#3b82f6" },
+            { id: "purple", hex: "#a855f7" },
+            { id: "orange", hex: "#f97316" },
+            { id: "cyan",   hex: "#06b6d4" },
+          ].map(c => (
+            <button
+              key={c.id}
+              onClick={() => setActiveWireColor(c.id)}
+              style={{ backgroundColor: c.hex }}
+              className={`w-5 h-5 rounded-full transition-all ${
+                activeWireColor === c.id
+                  ? "ring-2 ring-white ring-offset-2 ring-offset-[#0d0d0d] scale-125"
+                  : "opacity-50 hover:opacity-90 hover:scale-110"
+              }`}
+              title={c.id}
+            />
+          ))}
+          {/* Active label */}
+          <span className="ml-1 text-[9px] font-mono font-bold capitalize text-gray-500">
+            {activeWireColor}
+          </span>
         </div>
+
       </div>
 
       {/* Grid Canvas Workspace */}
