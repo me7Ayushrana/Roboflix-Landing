@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { LogOut, Clock, Lock, Key, X, CheckCircle2, AlertCircle } from "lucide-react"
+import { LogOut, Clock, Lock, Key, X, CheckCircle2, AlertCircle, Play, Library, ChevronRight, User, Smile } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
+import { getLastWatched, getAllProgress, type WatchProgress } from "@/lib/playerEvents"
 
 interface User {
   email: string
@@ -16,11 +17,44 @@ const ADMIN_CREDENTIALS: Record<string, string> = {
   "ishinder.dev@gmail.com": "sexyishinder",
 }
 
+const getGreetingAndName = (email: string, customName: string | null) => {
+  const hour = new Date().getHours()
+  let greeting = "Good evening"
+  if (hour >= 5 && hour < 12) greeting = "Good morning"
+  else if (hour >= 12 && hour < 17) greeting = "Good afternoon"
+  else if (hour >= 17 && hour < 22) greeting = "Good evening"
+  else greeting = "Good night"
+
+  if (customName && customName.trim() !== "") {
+    return { greeting, name: customName.trim() }
+  }
+
+  // Parse name
+  const prefix = email.split("@")[0].toLowerCase()
+  let name = "Builder"
+  
+  if (prefix.includes("ayush")) {
+    name = "Ayush"
+  } else if (prefix.includes("ishinder")) {
+    name = "Ishinder"
+  } else {
+    // Take first alphanumeric word and capitalize
+    const match = prefix.match(/[a-zA-Z]+/)
+    if (match) {
+      name = match[0].charAt(0).toUpperCase() + match[0].slice(1)
+    }
+  }
+  
+  return { greeting, name }
+}
+
 export default function LmsDashboardPage() {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [timeLeft, setTimeLeft] = useState("")
   const [seasonsData, setSeasonsData] = useState(SEASONS_DATA)
+  const [lastWatched, setLastWatched] = useState<WatchProgress | null>(null)
+  const [allProgress, setAllProgress] = useState<WatchProgress[]>([])
 
   // Change Password States
   const [showPasswordModal, setShowPasswordModal] = useState(false)
@@ -29,6 +63,19 @@ export default function LmsDashboardPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [passwordError, setPasswordError] = useState("")
   const [passwordSuccess, setPasswordSuccess] = useState("")
+
+  // Custom Preferred Name States
+  const [showNameModal, setShowNameModal] = useState(false)
+  const [newDisplayName, setNewDisplayName] = useState("")
+  const [nameError, setNameError] = useState("")
+  const [nameSuccess, setNameSuccess] = useState("")
+  const [customName, setCustomName] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setCustomName(localStorage.getItem("roboflix_custom_name"))
+    }
+  }, [])
 
   // Desktop Recommendation states & checks (Mobile only)
   const [showDesktopPopup, setShowDesktopPopup] = useState(false)
@@ -160,6 +207,12 @@ export default function LmsDashboardPage() {
     }
 
     checkSession()
+  }, [])
+
+  // Load watch progress from localStorage
+  useEffect(() => {
+    setLastWatched(getLastWatched())
+    setAllProgress(getAllProgress())
   }, [])
 
   const handleLogout = async () => {
@@ -348,6 +401,36 @@ export default function LmsDashboardPage() {
     }
   }
 
+  const handleSaveDisplayName = (e: React.FormEvent) => {
+    e.preventDefault()
+    setNameError("")
+    setNameSuccess("")
+
+    if (!newDisplayName.trim()) {
+      localStorage.removeItem("roboflix_custom_name")
+      setCustomName(null)
+      setNameSuccess("Reset to email username fallback! 🔄")
+      setTimeout(() => {
+        setShowNameModal(false)
+        setNameSuccess("")
+      }, 1500)
+      return
+    }
+
+    if (newDisplayName.trim().length > 25) {
+      setNameError("Name must be under 25 characters.")
+      return
+    }
+
+    localStorage.setItem("roboflix_custom_name", newDisplayName.trim())
+    setCustomName(newDisplayName.trim())
+    setNameSuccess("Preferred name saved successfully! 🎉")
+    setTimeout(() => {
+      setShowNameModal(false)
+      setNameSuccess("")
+    }, 1500)
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center">
@@ -406,6 +489,41 @@ export default function LmsDashboardPage() {
 
       {/* Main Content */}
       <main className="px-4 sm:px-6 py-8 max-w-7xl mx-auto">
+        {/* Dynamic Time-of-Day Welcome Greeting */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-10 text-left"
+          >
+            <h1 className="text-3xl sm:text-5xl font-display font-bold text-white tracking-tight leading-tight flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span>{getGreetingAndName(user.email, customName).greeting},</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-600 to-red-400">
+                {getGreetingAndName(user.email, customName).name}
+              </span>
+              <span className="flex items-center gap-1.5">
+                !
+                <button
+                  onClick={() => {
+                    setNameError("")
+                    setNameSuccess("")
+                    setNewDisplayName(customName || "")
+                    setShowNameModal(true)
+                  }}
+                  title="What do we call you?"
+                  className="inline-flex items-center justify-center p-1 rounded-full text-neutral-500 hover:text-red-500 hover:bg-red-500/10 active:scale-95 transition-all duration-200 cursor-pointer shrink-0"
+                >
+                  <Smile className="w-5 h-5 sm:w-7 sm:h-7" />
+                </button>
+              </span>
+              <span className="inline-block animate-bounce">🚀</span>
+            </h1>
+            <p className="text-neutral-400 text-sm sm:text-base mt-2">
+              Welcome back to your building command center. Ready to wire up some robots today?
+            </p>
+          </motion.div>
+        )}
+
         {/* Countdown Banner */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -584,6 +702,83 @@ export default function LmsDashboardPage() {
                   className="px-5 py-2 bg-red-600 hover:bg-red-700 rounded text-sm font-semibold transition-colors text-white flex items-center gap-1.5"
                 >
                   Save Changes
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+
+      {/* Preferred Name Modal */}
+      {showNameModal && (
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+            className="bg-zinc-950 border border-zinc-800 rounded-2xl max-w-md w-full p-6 sm:p-8 shadow-2xl relative overflow-hidden text-left"
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
+              <div className="flex items-center gap-2">
+                <Smile className="w-5 h-5 text-red-500" />
+                <h3 className="text-xl font-bold text-white">What do we call you?</h3>
+              </div>
+              <button
+                onClick={() => setShowNameModal(false)}
+                className="p-1 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Error and Success Indicators */}
+            {nameError && (
+              <div className="mb-4 p-3 bg-red-900/20 border border-red-500/30 text-red-400 rounded-lg flex items-center gap-2 text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{nameError}</span>
+              </div>
+            )}
+            {nameSuccess && (
+              <div className="mb-4 p-3 bg-emerald-900/20 border border-emerald-500/30 text-emerald-400 rounded-lg flex items-center gap-2 text-sm">
+                <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                <span>{nameSuccess}</span>
+              </div>
+            )}
+
+            {/* Description */}
+            <p className="text-sm text-gray-400 mb-4 leading-relaxed font-sans">
+              Enter your preferred name or nickname (e.g. "Ayush" or "Tony Stark"). We will use this to greet you across the LMS! Leave blank to reset to your email username.
+            </p>
+
+            {/* Form */}
+            <form onSubmit={handleSaveDisplayName} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-gray-400 mb-1.5 font-sans">
+                  Your Preferred Name
+                </label>
+                <input
+                  type="text"
+                  value={newDisplayName}
+                  onChange={(e) => setNewDisplayName(e.target.value)}
+                  placeholder="Enter name..."
+                  className="w-full bg-zinc-900 border border-zinc-800 focus:border-red-600 focus:ring-1 focus:ring-red-600 focus:outline-none rounded-lg px-3.5 py-2 text-sm text-white placeholder-zinc-600 transition-colors font-sans"
+                />
+              </div>
+
+              <div className="pt-2 flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShowNameModal(false)}
+                  className="px-4 py-2 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded text-sm font-semibold transition-colors text-white"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 rounded text-sm font-semibold transition-colors text-white flex items-center gap-1.5"
+                >
+                  Save Name
                 </button>
               </div>
             </form>
