@@ -6,7 +6,6 @@ import { ProblemSection } from "@/components/sections/problem-section"
 import { HowItWorksSection } from "@/components/sections/how-it-works-section"
 import { CurriculumSection } from "@/components/sections/curriculum-section"
 import { FeaturesSection } from "@/components/sections/features-section"
-import { PlatformFeaturesSection } from "@/components/sections/platform-features-section"
 import { ImpactSection } from "@/components/sections/impact-section"
 import { HarshRajSection } from "@/components/sections/harsh-raj-section"
 import { ValueStackSection } from "@/components/sections/value-stack-section"
@@ -28,7 +27,6 @@ export default function Home() {
       <HowItWorksSection />
       <CurriculumSection />
       <FeaturesSection />
-      <PlatformFeaturesSection />
       <HarshRajSection />
       <ValueStackSection />
       <HardwareSection />
