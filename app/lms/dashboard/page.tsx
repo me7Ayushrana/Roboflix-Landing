@@ -516,7 +516,6 @@ export default function LmsDashboardPage() {
                   <Smile className="w-5 h-5 sm:w-7 sm:h-7" />
                 </button>
               </span>
-              <span className="inline-block animate-bounce">🚀</span>
             </h1>
             <p className="text-neutral-400 text-sm sm:text-base mt-2">
               Welcome back to your building command center. Ready to wire up some robots today?
