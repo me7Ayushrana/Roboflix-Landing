@@ -827,7 +827,7 @@ export default function LmsAdminPanel() {
             </button>
             <button
               onClick={() => setActiveTab("users")}
-              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all flex items-center gap-2 ${
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all flex items-center gap-2.5 ${
                 activeTab === "users"
                   ? "bg-red-600 text-white shadow-lg shadow-red-600/10"
                   : "text-gray-400 hover:text-white hover:bg-white/5"
@@ -835,6 +835,13 @@ export default function LmsAdminPanel() {
             >
               <FileText className="w-3.5 h-3.5" />
               <span>User Subscriptions</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                activeTab === "users"
+                  ? "bg-white text-red-600"
+                  : "bg-red-600/20 text-red-400 border border-red-600/20"
+              }`}>
+                {usersList.length}
+              </span>
             </button>
           </div>
         </div>
@@ -1317,7 +1324,12 @@ export default function LmsAdminPanel() {
                 {/* Header & Search */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
                   <div>
-                    <h2 className="text-xl font-extrabold text-white">Active Subscriptions Directory</h2>
+                    <h2 className="text-xl font-extrabold text-white flex items-center gap-2.5">
+                      <span>Active Subscriptions Directory</span>
+                      <span className="px-2.5 py-0.5 bg-red-600/10 text-red-500 border border-red-600/20 text-xs font-extrabold rounded-full">
+                        {usersList.length} Total
+                      </span>
+                    </h2>
                     <p className="text-xs text-gray-400 mt-1">Manage and audit student logins, edit access states, or revoke credentials instantly.</p>
                   </div>
                   
