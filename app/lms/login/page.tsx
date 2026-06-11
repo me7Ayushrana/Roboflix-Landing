@@ -95,9 +95,50 @@ export default function LmsLoginPage() {
     try {
       const trimmedEmail = email.trim().toLowerCase()
       const trimmedPassword = password.trim()
+      const sessionId = Math.random().toString(36).substring(2) + Date.now().toString()
+
+      const isDemoPass = trimmedPassword.toLowerCase() === "demo" || 
+                         trimmedPassword.toLowerCase() === "trial" || 
+                         trimmedPassword.toLowerCase() === "free"
+
+      if (isDemoPass) {
+        localStorage.setItem("lms_demo_session", "true")
+        
+        if (isSupabaseConfigured()) {
+          try {
+            await supabase
+              .from("roboflix_lms_users")
+              .upsert([
+                {
+                  email: trimmedEmail,
+                  phone: trimmedPassword,
+                  status: "Active",
+                  tier: "Free Trial",
+                  session_id: sessionId
+                }
+              ], { onConflict: "email" })
+          } catch (e) {}
+        }
+        
+        const stored = localStorage.getItem("roboflix_lms_users")
+        const list = stored ? JSON.parse(stored) : []
+        const idx = list.findIndex((u: any) => u.email.toLowerCase() === trimmedEmail)
+        if (idx > -1) {
+          list[idx] = { email: trimmedEmail, phone: trimmedPassword, status: "Active", tier: "Free Trial" }
+        } else {
+          list.push({ email: trimmedEmail, phone: trimmedPassword, status: "Active", tier: "Free Trial" })
+        }
+        localStorage.setItem("roboflix_lms_users", JSON.stringify(list))
+        
+        localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
+        localStorage.setItem("lms_session_id", sessionId)
+        router.push("/lms/dashboard")
+        return
+      }
+
+      localStorage.removeItem("lms_demo_session")
 
       const isAdminEmail = ADMIN_CREDENTIALS[trimmedEmail] !== undefined
-      const sessionId = Math.random().toString(36).substring(2) + Date.now().toString()
 
       if (isAdminEmail) {
         // Load admin password from Supabase if configured, else use default

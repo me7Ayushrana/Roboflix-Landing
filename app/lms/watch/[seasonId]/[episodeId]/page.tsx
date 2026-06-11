@@ -255,6 +255,14 @@ export default function VideoPlayerPage() {
         if (loggedInEmail) {
           setUserEmail(loggedInEmail)
           
+          // Check for demo session override
+          const isDemoSession = localStorage.getItem("lms_demo_session") === "true"
+          if (isDemoSession) {
+            setUserTier("Free Trial")
+            setIsLoading(false)
+            return
+          }
+          
           // Check if admin
           const isAdmin = loggedInEmail.toLowerCase() === "ayushamit007@gmail.com" ||
                           loggedInEmail.toLowerCase() === "ishinder.dev@gmail.com"
