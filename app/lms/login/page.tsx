@@ -240,96 +240,26 @@ export default function LmsLoginPage() {
             return
           }
           
-          const isPaid = studentRecord.tier === "Pro" || studentRecord.tier === "Founding Batch"
-          
-          if (isPaid) {
-            if (studentRecord.phone === trimmedPassword && studentRecord.status === "Active") {
-              // Track student session token to enforce single-session control
-              if (isSupabaseConfigured()) {
-                try {
-                  await supabase
-                    .from("roboflix_lms_users")
-                    .update({ session_id: sessionId })
-                    .eq("email", trimmedEmail)
-                } catch (e) {
-                  console.error("Failed to write student session ID:", e)
-                }
-              }
-              localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
-              localStorage.setItem("lms_session_id", sessionId)
-              router.push("/lms/dashboard")
-            } else {
-              setError("Invalid password.")
-            }
-          } else {
-            // It is a Free Trial user! Allow logging in directly.
-            // Sync/update their record in Supabase & localStorage so the password matches
+          if (studentRecord.phone === trimmedPassword && studentRecord.status === "Active") {
+            // Track student session token to enforce single-session control
             if (isSupabaseConfigured()) {
               try {
                 await supabase
                   .from("roboflix_lms_users")
-                  .upsert([
-                    {
-                      email: trimmedEmail,
-                      phone: trimmedPassword,
-                      status: "Active",
-                      tier: "Free Trial",
-                      session_id: sessionId
-                    }
-                  ], { onConflict: "email" })
+                  .update({ session_id: sessionId })
+                  .eq("email", trimmedEmail)
               } catch (e) {
-                console.error("Failed to update Free Trial session:", e)
+                console.error("Failed to write student session ID:", e)
               }
             }
-            
-            // Also update local storage fallback
-            const stored = localStorage.getItem("roboflix_lms_users")
-            if (stored) {
-              try {
-                const list = JSON.parse(stored) as any[]
-                const idx = list.findIndex(u => u.email.toLowerCase() === trimmedEmail)
-                if (idx > -1) {
-                  list[idx] = { email: trimmedEmail, phone: trimmedPassword, status: "Active", tier: "Free Trial" }
-                } else {
-                  list.push({ email: trimmedEmail, phone: trimmedPassword, status: "Active", tier: "Free Trial" })
-                }
-                localStorage.setItem("roboflix_lms_users", JSON.stringify(list))
-              } catch (e) {}
-            }
-            
             localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
             localStorage.setItem("lms_session_id", sessionId)
             router.push("/lms/dashboard")
+          } else {
+            setError("Invalid password.")
           }
         } else {
-          // No record found. Automatically provision them a Free Trial account with the password they typed.
-          if (isSupabaseConfigured()) {
-            try {
-              await supabase
-                .from("roboflix_lms_users")
-                .insert([
-                  {
-                    email: trimmedEmail,
-                    phone: trimmedPassword,
-                    status: "Active",
-                    tier: "Free Trial",
-                    session_id: sessionId
-                  }
-                ])
-            } catch (e) {
-              console.error("Failed to insert Free Trial user:", e)
-            }
-          }
-          
-          // Save in local storage fallback
-          const stored = localStorage.getItem("roboflix_lms_users")
-          const list = stored ? JSON.parse(stored) : []
-          list.push({ email: trimmedEmail, phone: trimmedPassword, status: "Active", tier: "Free Trial" })
-          localStorage.setItem("roboflix_lms_users", JSON.stringify(list))
-          
-          localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
-          localStorage.setItem("lms_session_id", sessionId)
-          router.push("/lms/dashboard")
+          setError("Access Denied: No active LMS subscription profile found for this email.")
         }
       }
     } catch (err: any) {
