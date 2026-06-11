@@ -860,6 +860,141 @@ export function HeroSection() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* ── FREE TRIAL REGISTRATION MODAL ──────────────────────── */}
+      <AnimatePresence>
+        {isTrialModalOpen && (
+          <motion.div
+            key="free-trial-modal"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-8"
+            onClick={(e) => { if (e.target === e.currentTarget) setIsTrialModalOpen(false) }}
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/92 backdrop-blur-md" />
+
+            {/* Modal card */}
+            <motion.div
+              initial={{ scale: 0.92, opacity: 0, y: 24 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.94, opacity: 0, y: 16 }}
+              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+              className="relative w-full max-w-md z-10"
+            >
+              {/* Glow ring */}
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-red-600/50 via-transparent to-red-900/30 pointer-events-none" />
+
+              <div className="relative rounded-2xl overflow-hidden bg-[#0a0a0a] border border-red-600/30 shadow-[0_0_80px_rgba(220,38,38,0.25)] p-6 sm:p-8">
+                
+                {/* Header Row */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse shadow-[0_0_8px_#dc2626]" />
+                    <h3 className="text-lg font-bold text-white uppercase tracking-wider">Start Free Trial</h3>
+                  </div>
+                  <button
+                    onClick={() => setIsTrialModalOpen(false)}
+                    aria-label="Close modal"
+                    className="flex items-center justify-center w-8 h-8 rounded-full bg-white/5 hover:bg-red-600/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-white transition-all duration-200"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {!trialSuccess ? (
+                  <>
+                    <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                      Register to unlock the first lecture of Season 1 and get full access to the Virtual Robotics Sandbox. You will be redirected to the Google Form to complete your profile.
+                    </p>
+
+                    <form onSubmit={handleSubmitTrial} className="space-y-4">
+                      {/* Email Field */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Email Address</label>
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
+                          <input
+                            type="email"
+                            required
+                            value={trialEmail}
+                            onChange={(e) => setTrialEmail(e.target.value)}
+                            placeholder="your@email.com"
+                            className="w-full pl-10 pr-4 py-3 bg-gray-900/50 border border-gray-750 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 transition text-sm"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Phone Field */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Mobile Number (Password)</label>
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-3.5 w-4 h-4 text-gray-500" />
+                          <input
+                            type="tel"
+                            required
+                            value={trialPhone}
+                            onChange={(e) => setTrialPhone(e.target.value)}
+                            placeholder="e.g. 9876543210"
+                            className="w-full pl-10 pr-4 py-3 bg-gray-900/50 border border-gray-750 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-red-600 transition text-sm"
+                          />
+                        </div>
+                        <span className="text-[10px] text-gray-550 mt-1.5 block">This mobile number will act as your LMS login password.</span>
+                      </div>
+
+                      {/* Error Banner */}
+                      {trialError && (
+                        <div className="p-3 bg-red-600/10 border border-red-600/30 rounded-lg text-red-400 text-xs leading-relaxed">
+                          {trialError}
+                        </div>
+                      )}
+
+                      {/* Submit button */}
+                      <button
+                        type="submit"
+                        disabled={trialLoading}
+                        className="w-full py-3 mt-2 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm shadow-lg shadow-red-600/35"
+                      >
+                        {trialLoading ? "Creating credentials..." : "Register & Open Google Form"}
+                        {!trialLoading && <ArrowRight className="w-4 h-4" />}
+                      </button>
+                    </form>
+                  </>
+                ) : (
+                  <div className="text-center py-4">
+                    <div className="w-16 h-16 bg-red-600/10 border border-red-600/30 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">
+                      🎉
+                    </div>
+                    <h4 className="text-lg font-bold text-white mb-2">Trial Account Activated!</h4>
+                    <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                      We've created your Free Trial credentials. The Google Form has been opened in a new tab. You can now login using:
+                    </p>
+
+                    <div className="p-4 bg-gray-900/80 border border-gray-800 rounded-xl text-left font-mono text-xs mb-6 space-y-2">
+                      <div className="flex justify-between"><span className="text-gray-500">Email:</span> <span className="text-white font-semibold">{trialEmail.trim().toLowerCase()}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">Password:</span> <span className="text-white font-semibold">{trialPhone.trim()}</span></div>
+                      <div className="flex justify-between"><span className="text-gray-500">Tier:</span> <span className="text-red-500 font-bold uppercase tracking-wider">Free Trial</span></div>
+                    </div>
+
+                    <Link href="/lms/dashboard">
+                      <button
+                        onClick={() => setIsTrialModalOpen(false)}
+                        className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-red-600/35"
+                      >
+                        Launch LMS Dashboard
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </Link>
+                  </div>
+                )}
+
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   )
 }
