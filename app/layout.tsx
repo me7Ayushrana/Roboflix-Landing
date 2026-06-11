@@ -60,12 +60,43 @@ export default function RootLayout({
                 e.preventDefault();
               });
               document.addEventListener('keydown', function(e) {
-                if (
-                  e.key === 'F12' ||
-                  (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'U')) ||
-                  (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'U'))
-                ) {
+                const key = e.key.toLowerCase();
+                
+                // 1. Block F12
+                if (e.key === 'F12') {
                   e.preventDefault();
+                  return;
+                }
+
+                // 2. Block Ctrl+Shift+I/J/C/U (Windows/Linux Inspect)
+                if (e.ctrlKey && e.shiftKey && (key === 'i' || key === 'j' || key === 'c' || key === 'u')) {
+                  e.preventDefault();
+                  return;
+                }
+
+                // 3. Block Cmd+Option+I/J/C/U (Mac Inspect)
+                if (e.metaKey && e.altKey && (key === 'i' || key === 'j' || key === 'c' || key === 'u')) {
+                  e.preventDefault();
+                  return;
+                }
+
+                // 4. Block Cmd+Shift+I (Mac native "Email Link" shortcut which opens Mail client)
+                if (e.metaKey && e.shiftKey && key === 'i') {
+                  e.preventDefault();
+                  window.location.href = "mailto:ayushamit007@gmail.com?subject=Roboflix%20Support";
+                  return;
+                }
+
+                // 5. Block Cmd+S / Ctrl+S (Save Page Source)
+                if ((e.ctrlKey || e.metaKey) && key === 's') {
+                  e.preventDefault();
+                  return;
+                }
+
+                // 6. Block Cmd+U / Ctrl+U (View Page Source)
+                if ((e.ctrlKey || e.metaKey) && key === 'u') {
+                  e.preventDefault();
+                  return;
                 }
               });
             `
