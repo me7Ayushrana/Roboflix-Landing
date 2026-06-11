@@ -380,10 +380,11 @@ export default function WiringCanvas({
               {/* Reset */}
               <button
                 onClick={onClear}
-                className="p-1.5 bg-[#111] hover:bg-white/8 border border-gray-700 hover:border-gray-600 rounded-lg text-gray-400 hover:text-white transition cursor-pointer"
+                className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/8 border border-gray-700 hover:border-gray-600 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition cursor-pointer"
                 title="Reset Simulation"
               >
-                <RotateCcw className="w-3.5 h-3.5" />
+                <RotateCcw className="w-3 h-3 text-red-500 shrink-0" />
+                <span>Reset Logs</span>
               </button>
             </div>
           ) : <div />}
@@ -418,39 +419,42 @@ export default function WiringCanvas({
             {/* Auto-arrange */}
             <button
               onClick={handleAutoArrange}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition whitespace-nowrap"
+              className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition whitespace-nowrap"
               title="Auto Arrange"
             >
               <Sliders className="w-3 h-3 text-red-500 shrink-0" />
-              Grid
+              Auto Arrange
             </button>
 
             {/* Reset Zoom */}
             <button
               onClick={() => setZoom(1.0)}
-              className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-gray-400 hover:text-white transition"
+              className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition"
               title="Reset Zoom"
             >
-              <RotateCcw className="w-3 h-3" />
+              <RotateCcw className="w-3 h-3 text-red-500 shrink-0" />
+              Reset Zoom
             </button>
 
             {/* Undo */}
             <button
               onClick={handleUndo}
               disabled={connectionsHistory.length === 0}
-              className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 disabled:opacity-25 rounded-lg text-gray-400 hover:text-white transition cursor-pointer"
+              className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 disabled:opacity-25 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition cursor-pointer"
               title="Undo Last Wire"
             >
-              <Undo className="w-3 h-3" />
+              <Undo className="w-3 h-3 text-red-500 shrink-0" />
+              Undo Wire
             </button>
 
             {/* Clear Canvas */}
             <button
               onClick={handleClearCanvas}
-              className="p-1.5 bg-red-950/50 hover:bg-red-600 border border-red-900/40 hover:border-red-500 rounded-lg text-red-400 hover:text-white transition"
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-red-950/50 hover:bg-red-600 border border-red-900/40 hover:border-red-500 rounded-lg text-[10px] font-bold text-red-400 hover:text-white transition"
               title="Clear Canvas"
             >
-              <Trash2 className="w-3.5 h-3.5" />
+              <Trash2 className="w-3.5 h-3.5 shrink-0" />
+              Clear Canvas
             </button>
           </div>
         </div>

@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { 
   ArrowLeft, Cpu, Sparkles, AlertCircle, Sun, Moon, Layout, 
   MessageSquare, Share2, Trash2, Download, BookOpen, 
-  Activity, Gauge, Send, RefreshCw, CheckCircle, ShieldAlert, Play, Upload
+  Activity, Gauge, Send, RefreshCw, CheckCircle, ShieldAlert, Play, Upload,
+  Maximize2, Minimize2
 } from "lucide-react"
 import { EXPERIMENT_CONFIGS } from "@/lib/lab/experimentConfigs"
 import { PlacedComponent, WireConnection, runClientSideSimulation } from "@/lib/lab/simulationEngine"
@@ -797,6 +798,30 @@ export default function VirtualLabPage() {
   const buzzerOscRef = useRef<OscillatorNode | null>(null)
   const buzzerGainRef = useRef<GainNode | null>(null)
 
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().then(() => {
+        setIsFullscreen(true)
+      }).catch((err) => {
+        console.error("Error attempting to enable fullscreen:", err)
+      })
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false)
+      })
+    }
+  }
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener("fullscreenchange", handleFullscreenChange)
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange)
+  }, [])
+
   // Simulation live state – LED glow & buzzer driven from envDistance
   const [ledActive, setLedActive] = useState(false)
   const [buzzerActive, setBuzzerActive] = useState(false)
@@ -995,7 +1020,62 @@ export default function VirtualLabPage() {
     } catch (_) {}
   }
 
-  // Real-time simulation loop: drives LED + buzzer from envDistance when simulating
+  const playSuccessChime = () => {
+    try {
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      }
+      const ctx = audioCtxRef.current
+      if (ctx.state === "suspended") ctx.resume()
+      const now = ctx.currentTime
+      
+      const playTone = (freq: number, start: number, duration: number) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = "sine"
+        osc.frequency.setValueAtTime(freq, start)
+        gain.gain.setValueAtTime(0.12, start)
+        gain.gain.exponentialRampToValueAtTime(0.001, start + duration)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(start)
+        osc.stop(start + duration)
+      }
+      
+      playTone(523.25, now, 0.15)      // C5
+      playTone(659.25, now + 0.1, 0.15)  // E5
+      playTone(783.99, now + 0.2, 0.3)   // G5
+    } catch (_) {}
+  }
+
+  const playFailureChime = () => {
+    try {
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      }
+      const ctx = audioCtxRef.current
+      if (ctx.state === "suspended") ctx.resume()
+      const now = ctx.currentTime
+
+      const playTone = (freq: number, start: number, duration: number) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = "triangle"
+        osc.frequency.setValueAtTime(freq, start)
+        gain.gain.setValueAtTime(0.12, start)
+        gain.gain.exponentialRampToValueAtTime(0.001, start + duration)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(start)
+        osc.stop(start + duration)
+      }
+
+      playTone(220.00, now, 0.2)       // A3
+      playTone(196.00, now + 0.15, 0.35) // G3
+    } catch (_) {}
+  }
+
+  // Real-time simulation loop: drives LED + buzzer + relays dynamically from active sensors
   useEffect(() => {
     if (!isSimulating) {
       setLedActive(false)
@@ -1006,31 +1086,68 @@ export default function VirtualLabPage() {
     }
 
     const interval = setInterval(() => {
-      const hasSensor = placedComponents.some(c => c.componentId === "hc-sr04")
-      const hasLed    = placedComponents.some(c => c.componentId === "led-red")
+      const hasUltrasonic = placedComponents.some(c => c.componentId === "hc-sr04")
+      const hasGas = placedComponents.some(c => c.componentId === "gas-sensor")
+      const hasSoil = placedComponents.some(c => c.componentId === "soil-moisture")
+      const hasPIR = placedComponents.some(c => c.componentId === "pir-sensor")
+      
+      const hasLed = placedComponents.some(c => c.componentId === "led-red")
       const hasBuzzer = placedComponents.some(c => c.componentId === "buzzer")
 
-      if (!hasSensor) {
-        setSimBanner("⚠️ HC-SR04 sensor not found on canvas")
-        setLedActive(false)
-        setBuzzerActive(false)
-        stopBuzzerSound()
-        return
-      }
-
-      if (envDistance < 30) {
-        // Obstacle close – glow LED, beep buzzer
-        if (hasLed) setLedActive(true)
-        if (hasBuzzer) {
-          setBuzzerActive(true)
-          startBuzzerSound()
+      if (hasGas) {
+        if (envGas > 300) {
+          if (hasLed) setLedActive(true)
+          if (hasBuzzer) {
+            if (!buzzerActive) {
+              setBuzzerActive(true)
+              startBuzzerSound()
+            }
+          }
+          setSimBanner(`🚨 SMOKE/GAS LEAK DETECTED! PPM: ${envGas} – BUZZER ALARM ACTIVE!`)
+        } else {
+          setLedActive(false)
+          if (buzzerActive) {
+            setBuzzerActive(false)
+            stopBuzzerSound()
+          }
+          setSimBanner(`✅ Air quality healthy – PPM: ${envGas}.`)
         }
-        setSimBanner(`🔴 OBSTACLE DETECTED at ${envDistance} cm! LED ON – BUZZER ACTIVE`)
+      } else if (hasSoil) {
+        if (envMoisture < 35) {
+          if (hasLed) setLedActive(true)
+          setSimBanner(`🌱 Soil dry: ${envMoisture}%. Relay ON – Water pump activated!`)
+        } else {
+          setLedActive(false)
+          setSimBanner(`✅ Soil moisture healthy: ${envMoisture}%. Relay OFF.`)
+        }
+      } else if (hasUltrasonic) {
+        if (envDistance < 30) {
+          if (hasLed) setLedActive(true)
+          if (hasBuzzer) {
+            if (!buzzerActive) {
+              setBuzzerActive(true)
+              startBuzzerSound()
+            }
+          }
+          setSimBanner(`🔴 OBSTACLE DETECTED at ${envDistance} cm! LED ON – BUZZER ACTIVE`)
+        } else {
+          setLedActive(false)
+          if (buzzerActive) {
+            setBuzzerActive(false)
+            stopBuzzerSound()
+          }
+          setSimBanner(`✅ Path clear – ${envDistance} cm. LED OFF.`)
+        }
+      } else if (hasPIR) {
+        if (envPIRMotion) {
+          if (hasLed) setLedActive(true)
+          setSimBanner(`🏠 Motion detected! LED/Lamp ON – Servo Door Open!`)
+        } else {
+          setLedActive(false)
+          setSimBanner(`🏠 Standby – No motion detected. Lamp OFF.`)
+        }
       } else {
-        setLedActive(false)
-        setBuzzerActive(false)
-        stopBuzzerSound()
-        setSimBanner(`✅ Path clear – ${envDistance} cm. LED OFF.`)
+        setSimBanner("🔬 Simulating circuit execution... Use code editor to write functions.")
       }
     }, 500)
 
@@ -1039,7 +1156,7 @@ export default function VirtualLabPage() {
       stopBuzzerSound()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSimulating, envDistance, placedComponents])
+  }, [isSimulating, envDistance, envMoisture, envGas, envLight, envPIRMotion, envTemp, placedComponents, buzzerActive])
 
   // Load a demo project onto the canvas (Default Works feature)
   const handleLoadDemoProject = (project: DemoProject) => {
@@ -1318,10 +1435,12 @@ export default function VirtualLabPage() {
         logsTemp.push(`🏆 +100 XP AWARDED! Status synced to your LMS Profile.`)
         setPassed(true)
         setXpAwarded(100)
+        playSuccessChime()
       } else {
         logsTemp.push("❌ VALIDATION FAILED: Circuit output did not match expected requirements.")
         setPassed(false)
         setSimulationHint(config.hint)
+        playFailureChime()
       }
 
       setLogs(logsTemp)
@@ -1417,6 +1536,13 @@ export default function VirtualLabPage() {
           setIsSimulating(false)
           setPassed(null)
           setLogs(["[SYSTEM] Custom Project imported successfully!"])
+
+          // Autosave imported project to local storage
+          if (config) {
+            localStorage.setItem(`roboflix_lab_code_${config.id}`, json.code)
+            localStorage.setItem(`roboflix_lab_comps_${config.id}`, JSON.stringify(json.placedComponents))
+            localStorage.setItem(`roboflix_lab_conns_${config.id}`, JSON.stringify(json.connections))
+          }
         }
       } catch (err) {
         alert("Failed to parse project file.")
@@ -1588,37 +1714,7 @@ export default function VirtualLabPage() {
             <span>Default Works</span>
           </button>
 
-          {/* Reset to Default demo circuit */}
-          <button
-            onClick={handleResetToDefault}
-            title="Reset to default Object Detection demo circuit"
-            className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-[10px] font-bold transition-colors ${
-              isNightMode === false
-                ? "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-600"
-                : "bg-white/5 border-gray-800 hover:bg-white/10 text-gray-400 hover:text-white"
-            }`}
-          >
-            <RefreshCw className="w-3 h-3 text-red-500" />
-            <span className="hidden sm:inline">Reset Demo</span>
-          </button>
 
-          {/* Preset templates dropdown loader */}
-          <div className="relative group">
-            <select
-              onChange={(e) => handleLoadTemplate(e.target.value as any)}
-              defaultValue=""
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg border focus:outline-none transition-all cursor-pointer ${
-                isNightMode === false 
-                  ? "bg-gray-50 border-gray-250 text-gray-700 focus:border-red-500" 
-                  : "bg-gray-900 border-gray-800 text-gray-200 focus:border-red-600"
-              }`}
-            >
-              <option value="" disabled>📁 Load Project Preset...</option>
-              <option value="garden">🌱 Smart Garden Template</option>
-              <option value="car">🚗 Obstacle Car Template</option>
-              <option value="home">🏠 Smart Home Template</option>
-            </select>
-          </div>
 
           {/* Workspace Layout Selector */}
           <div className={`flex items-center border rounded-lg overflow-hidden ${
@@ -1670,6 +1766,19 @@ export default function VirtualLabPage() {
             title="Toggle Day/Night Viewport"
           >
             {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
+          {/* Fullscreen Toggle Button */}
+          <button
+            onClick={toggleFullscreen}
+            className={`p-2 rounded-lg border transition-colors ${
+              isNightMode === false 
+                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" 
+                : "bg-gray-900 border-gray-800 text-gray-200 hover:bg-white/5"
+            }`}
+            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+          >
+            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
           </button>
 
           {/* AI Helper Toggle Button */}
