@@ -92,7 +92,7 @@ export default function FreeTrialPage() {
       // 2. Insert into LMS Users for Auth Access
       const lmsUser = {
         email: formData.email,
-        phone: "demoo",
+        phone: formData.whatsapp.trim(),
         status: "Active",
         tier: "Free Trial"
       }
@@ -307,7 +307,7 @@ export default function FreeTrialPage() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Password</p>
-                      <p className="text-white font-mono font-medium text-lg">demoo</p>
+                      <p className="text-white font-mono font-medium text-lg">{formData.whatsapp} <span className="text-gray-500 text-xs font-sans block mt-1">(or use "demoo")</span></p>
                     </div>
                   </div>
 

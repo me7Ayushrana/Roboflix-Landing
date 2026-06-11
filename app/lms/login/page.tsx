@@ -105,19 +105,46 @@ export default function LmsLoginPage() {
       if (isDemoPass) {
         localStorage.setItem("lms_demo_session", "true")
         
+        let finalPhone = trimmedPassword
+        let finalTier = "Free Trial"
+        let finalStatus = "Active"
+
         if (isSupabaseConfigured()) {
           try {
-            await supabase
+            const { data } = await supabase
               .from("roboflix_lms_users")
-              .upsert([
-                {
-                  email: trimmedEmail,
-                  phone: trimmedPassword,
-                  status: "Active",
-                  tier: "Free Trial",
-                  session_id: sessionId
-                }
-              ], { onConflict: "email" })
+              .select("phone, tier, status")
+              .eq("email", trimmedEmail)
+              .maybeSingle()
+
+            if (data) {
+              const isDefaultDemoPhone = data.phone === "demo" || data.phone === "demoo" || data.phone === "trial" || data.phone === "free"
+              finalPhone = isDefaultDemoPhone ? trimmedPassword : data.phone
+              finalTier = data.tier || "Free Trial"
+              finalStatus = data.status || "Active"
+
+              await supabase
+                .from("roboflix_lms_users")
+                .update({ 
+                  phone: finalPhone,
+                  status: finalStatus,
+                  tier: finalTier,
+                  session_id: sessionId 
+                })
+                .eq("email", trimmedEmail)
+            } else {
+              await supabase
+                .from("roboflix_lms_users")
+                .insert([
+                  {
+                    email: trimmedEmail,
+                    phone: trimmedPassword,
+                    status: "Active",
+                    tier: "Free Trial",
+                    session_id: sessionId
+                  }
+                ])
+            }
           } catch (e) {}
         }
         
@@ -125,13 +152,18 @@ export default function LmsLoginPage() {
         const list = stored ? JSON.parse(stored) : []
         const idx = list.findIndex((u: any) => u.email.toLowerCase() === trimmedEmail)
         if (idx > -1) {
-          list[idx] = { email: trimmedEmail, phone: trimmedPassword, status: "Active", tier: "Free Trial" }
+          const existing = list[idx]
+          const isDefaultDemoPhone = existing.phone === "demo" || existing.phone === "demoo" || existing.phone === "trial" || existing.phone === "free"
+          finalPhone = isDefaultDemoPhone ? trimmedPassword : existing.phone
+          finalTier = existing.tier || finalTier
+          finalStatus = existing.status || finalStatus
+          list[idx] = { ...existing, phone: finalPhone, status: finalStatus, tier: finalTier, session_id: sessionId }
         } else {
-          list.push({ email: trimmedEmail, phone: trimmedPassword, status: "Active", tier: "Free Trial" })
+          list.push({ email: trimmedEmail, phone: trimmedPassword, status: "Active", tier: "Free Trial", session_id: sessionId })
         }
         localStorage.setItem("roboflix_lms_users", JSON.stringify(list))
         
-        localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
+        localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail, tier: finalTier }))
         localStorage.setItem("lms_session_id", sessionId)
         router.push("/lms/dashboard")
         return
@@ -241,7 +273,10 @@ export default function LmsLoginPage() {
             return
           }
           
-          if (studentRecord.phone === trimmedPassword && studentRecord.status === "Active") {
+          const isPasswordMatch = studentRecord.phone === trimmedPassword || 
+                                  (studentRecord.tier === "Free Trial" && (trimmedPassword.toLowerCase() === "demo" || trimmedPassword.toLowerCase() === "demoo"))
+
+          if (isPasswordMatch && studentRecord.status === "Active") {
             // Track student session token to enforce single-session control
             if (isSupabaseConfigured()) {
               try {
@@ -253,7 +288,26 @@ export default function LmsLoginPage() {
                 console.error("Failed to write student session ID:", e)
               }
             }
-            localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
+
+            // Sync user profile to local storage roboflix_lms_users so dashboard/seasons/watch pages can immediately read the tier
+            const stored = localStorage.getItem("roboflix_lms_users")
+            const list = stored ? JSON.parse(stored) : []
+            const idx = list.findIndex((u: any) => u.email.toLowerCase() === trimmedEmail)
+            if (idx > -1) {
+              list[idx] = { ...list[idx], ...studentRecord }
+            } else {
+              list.push(studentRecord)
+            }
+            localStorage.setItem("roboflix_lms_users", JSON.stringify(list))
+
+            // Enforce free trial override for dashboard/episodes
+            if (studentRecord.tier === "Free Trial") {
+              localStorage.setItem("lms_demo_session", "true")
+            } else {
+              localStorage.removeItem("lms_demo_session")
+            }
+
+            localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail, tier: studentRecord.tier }))
             localStorage.setItem("lms_session_id", sessionId)
             router.push("/lms/dashboard")
           } else {
