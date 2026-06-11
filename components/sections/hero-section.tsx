@@ -85,7 +85,7 @@ export function HeroSection() {
       localStorage.setItem("lms_session_id", sessionId)
 
       // Open Google Form in a new tab
-      window.open("https://docs.google.com/forms/d/e/1FAIpQLScB6gL5XG8rW12345/viewform?usp=sf_link", "_blank")
+      window.open("https://forms.gle/RgDMJBtXSA5TE3B69", "_blank")
 
       setTrialSuccess(true)
     } catch (err: any) {
