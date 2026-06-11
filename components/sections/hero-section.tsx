@@ -21,9 +21,6 @@ export function HeroSection() {
   // ── mobile detection ──
   const [isMobile, setIsMobile] = useState(false)
 
-  // ── free trial registration tracking state ──
-  const [hasOpenedTrialForm, setHasOpenedTrialForm] = useState(false)
-
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 768 || /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent)
@@ -440,79 +437,44 @@ export function HeroSection() {
             </div>
 
             {/* Primary CTAs */}
-            {hasOpenedTrialForm ? (
-              <div className="max-w-xl mx-auto mb-12 p-6 bg-black/80 backdrop-blur-md border border-red-600/40 rounded-2xl shadow-xl shadow-red-950/20 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
-                <div className="w-12 h-12 rounded-full bg-red-600/20 border border-red-500/30 flex items-center justify-center mx-auto mb-4">
-                  <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse shadow-[0_0_8px_#dc2626]" />
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">Google Form Opened in a New Tab!</h3>
-                <p className="text-sm text-gray-400 mb-6 max-w-md mx-auto leading-relaxed">
-                  Please fill out and submit the Google Form with your details. Once submitted, your trial credentials will be activated, and you can log in to start learning.
-                </p>
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                  <Link href="/lms/login" className="w-full sm:w-auto">
-                    <button className="w-full px-8 py-4 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-300 text-base shadow-lg shadow-red-600/50 flex items-center justify-center gap-2 group">
-                      Proceed to LMS Login
-                      <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                    </button>
-                  </Link>
-                  <a
-                    href="https://forms.gle/RgDMJBtXSA5TE3B69"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full sm:w-auto text-sm text-red-500 hover:text-red-400 underline font-semibold transition-colors duration-200"
-                  >
-                    Re-open Form
-                  </a>
-                  <button
-                    onClick={() => setHasOpenedTrialForm(false)}
-                    className="w-full sm:w-auto text-sm text-gray-400 hover:text-white transition-colors duration-200"
-                  >
-                    Back to Home
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4 mb-12 max-w-4xl mx-auto">
-                <Link href="#pricing" className="w-full sm:w-auto">
-                  <button className="w-full px-8 py-4 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-300 text-base sm:text-lg shadow-lg shadow-red-600/50">
-                    Join Now
-                  </button>
-                </Link>
-
-                {/* ── START FREE TRIAL BUTTON ── */}
-                <a
-                  href="https://forms.gle/RgDMJBtXSA5TE3B69"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full sm:w-auto"
-                  onClick={() => setHasOpenedTrialForm(true)}
-                >
-                  <button className="w-full px-8 py-4 bg-transparent border-2 border-red-600 text-red-500 hover:bg-red-600 hover:text-white font-semibold rounded-lg transition-all duration-300 text-base sm:text-lg shadow-lg hover:shadow-red-600/30">
-                    Start Free Trial
-                  </button>
-                </a>
-
-                {/* ── WATCH TRAILER BUTTON ── */}
-                <button
-                  id="hero-watch-trailer-btn"
-                  onClick={openTrailer}
-                  className="group w-full sm:w-auto relative flex items-center justify-center gap-3 px-8 py-4 rounded-lg text-base sm:text-lg font-semibold text-white border border-red-600/50 bg-black/60 backdrop-blur-sm hover:border-red-500 hover:bg-red-950/30 transition-all duration-300 overflow-hidden shadow-lg shadow-black/40"
-                >
-                  <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-red-600/15 to-transparent" />
-                  <span className="relative flex items-center justify-center w-7 h-7 rounded-full bg-red-600/20 border border-red-600/60 group-hover:bg-red-600/40 transition-colors duration-300">
-                    <Play className="w-3.5 h-3.5 text-red-400 fill-red-400 ml-0.5" />
-                  </span>
-                  <span className="relative">Watch Trailer</span>
+            <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4 mb-12 max-w-4xl mx-auto">
+              <Link href="#pricing" className="w-full sm:w-auto">
+                <button className="w-full px-8 py-4 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-300 text-base sm:text-lg shadow-lg shadow-red-600/50">
+                  Join Now
                 </button>
+              </Link>
 
-                <Link href="/lms/login" className="w-full sm:w-auto">
-                  <button className="w-full px-8 py-4 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-700 transition-all duration-300 text-base sm:text-lg border border-gray-600">
-                    Go to LMS
-                  </button>
-                </Link>
-              </div>
-            )}
+              {/* ── START FREE TRIAL BUTTON ── */}
+              <a
+                href="https://forms.gle/RgDMJBtXSA5TE3B69"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full sm:w-auto"
+              >
+                <button className="w-full px-8 py-4 bg-transparent border-2 border-red-600 text-red-500 hover:bg-red-600 hover:text-white font-semibold rounded-lg transition-all duration-300 text-base sm:text-lg shadow-lg hover:shadow-red-600/30">
+                  Start Free Trial
+                </button>
+              </a>
+
+              {/* ── WATCH TRAILER BUTTON ── */}
+              <button
+                id="hero-watch-trailer-btn"
+                onClick={openTrailer}
+                className="group w-full sm:w-auto relative flex items-center justify-center gap-3 px-8 py-4 rounded-lg text-base sm:text-lg font-semibold text-white border border-red-600/50 bg-black/60 backdrop-blur-sm hover:border-red-500 hover:bg-red-950/30 transition-all duration-300 overflow-hidden shadow-lg shadow-black/40"
+              >
+                <span className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-700 bg-gradient-to-r from-transparent via-red-600/15 to-transparent" />
+                <span className="relative flex items-center justify-center w-7 h-7 rounded-full bg-red-600/20 border border-red-600/60 group-hover:bg-red-600/40 transition-colors duration-300">
+                  <Play className="w-3.5 h-3.5 text-red-400 fill-red-400 ml-0.5" />
+                </span>
+                <span className="relative">Watch Trailer</span>
+              </button>
+
+              <Link href="/lms/login" className="w-full sm:w-auto">
+                <button className="w-full px-8 py-4 bg-gray-800 text-white font-semibold rounded-lg hover:bg-gray-700 transition-all duration-300 text-base sm:text-lg border border-gray-600">
+                  Go to LMS
+                </button>
+              </Link>
+            </div>
 
             {/* Trust Bar */}
             <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-8 text-xs sm:text-sm text-gray-400">
