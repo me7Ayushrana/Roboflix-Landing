@@ -8,7 +8,7 @@ import {
   ArrowLeft, Cpu, Sparkles, AlertCircle, Sun, Moon, Layout, 
   MessageSquare, Share2, Trash2, Download, BookOpen, 
   Activity, Gauge, Send, RefreshCw, CheckCircle, ShieldAlert, Play, Upload,
-  Maximize2, Minimize2
+  Maximize2, Minimize2, Sliders, Save
 } from "lucide-react"
 import { EXPERIMENT_CONFIGS } from "@/lib/lab/experimentConfigs"
 import { PlacedComponent, WireConnection, runClientSideSimulation } from "@/lib/lab/simulationEngine"
@@ -792,6 +792,8 @@ export default function VirtualLabPage() {
   const [workspaceLayout, setWorkspaceLayout] = useState<"schematic" | "immersive" | "telemetry">("immersive")
   const [isAIDrawerOpen, setIsAIDrawerOpen] = useState(false)
   const [activePlaygroundTab, setActivePlaygroundTab] = useState<"home" | "car" | "garden">("home")
+  const [showEnvSim, setShowEnvSim] = useState(false)
+  const [browserSaveMessage, setBrowserSaveMessage] = useState<string | null>(null)
 
   // Web Audio API context ref for buzzer sound synthesis
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -1073,6 +1075,55 @@ export default function VirtualLabPage() {
       playTone(220.00, now, 0.2)       // A3
       playTone(196.00, now + 0.15, 0.35) // G3
     } catch (_) {}
+  }
+
+  const playNotificationChime = () => {
+    try {
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      }
+      const ctx = audioCtxRef.current
+      if (ctx.state === "suspended") ctx.resume()
+      const now = ctx.currentTime
+      
+      const playTone = (freq: number, start: number, duration: number) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.type = "sine"
+        osc.frequency.setValueAtTime(freq, start)
+        gain.gain.setValueAtTime(0.08, start)
+        gain.gain.exponentialRampToValueAtTime(0.001, start + duration)
+        osc.connect(gain)
+        gain.connect(ctx.destination)
+        osc.start(start)
+        osc.stop(start + duration)
+      }
+      
+      playTone(659.25, now, 0.12)       // E5
+      playTone(987.77, now + 0.08, 0.2) // B5
+    } catch (_) {}
+  }
+
+  const handleSaveToBrowser = () => {
+    if (!config) return
+    localStorage.setItem(`roboflix_lab_code_${config.id}`, code)
+    localStorage.setItem(`roboflix_lab_comps_${config.id}`, JSON.stringify(placedComponents))
+    localStorage.setItem(`roboflix_lab_conns_${config.id}`, JSON.stringify(connections))
+    
+    // Play chime sound
+    playNotificationChime()
+
+    // Add a status log
+    setLogs(prev => [
+      ...prev,
+      `[SYSTEM] Project state saved to local storage successfully at ${new Date().toLocaleTimeString()}!`
+    ])
+
+    // Set temporary toast notification
+    setBrowserSaveMessage("Progress Saved to Local Storage!")
+    setTimeout(() => {
+      setBrowserSaveMessage(null)
+    }, 3000)
   }
 
   // Real-time simulation loop: drives LED + buzzer + relays dynamically from active sensors
@@ -1698,137 +1749,176 @@ export default function VirtualLabPage() {
         </div>
 
         {/* Toolbar Center/Right Actions */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 max-w-full overflow-x-auto custom-scrollbar py-1">
 
-          {/* ⭐ DEFAULT WORKS Button – opens demo project library */}
+          {/* DEFAULT WORKS Button – opens demo project library */}
           <button
             onClick={() => setIsDefaultWorksOpen(true)}
             title="Browse ready-made demo projects"
-            className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-[10px] font-bold transition-all hover:scale-105 ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 ${
               isNightMode === false
-                ? "bg-gradient-to-r from-red-50 to-orange-50 border-red-200 hover:border-red-400 text-red-600"
-                : "bg-gradient-to-r from-red-950/60 to-orange-950/40 border-red-900/60 hover:border-red-600 text-red-400 hover:text-red-300 shadow-[0_0_8px_rgba(220,38,38,0.2)]"
+                ? "bg-gradient-to-r from-red-50 to-orange-50 border-red-200 hover:border-red-400 text-red-650"
+                : "bg-[#111] border-red-900/55 hover:border-red-650 text-red-400 hover:text-red-300 shadow-[0_0_10px_rgba(220,38,38,0.15)]"
             }`}
           >
-            <span className="text-sm">⚡</span>
-            <span>Default Works</span>
+            <span>DEFAULT WORKS</span>
           </button>
 
+          {/* ENVIRON VARIABLE Button */}
+          <button
+            onClick={() => {
+              if (workspaceLayout !== "immersive") {
+                setWorkspaceLayout("immersive")
+                setShowEnvSim(true)
+              } else {
+                setShowEnvSim(!showEnvSim)
+              }
+            }}
+            title="Toggle environment simulation sliders and visual playground"
+            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 ${
+              showEnvSim && workspaceLayout === "immersive"
+                ? "bg-red-650 border-red-500 text-white shadow-[0_0_12px_rgba(220,38,38,0.35)]"
+                : isNightMode === false
+                  ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                  : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
+            }`}
+          >
+            <Sliders className="w-3 h-3 text-red-500 shrink-0" />
+            <span>ENVIRON VARIABLE</span>
+          </button>
 
+          {/* SAVE TO BROWSER Button */}
+          <button
+            onClick={handleSaveToBrowser}
+            title="Save project state to browser local cache"
+            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 ${
+              isNightMode === false
+                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
+            }`}
+          >
+            <Save className="w-3 h-3 text-red-500 shrink-0" />
+            <span>SAVE TO BROWSER</span>
+          </button>
+
+          {/* SAVE TO PC Button */}
+          <button
+            onClick={handleExportProject}
+            title="Export project configuration file (.json) to your PC"
+            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 ${
+              isNightMode === false
+                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
+            }`}
+          >
+            <Download className="w-3 h-3 text-red-500 shrink-0" />
+            <span>SAVE TO PC</span>
+          </button>
+
+          {/* LOAD FROM PC Button */}
+          <label
+            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 cursor-pointer ${
+              isNightMode === false
+                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
+            }`}
+            title="Upload a saved project configuration file (.json) from your PC"
+          >
+            <Upload className="w-3 h-3 text-red-500 shrink-0" />
+            <span>LOAD FROM PC</span>
+            <input type="file" accept=".json" className="hidden" onChange={handleImportProject} />
+          </label>
 
           {/* Workspace Layout Selector */}
-          <div className={`flex items-center border rounded-lg overflow-hidden ${
-            isNightMode === false ? "bg-gray-50 border-gray-200" : "bg-gray-900 border-gray-800"
+          <div className={`flex items-center border rounded-lg overflow-hidden shrink-0 ${
+            isNightMode === false ? "bg-gray-50 border-gray-200" : "bg-gray-900 border-gray-850"
           }`}>
             <button
               onClick={() => setWorkspaceLayout("schematic")}
-              className={`p-1.5 text-xs font-bold transition flex items-center gap-1 ${
+              className={`px-2 py-1.5 text-[9px] font-bold transition flex items-center gap-1 ${
                 workspaceLayout === "schematic" 
-                  ? "bg-red-600 text-white" 
+                  ? "bg-red-650 text-white" 
                   : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
               }`}
-              title="Schematic Focus Layout"
+              title="Switch to Schematic Focus Layout"
             >
-              <Layout className="w-3.5 h-3.5" />
+              <Layout className="w-3 h-3 text-red-500 shrink-0" />
+              <span>SCHEMATIC</span>
             </button>
             <button
               onClick={() => setWorkspaceLayout("immersive")}
-              className={`p-1.5 text-xs font-bold transition flex items-center gap-1 ${
+              className={`px-2 py-1.5 text-[9px] font-bold transition flex items-center gap-1 ${
                 workspaceLayout === "immersive" 
-                  ? "bg-red-600 text-white" 
+                  ? "bg-red-650 text-white" 
                   : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
               }`}
-              title="Immersive Split Layout"
+              title="Switch to Immersive Split Layout"
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              <span>IMMERSIVE</span>
             </button>
             <button
               onClick={() => setWorkspaceLayout("telemetry")}
-              className={`p-1.5 text-xs font-bold transition flex items-center gap-1 ${
+              className={`px-2 py-1.5 text-[9px] font-bold transition flex items-center gap-1 ${
                 workspaceLayout === "telemetry" 
-                  ? "bg-red-600 text-white" 
+                  ? "bg-red-650 text-white" 
                   : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
               }`}
-              title="Telemetry Focus Layout"
+              title="Switch to Telemetry Focus Layout"
             >
-              <Activity className="w-3.5 h-3.5" />
+              <Activity className="w-3 h-3 text-red-500 shrink-0" />
+              <span>TELEMETRY</span>
             </button>
           </div>
 
           {/* Day/Night Theme Toggle */}
           <button
             onClick={() => setIsNightMode(!isNightMode)}
-            className={`p-2 rounded-lg border transition-colors ${
+            className={`px-2 py-1.5 rounded-lg border text-[9px] font-bold tracking-wider transition-all hover:scale-105 flex items-center gap-1 shrink-0 ${
               isNightMode === false 
-                ? "bg-gray-50 border-gray-200 text-amber-500 hover:bg-gray-100" 
-                : "bg-gray-900 border-gray-800 text-yellow-400 hover:bg-white/5"
+                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" 
+                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
             }`}
-            title="Toggle Day/Night Viewport"
+            title="Toggle day or night dark mode theme"
           >
-            {isNightMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            {isNightMode ? <Sun className="w-3 h-3 text-amber-500 shrink-0" /> : <Moon className="w-3 h-3 text-indigo-500 shrink-0" />}
+            <span>VIEWPORT: {isNightMode ? "DARK" : "LIGHT"}</span>
           </button>
 
           {/* Fullscreen Toggle Button */}
           <button
             onClick={toggleFullscreen}
-            className={`p-2 rounded-lg border transition-colors ${
+            className={`px-2 py-1.5 rounded-lg border text-[9px] font-bold tracking-wider transition-all hover:scale-105 flex items-center gap-1 shrink-0 ${
               isNightMode === false 
                 ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" 
-                : "bg-gray-900 border-gray-800 text-gray-200 hover:bg-white/5"
+                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
             }`}
-            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            title={isFullscreen ? "Exit Fullscreen Workspace Mode" : "Enter Fullscreen Workspace Mode"}
           >
-            {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            {isFullscreen ? <Minimize2 className="w-3 h-3 text-red-500 shrink-0" /> : <Maximize2 className="w-3 h-3 text-red-500 shrink-0" />}
+            <span>{isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"}</span>
           </button>
 
           {/* AI Helper Toggle Button */}
           <button
             onClick={() => setIsAIDrawerOpen(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 text-xs font-semibold text-white rounded-lg transition-colors shadow-md shadow-red-950/20"
+            className="flex items-center gap-1 px-2.5 py-1.5 bg-red-650 hover:bg-red-500 text-[9px] font-bold tracking-wider text-white rounded-lg transition-all hover:scale-105 shadow-md shadow-red-950/20 shrink-0"
           >
-            <MessageSquare className="w-3.5 h-3.5" />
-            Ask Tutor
+            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+            <span>ASK TUTOR</span>
           </button>
-
-          {/* Export / Import */}
-          <div className="flex items-center gap-1.5 ml-1">
-            <button
-              onClick={handleExportProject}
-              className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition-colors ${
-                isNightMode === false 
-                  ? "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700" 
-                  : "bg-white/5 border-white/10 hover:bg-white/10 text-gray-200"
-              }`}
-              title="Save project to your device"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Save
-            </button>
-            <label
-              className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition-colors cursor-pointer ${
-                isNightMode === false 
-                  ? "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700" 
-                  : "bg-white/5 border-white/10 hover:bg-white/10 text-gray-200"
-              }`}
-              title="Load project from your device"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              Load
-              <input type="file" accept=".json" className="hidden" onChange={handleImportProject} />
-            </label>
-          </div>
 
           {/* Watch Page Link */}
           <button
             onClick={() => router.back()}
-            className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-xs font-semibold transition-colors ${
+            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 shrink-0 ${
               isNightMode === false 
-                ? "bg-gray-50 border-gray-200 hover:bg-gray-100" 
-                : "bg-white/5 border-white/10 hover:bg-white/10"
+                ? "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700" 
+                : "bg-white/5 border-white/10 hover:bg-white/10 text-gray-300"
             }`}
           >
-            <ArrowLeft className="w-3.5 h-3.5 text-red-500" />
-            Watch Lecture
+            <ArrowLeft className="w-3.5 h-3.5 text-red-500 shrink-0" />
+            <span>WATCH LECTURE</span>
           </button>
         </div>
       </header>
@@ -1876,6 +1966,8 @@ export default function VirtualLabPage() {
               isNightMode={isNightMode}
               ledActive={ledActive}
               buzzerActive={buzzerActive}
+              isFullscreen={isFullscreen}
+              onToggleFullscreen={toggleFullscreen}
             />
 
             {/* Right Editor/Monitor sidebar */}
@@ -1918,13 +2010,16 @@ export default function VirtualLabPage() {
                   isNightMode={isNightMode}
                   ledActive={ledActive}
                   buzzerActive={buzzerActive}
+                  isFullscreen={isFullscreen}
+                  onToggleFullscreen={toggleFullscreen}
                 />
               </div>
 
               {/* Right portion is the 2.5D visual playground environment */}
-              <div className={`w-[360px] border-l flex flex-col h-full flex-shrink-0 p-4 space-y-4 overflow-y-auto custom-scrollbar ${
-                isNightMode === false ? "bg-[#f9fafb] border-gray-200 text-gray-700" : "bg-black/90 border-gray-850"
-              }`}>
+              {showEnvSim && (
+                <div className={`w-[360px] border-l flex flex-col h-full flex-shrink-0 p-4 space-y-4 overflow-y-auto custom-scrollbar ${
+                  isNightMode === false ? "bg-[#f9fafb] border-gray-200 text-gray-700" : "bg-black/90 border-gray-850"
+                }`}>
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-widest text-red-500 mb-1">
                     Environment Simulation
@@ -2190,6 +2285,7 @@ export default function VirtualLabPage() {
                 </div>
 
               </div>
+              )}
             </div>
 
             {/* Lower Editor/Monitor Row */}
@@ -2443,11 +2539,11 @@ export default function VirtualLabPage() {
               {/* Modal Header */}
               <div className="flex-shrink-0 h-16 border-b border-gray-800 flex items-center justify-between px-6 bg-black/60 backdrop-blur">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center text-lg shadow-[0_0_12px_rgba(220,38,38,0.4)]">
-                    ⚡
+                  <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-red-600 to-orange-600 flex items-center justify-center shadow-[0_0_12px_rgba(220,38,38,0.4)]">
+                    <Cpu className="w-4 h-4 text-white" />
                   </div>
                   <div>
-                    <h2 className="text-sm font-bold text-white tracking-wide">Default Works</h2>
+                    <h2 className="text-sm font-bold text-white tracking-wide">DEFAULT WORKS</h2>
                     <p className="text-[10px] text-gray-500">Ready-made projects — open, learn & run instantly</p>
                   </div>
                 </div>
@@ -2733,6 +2829,21 @@ export default function VirtualLabPage() {
                 </div>
               </div>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sleek Local Storage Saved Toast Notification */}
+      <AnimatePresence>
+        {browserSaveMessage && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            className="absolute bottom-6 right-6 z-[60] bg-black/95 border border-emerald-500/30 text-emerald-400 text-xs font-mono font-bold px-4 py-3 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.15)] flex items-center gap-2"
+          >
+            <CheckCircle className="w-4 h-4 text-emerald-500 animate-bounce" />
+            <span>{browserSaveMessage}</span>
           </motion.div>
         )}
       </AnimatePresence>

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { ZoomIn, ZoomOut, RotateCcw, Trash2, Sliders, Cpu, Play, Pause, Undo } from "lucide-react"
+import { ZoomIn, ZoomOut, RotateCcw, Trash2, Sliders, Cpu, Play, Pause, Undo, Maximize2, Minimize2 } from "lucide-react"
 import { LAB_COMPONENTS } from "@/lib/lab/experimentConfigs"
 import { PlacedComponent, WireConnection } from "@/lib/lab/simulationEngine"
 
@@ -20,6 +20,8 @@ interface WiringCanvasProps {
   ledActive?: boolean
   /** Buzzer is actively beeping (driven by sensor distance) */
   buzzerActive?: boolean
+  isFullscreen?: boolean
+  onToggleFullscreen?: () => void
 }
 
 const getWireHexColor = (colorName: string) => {
@@ -48,7 +50,9 @@ export default function WiringCanvas({
   passed,
   isNightMode = true,
   ledActive = false,
-  buzzerActive = false
+  buzzerActive = false,
+  isFullscreen = false,
+  onToggleFullscreen
 }: WiringCanvasProps) {
   const [zoom, setZoom] = useState(1.0)
   const [activeWireColor, setActiveWireColor] = useState<string>("red")
@@ -446,6 +450,27 @@ export default function WiringCanvas({
               <Undo className="w-3 h-3 text-red-500 shrink-0" />
               Undo Wire
             </button>
+
+            {/* Fullscreen Toggle */}
+            {onToggleFullscreen && (
+              <button
+                onClick={onToggleFullscreen}
+                className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition whitespace-nowrap"
+                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFullscreen ? (
+                  <>
+                    <Minimize2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                    <span>Exit Fullscreen</span>
+                  </>
+                ) : (
+                  <>
+                    <Maximize2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                    <span>Fullscreen</span>
+                  </>
+                )}
+              </button>
+            )}
 
             {/* Clear Canvas */}
             <button
