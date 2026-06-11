@@ -68,14 +68,14 @@ export default function RootLayout({
                   return;
                 }
 
-                // 2. Block Ctrl+Shift+I/J/C/U (Windows/Linux Inspect)
-                if (e.ctrlKey && e.shiftKey && (key === 'i' || key === 'j' || key === 'c' || key === 'u')) {
+                // 2. Block Ctrl+Shift+I/J/C/U/K/E (Windows/Linux Inspect & Console Tabs)
+                if (e.ctrlKey && e.shiftKey && (key === 'i' || key === 'j' || key === 'c' || key === 'u' || key === 'k' || key === 'e')) {
                   e.preventDefault();
                   return;
                 }
 
-                // 3. Block Cmd+Option+I/J/C/U (Mac Inspect)
-                if (e.metaKey && e.altKey && (key === 'i' || key === 'j' || key === 'c' || key === 'u')) {
+                // 3. Block Cmd+Option+I/J/C/U/K/E (Mac Inspect & Console Tabs)
+                if (e.metaKey && e.altKey && (key === 'i' || key === 'j' || key === 'c' || key === 'u' || key === 'k' || key === 'e')) {
                   e.preventDefault();
                   return;
                 }
