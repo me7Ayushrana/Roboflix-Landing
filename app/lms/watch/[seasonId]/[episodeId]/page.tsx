@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, Menu, X, MessageCircle, Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize, Gauge, Settings, ExternalLink, Code, Library } from "lucide-react"
+import { ArrowLeft, Menu, X, MessageCircle, Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize, Gauge, Settings, ExternalLink, Code, Library, Lock } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 import SmartSeekBar, { type Chapter } from "@/components/player/SmartSeekBar"
@@ -133,6 +133,9 @@ export default function VideoPlayerPage() {
   const [doubt, setDoubt] = useState("")
   const [showDoubtForm, setShowDoubtForm] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [userTier, setUserTier] = useState<string>("")
+  const [userEmail, setUserEmail] = useState<string>("")
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false)
 
   // Detect mobile and show popup
   useEffect(() => {
@@ -232,24 +235,78 @@ export default function VideoPlayerPage() {
 
     const checkSession = async () => {
       try {
-        if (episode && (episode as any).isFree) {
-          setIsLoading(false)
-          return
-        }
-
+        let loggedInEmail = ""
+        
         if (isSupabaseConfigured()) {
           const { data: { session } } = await supabase.auth.getSession()
           if (session && session.user) {
-            setIsLoading(false)
-            return
+            loggedInEmail = session.user.email || ""
           }
         }
         
-        const storedUser = localStorage.getItem("lms_user")
-        if (storedUser) {
+        if (!loggedInEmail) {
+          const storedUser = localStorage.getItem("lms_user")
+          if (storedUser) {
+            const parsed = JSON.parse(storedUser)
+            loggedInEmail = parsed.email || ""
+          }
+        }
+
+        if (loggedInEmail) {
+          setUserEmail(loggedInEmail)
+          
+          // Check if admin
+          const isAdmin = loggedInEmail.toLowerCase() === "ayushamit007@gmail.com" ||
+                          loggedInEmail.toLowerCase() === "ishinder.dev@gmail.com"
+          
+          if (isAdmin) {
+            setUserTier("Pro")
+            setIsLoading(false)
+            return
+          }
+
+          // Fetch tier from Supabase first
+          let fetchedTier = ""
+          if (isSupabaseConfigured()) {
+            try {
+              const { data, error } = await supabase
+                .from("roboflix_lms_users")
+                .select("tier")
+                .eq("email", loggedInEmail.trim().toLowerCase())
+                .maybeSingle()
+              
+              if (!error && data) {
+                fetchedTier = data.tier
+              }
+            } catch (err) {
+              console.error("Error fetching user tier from Supabase:", err)
+            }
+          }
+
+          // Fallback to local storage for tier
+          if (!fetchedTier) {
+            const storedUsers = localStorage.getItem("roboflix_lms_users")
+            if (storedUsers) {
+              try {
+                const usersList = JSON.parse(storedUsers) as any[]
+                const record = usersList.find(u => u.email.toLowerCase() === loggedInEmail.trim().toLowerCase())
+                if (record) {
+                  fetchedTier = record.tier
+                }
+              } catch (e) {}
+            }
+          }
+
+          setUserTier(fetchedTier || "Pro")
           setIsLoading(false)
         } else {
-          router.push("/lms/login")
+          // If not logged in, but episode is marked as free, allow access (tier: "Guest")
+          if (episode && (episode as any).isFree) {
+            setUserTier("Guest")
+            setIsLoading(false)
+          } else {
+            router.push("/lms/login")
+          }
         }
       } catch (err) {
         router.push("/lms/login")
@@ -933,7 +990,36 @@ export default function VideoPlayerPage() {
               className="relative w-full bg-[#080808] rounded-[16px] md:rounded-[24px] overflow-hidden aspect-video border border-white/10 shadow-[0_20px_50px_rgba(0,0,0,0.95)] md:shadow-[0_30px_70px_rgba(0,0,0,0.95)] transition-all duration-300"
             >
               {/* Conditional Video Players */}
-              {isGdrive ? (
+              {userTier === "Free Trial" && episodeId !== 1 ? (
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/90 backdrop-blur-md z-[45] p-6 text-center select-none">
+                  {/* Glow circle overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-red-955/20 via-transparent to-transparent pointer-events-none" />
+                  
+                  <div className="w-16 h-16 bg-red-600/10 border border-red-600/30 rounded-full flex items-center justify-center mb-6 text-2xl shadow-[0_0_20px_rgba(220,38,38,0.25)] text-red-500 animate-pulse">
+                    🔒
+                  </div>
+
+                  <h2 className="text-xl sm:text-2xl font-bold text-white mb-3 tracking-wide uppercase">
+                    This Lecture is Premium
+                  </h2>
+                  <p className="text-gray-400 text-sm sm:text-base max-w-md mb-8 leading-relaxed">
+                    Unlock Season 1: Complete access to all 54+ episodes, downloadable code snippets, blueprints, and doubt support for just ₹989.
+                  </p>
+
+                  <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full max-w-sm">
+                    <Link href="/#pricing" className="w-full sm:w-auto flex-1">
+                      <button className="w-full py-3 px-6 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all text-sm shadow-lg shadow-red-600/35">
+                        Upgrade Now
+                      </button>
+                    </Link>
+                    <Link href={`/lms/season/${season.id}`} className="w-full sm:w-auto flex-1">
+                      <button className="w-full py-3 px-6 bg-transparent hover:bg-white/5 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white transition-all text-sm rounded-lg">
+                        Back to Episodes
+                      </button>
+                    </Link>
+                  </div>
+                </div>
+              ) : isGdrive ? (
                 <div className="absolute inset-0 w-full h-full">
                   <iframe
                     src={getGDriveEmbedUrl(episode.videoUrl)}
@@ -1276,11 +1362,22 @@ export default function VideoPlayerPage() {
               {/* Ask Doubt Button */}
               <motion.button
                 whileHover={{ scale: 1.05 }}
-                onClick={() => setShowDoubtForm(!showDoubtForm)}
-                className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 rounded-lg font-semibold transition-colors text-white"
+                onClick={() => {
+                  if (userTier === "Free Trial") {
+                    setShowUpgradePrompt(true)
+                  } else {
+                    setShowDoubtForm(!showDoubtForm)
+                  }
+                }}
+                className={`flex items-center gap-2 px-6 py-3 rounded-lg font-semibold transition-colors ${
+                  userTier === "Free Trial"
+                    ? "bg-gray-850 text-gray-500 border border-gray-800 hover:bg-gray-800 cursor-pointer"
+                    : "bg-red-600 hover:bg-red-700 text-white"
+                }`}
               >
                 <MessageCircle className="w-5 h-5" />
                 Ask Doubt on WhatsApp
+                {userTier === "Free Trial" && <Lock className="w-3.5 h-3.5 ml-1 text-gray-500" />}
               </motion.button>
 
               {/* Open Virtual Lab Button */}
@@ -1296,7 +1393,7 @@ export default function VideoPlayerPage() {
             </div>
 
             {/* Doubt Form */}
-            {showDoubtForm && (
+            {showDoubtForm && userTier !== "Free Trial" && (
               <motion.div
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -1338,47 +1435,79 @@ export default function VideoPlayerPage() {
           {episode.files.length > 0 && (
             <div className="mb-8">
               <h2 className="text-xl font-bold text-white mb-4">Resources & Files</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {(episode.files as any[]).map((file, idx) => (
-                  <a
-                    key={idx}
-                    href={file.url || "https://drive.google.com"}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-4 bg-gray-900/60 border border-gray-800 hover:border-red-600/60 rounded-xl transition-all flex items-center justify-between gap-3 group hover:bg-red-950/20 hover:shadow-[0_0_15px_rgba(220,38,38,0.1)] text-left"
+              {userTier === "Free Trial" ? (
+                <div className="p-6 bg-gray-900/40 border border-gray-800 rounded-2xl flex flex-col items-center text-center max-w-lg">
+                  <Lock className="w-8 h-8 text-red-500 mb-3 animate-pulse" />
+                  <h3 className="text-base font-bold text-white mb-1 uppercase tracking-wider">Locked (Premium Feature)</h3>
+                  <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                    Download wiring schematics, CAD layouts, 3D printing STL blueprints, and bills of materials with Roboflix Pro.
+                  </p>
+                  <button
+                    onClick={() => setShowUpgradePrompt(true)}
+                    className="py-2.5 px-5 bg-red-650/10 hover:bg-red-600 border border-red-500/30 hover:border-red-500 text-xs font-bold text-red-400 hover:text-white rounded-lg transition-all shadow-md"
                   >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 bg-red-600/10 group-hover:bg-red-600/20 border border-red-500/10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors">
-                        <span className="text-red-500 text-sm font-bold">📄</span>
+                    Upgrade to Unlock Files
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {(episode.files as any[]).map((file, idx) => (
+                    <a
+                      key={idx}
+                      href={file.url || "https://drive.google.com"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-4 bg-gray-900/60 border border-gray-800 hover:border-red-600/60 rounded-xl transition-all flex items-center justify-between gap-3 group hover:bg-red-950/20 hover:shadow-[0_0_15px_rgba(220,38,38,0.1)] text-left"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-10 h-10 bg-red-600/10 group-hover:bg-red-600/20 border border-red-500/10 rounded-lg flex items-center justify-center flex-shrink-0 transition-colors">
+                          <span className="text-red-500 text-sm font-bold">📄</span>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-white font-semibold text-sm truncate group-hover:text-red-400 transition-colors">{file.name}</p>
+                          <p className="text-gray-500 text-xs mt-0.5">{file.type}</p>
+                        </div>
                       </div>
-                      <div className="min-w-0">
-                        <p className="text-white font-semibold text-sm truncate group-hover:text-red-400 transition-colors">{file.name}</p>
-                        <p className="text-gray-500 text-xs mt-0.5">{file.type}</p>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-black/40 border border-white/5 text-gray-400 group-hover:text-red-400 group-hover:border-red-500/20 transition-all flex items-center gap-1">
+                          Drive <ExternalLink className="w-2.5 h-2.5" />
+                        </span>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-black/40 border border-white/5 text-gray-400 group-hover:text-red-400 group-hover:border-red-500/20 transition-all flex items-center gap-1">
-                        Drive <ExternalLink className="w-2.5 h-2.5" />
-                      </span>
-                    </div>
-                  </a>
-                ))}
-              </div>
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* Code Snippets */}
           {episode.codes.length > 0 && (
-            <div>
-              <h2 className="text-xl font-bold text-white mb-4">Code</h2>
-              <div className="space-y-3">
-                {episode.codes.map((code, idx) => (
-                  <div key={idx} className="p-4 bg-gray-900 border border-gray-800 rounded-lg">
-                    <p className="text-red-500 text-xs font-semibold uppercase mb-2">{code.language}</p>
-                    <code className="text-gray-300 text-xs sm:text-sm font-mono break-all">{code.snippet}</code>
-                  </div>
-                ))}
-              </div>
+            <div className="mb-8">
+              <h2 className="text-xl font-bold text-white mb-4">Code Snippets</h2>
+              {userTier === "Free Trial" ? (
+                <div className="p-6 bg-gray-900/40 border border-gray-800 rounded-2xl flex flex-col items-center text-center max-w-lg">
+                  <Lock className="w-8 h-8 text-red-500 mb-3 animate-pulse" />
+                  <h3 className="text-base font-bold text-white mb-1 uppercase tracking-wider">Locked (Premium Feature)</h3>
+                  <p className="text-xs text-gray-500 mb-4 leading-relaxed">
+                    Access ready-to-use Arduino codes, motor calibrations, PID control structures, and Python algorithms with Roboflix Pro.
+                  </p>
+                  <button
+                    onClick={() => setShowUpgradePrompt(true)}
+                    className="py-2.5 px-5 bg-red-650/10 hover:bg-red-600 border border-red-500/30 hover:border-red-500 text-xs font-bold text-red-400 hover:text-white rounded-lg transition-all shadow-md"
+                  >
+                    Upgrade to Unlock Code
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {episode.codes.map((code, idx) => (
+                    <div key={idx} className="p-4 bg-gray-900 border border-gray-800 rounded-lg">
+                      <p className="text-red-500 text-xs font-semibold uppercase mb-2">{code.language}</p>
+                      <code className="text-gray-300 text-xs sm:text-sm font-mono break-all">{code.snippet}</code>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -1472,6 +1601,77 @@ export default function VideoPlayerPage() {
                 <X className="w-4 h-4" />
               </button>
             </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── UPGRADE TO PRO MODAL ────────────────────────────────── */}
+      <AnimatePresence>
+        {showUpgradePrompt && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) setShowUpgradePrompt(false) }}
+          >
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/95 backdrop-blur-md" />
+
+            {/* Modal Content */}
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 15 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 15 }}
+              className="relative w-full max-w-md bg-[#0a0a0a] border border-red-600/30 rounded-2xl p-6 sm:p-8 shadow-[0_0_80px_rgba(220,38,38,0.25)]"
+            >
+              {/* Glow border ring */}
+              <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-red-600/40 via-transparent to-red-955/20 pointer-events-none" />
+
+              <div className="relative">
+                {/* Close button */}
+                <button
+                  onClick={() => setShowUpgradePrompt(false)}
+                  className="absolute right-0 top-0 flex items-center justify-center w-8 h-8 rounded-full bg-white/5 hover:bg-red-600/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-white transition-all duration-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+
+                <div className="w-12 h-12 rounded-full bg-red-600/10 border border-red-600/30 flex items-center justify-center mb-5 text-xl shadow-[0_0_15px_rgba(220,38,38,0.15)] text-red-500">
+                  🔒
+                </div>
+
+                <h3 className="text-xl font-bold text-white mb-2 uppercase tracking-wide">Premium Feature Locked</h3>
+                <p className="text-gray-400 text-sm mb-6 leading-relaxed">
+                  Start your professional robotics career today. Upgrade to Roboflix Premium to unlock all 5 seasons (54+ episodes), source code repositories, wiring schematics, and WhatsApp doubt support.
+                </p>
+
+                <div className="mb-6 p-4 bg-gray-900/60 border border-gray-800 rounded-xl flex items-center justify-between">
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-wider block">Founding Batch Price</span>
+                    <span className="text-white text-xl font-extrabold font-mono">₹989</span>
+                    <span className="text-gray-500 line-through text-xs font-mono ml-2">₹2,999</span>
+                  </div>
+                  <span className="px-2.5 py-1 bg-red-600/20 border border-red-500/40 rounded-full text-[10px] font-bold text-red-500 uppercase tracking-widest animate-pulse">
+                    Save 67%
+                  </span>
+                </div>
+
+                <div className="space-y-3">
+                  <Link href="/#pricing" onClick={() => setShowUpgradePrompt(false)}>
+                    <button className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-red-600/35 hover:scale-[1.01]">
+                      Unlock Premium Now
+                    </button>
+                  </Link>
+                  <button
+                    onClick={() => setShowUpgradePrompt(false)}
+                    className="w-full py-3 bg-transparent hover:bg-white/5 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white text-sm font-semibold rounded-lg transition-all"
+                  >
+                    Keep Exploring Free Content
+                  </button>
+                </div>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

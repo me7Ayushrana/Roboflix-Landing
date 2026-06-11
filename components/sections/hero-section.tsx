@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import Link from "next/link"
-import { Play, Pause, X, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize, Gauge, Settings } from "lucide-react"
+import { Play, Pause, X, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, Minimize, Gauge, Settings, Mail, Phone, ArrowRight } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 
 const TRAILER_VIDEO_ID = "Z0tXgfMPo2s"
@@ -20,6 +20,80 @@ function formatTime(seconds: number) {
 export function HeroSection() {
   // ── mobile detection ──
   const [isMobile, setIsMobile] = useState(false)
+
+  // ── free trial modal state ──
+  const [trialEmail, setTrialEmail] = useState("")
+  const [trialPhone, setTrialPhone] = useState("")
+  const [trialLoading, setTrialLoading] = useState(false)
+  const [trialError, setTrialError] = useState("")
+  const [trialSuccess, setTrialSuccess] = useState(false)
+  const [isTrialModalOpen, setIsTrialModalOpen] = useState(false)
+
+  const handleSubmitTrial = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setTrialError("")
+    setTrialLoading(true)
+
+    try {
+      const email = trialEmail.trim().toLowerCase()
+      const phone = trialPhone.trim()
+
+      if (!email || !phone) {
+        setTrialError("Please enter both email and phone number.")
+        setTrialLoading(false)
+        return
+      }
+
+      // Call our API endpoint
+      const response = await fetch("/api/free-trial-webhook", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, phone }),
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        console.warn("Trial webhook response details:", data)
+      }
+
+      // Sync with localStorage for offline fallback
+      const storedUsers = localStorage.getItem("roboflix_lms_users")
+      let usersList = []
+      if (storedUsers) {
+        try {
+          usersList = JSON.parse(storedUsers)
+        } catch (e) {}
+      }
+      
+      const existingUserIdx = usersList.findIndex((u: any) => u.email.toLowerCase() === email)
+      const newRecord = { email, phone, status: "Active", tier: "Free Trial" }
+      
+      if (existingUserIdx !== -1) {
+        usersList[existingUserIdx] = newRecord
+      } else {
+        usersList.push(newRecord)
+      }
+      
+      localStorage.setItem("roboflix_lms_users", JSON.stringify(usersList))
+
+      // Automatically log the user in
+      const sessionId = Math.random().toString(36).substring(2) + Date.now().toString()
+      localStorage.setItem("lms_user", JSON.stringify({ email }))
+      localStorage.setItem("lms_session_id", sessionId)
+
+      // Open Google Form in a new tab
+      window.open("https://docs.google.com/forms/d/e/1FAIpQLScB6gL5XG8rW12345/viewform?usp=sf_link", "_blank")
+
+      setTrialSuccess(true)
+    } catch (err: any) {
+      setTrialError(err.message || "An unexpected error occurred.")
+    } finally {
+      setTrialLoading(false)
+    }
+  }
 
   useEffect(() => {
     const checkMobile = () => {
@@ -207,9 +281,9 @@ export function HeroSection() {
 
   // ─── lock body scroll ────────────────────────────────────────
   useEffect(() => {
-    document.body.style.overflow = trailerOpen ? "hidden" : ""
+    document.body.style.overflow = (trailerOpen || isTrialModalOpen) ? "hidden" : ""
     return () => { document.body.style.overflow = "" }
-  }, [trailerOpen])
+  }, [trailerOpen, isTrialModalOpen])
 
   // ─── keyboard shortcuts (only when modal is open) ─────────────
   useEffect(() => {
@@ -437,12 +511,26 @@ export function HeroSection() {
             </div>
 
             {/* Primary CTAs */}
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-12">
+            <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center gap-4 mb-12 max-w-4xl mx-auto">
               <Link href="#pricing" className="w-full sm:w-auto">
                 <button className="w-full px-8 py-4 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-all duration-300 text-base sm:text-lg shadow-lg shadow-red-600/50">
                   Join Now
                 </button>
               </Link>
+
+              {/* ── START FREE TRIAL BUTTON ── */}
+              <button
+                onClick={() => {
+                  setTrialEmail("")
+                  setTrialPhone("")
+                  setTrialSuccess(false)
+                  setTrialError("")
+                  setIsTrialModalOpen(true)
+                }}
+                className="w-full sm:w-auto px-8 py-4 bg-transparent border-2 border-red-600 text-red-500 hover:bg-red-600 hover:text-white font-semibold rounded-lg transition-all duration-300 text-base sm:text-lg shadow-lg hover:shadow-red-600/30"
+              >
+                Start Free Trial
+              </button>
 
               {/* ── WATCH TRAILER BUTTON ── */}
               <button

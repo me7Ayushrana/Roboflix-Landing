@@ -26,7 +26,7 @@ interface UserAccess {
   email: string
   phone: string
   status: "Active" | "Revoked"
-  tier: "Pro" | "Founding Batch"
+  tier: "Pro" | "Founding Batch" | "Free Trial"
 }
 
 interface Episode {
@@ -95,7 +95,7 @@ export default function LmsAdminPanel() {
   const [usersList, setUsersList] = useState<UserAccess[]>([])
   const [newSubEmail, setNewSubEmail] = useState("")
   const [newSubPassword, setNewSubPassword] = useState("")
-  const [newSubTier, setNewSubTier] = useState<"Pro" | "Founding Batch">("Pro")
+  const [newSubTier, setNewSubTier] = useState<"Pro" | "Founding Batch" | "Free Trial">("Pro")
   const [searchQuery, setSearchQuery] = useState("")
   const [dbStatus, setDbStatus] = useState<"checking" | "connected" | "missing_table" | "error">("checking")
   const [dbErrorMessage, setDbErrorMessage] = useState("")
@@ -1304,6 +1304,7 @@ export default function LmsAdminPanel() {
                   >
                     <option value="Pro">Pro Membership (Standard)</option>
                     <option value="Founding Batch">Founding Batch (All seasons)</option>
+                    <option value="Free Trial">Free Trial Account</option>
                   </select>
                 </div>
 
@@ -1369,6 +1370,8 @@ export default function LmsAdminPanel() {
                                 <span className={`text-[9px] uppercase font-mono px-1.5 py-0.5 rounded shrink-0 ${
                                   sub.tier === "Founding Batch"
                                     ? "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                                    : sub.tier === "Free Trial"
+                                    ? "bg-blue-500/10 text-blue-400 border border-blue-500/20"
                                     : "bg-red-500/10 text-red-400 border border-red-500/20"
                                 }`}>
                                   {sub.tier}
@@ -1473,7 +1476,7 @@ create table if not exists public.roboflix_lms_users (
   email text unique not null,
   phone text not null, -- Password
   status text not null default 'Active' check (status in ('Active', 'Revoked')),
-  tier text not null default 'Pro' check (tier in ('Pro', 'Founding Batch')),
+  tier text not null default 'Pro' check (tier in ('Pro', 'Founding Batch', 'Free Trial')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
@@ -1533,7 +1536,7 @@ create table if not exists public.roboflix_lms_users (
   email text unique not null,
   phone text not null, -- Password
   status text not null default 'Active' check (status in ('Active', 'Revoked')),
-  tier text not null default 'Pro' check (tier in ('Pro', 'Founding Batch')),
+  tier text not null default 'Pro' check (tier in ('Pro', 'Founding Batch', 'Free Trial')),
   created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
