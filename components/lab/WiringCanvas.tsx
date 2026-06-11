@@ -74,6 +74,9 @@ export default function WiringCanvas({
   const [activeWireColor, setActiveWireColor] = useState<string>("red")
   const [draggingCompId, setDraggingCompId] = useState<string | null>(null)
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null)
+  const [wireStyle, setWireStyle] = useState<"curved" | "orthogonal">("orthogonal")
+  const [snapGridSize, setSnapGridSize] = useState<number>(10)
+  const [gridTheme, setGridTheme] = useState<"dots" | "lines" | "none">("lines")
   
   const isPanningRef = useRef(false)
   const [isPanning, setIsPanning] = useState(false)
@@ -220,9 +223,10 @@ export default function WiringCanvas({
     onUpdateConnections(next)
   }
 
-  // Snaps coordinate to a 10px grid
+  // Snaps coordinate to selected grid size
   const snapToGrid = (val: number): number => {
-    return Math.round(val / 10) * 10
+    if (snapGridSize <= 1) return val
+    return Math.round(val / snapGridSize) * snapGridSize
   }
 
   // Handle Drag Over
@@ -622,35 +626,110 @@ export default function WiringCanvas({
           </div>
         </div>
 
-        {/* Row 2 — Wire Colors */}
-        <div className="flex items-center gap-2 border-t border-gray-800/40 pt-1.5">
-          <span className="text-[8.5px] text-gray-500 font-bold uppercase tracking-widest shrink-0">Wire Color:</span>
-          {[
-            { id: "red",    hex: "#ef4444" },
-            { id: "black",  hex: "#374151" },
-            { id: "yellow", hex: "#eab308" },
-            { id: "green",  hex: "#22c55e" },
-            { id: "blue",   hex: "#3b82f6" },
-            { id: "purple", hex: "#a855f7" },
-            { id: "orange", hex: "#f97316" },
-            { id: "cyan",   hex: "#06b6d4" },
-          ].map(c => (
-            <button
-              key={c.id}
-              onClick={() => setActiveWireColor(c.id)}
-              style={{ backgroundColor: c.hex }}
-              className={`w-4 h-4 rounded-full transition-all ${
-                activeWireColor === c.id
-                  ? "ring-2 ring-white ring-offset-2 ring-offset-[#0d0d0d] scale-110"
-                  : "opacity-55 hover:opacity-90 hover:scale-105"
-              }`}
-              title={c.id}
-            />
-          ))}
-          {/* Active label */}
-          <span className="ml-1 text-[8.5px] font-mono font-bold capitalize text-gray-500">
-            {activeWireColor}
-          </span>
+        {/* Row 2 — Wire Colors & Premium Sandbox Controls */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-gray-800/40 pt-1.5">
+          {/* Left: Wire Colors */}
+          <div className="flex items-center gap-2">
+            <span className="text-[8.5px] text-gray-500 font-bold uppercase tracking-widest shrink-0">Wire Color:</span>
+            {[
+              { id: "red",    hex: "#ef4444" },
+              { id: "black",  hex: "#374151" },
+              { id: "yellow", hex: "#eab308" },
+              { id: "green",  hex: "#22c55e" },
+              { id: "blue",   hex: "#3b82f6" },
+              { id: "purple", hex: "#a855f7" },
+              { id: "orange", hex: "#f97316" },
+              { id: "cyan",   hex: "#06b6d4" },
+            ].map(c => (
+              <button
+                key={c.id}
+                onClick={() => setActiveWireColor(c.id)}
+                style={{ backgroundColor: c.hex }}
+                className={`w-4 h-4 rounded-full transition-all cursor-pointer ${
+                  activeWireColor === c.id
+                    ? "ring-2 ring-white ring-offset-2 ring-offset-[#0d0d0d] scale-110"
+                    : "opacity-55 hover:opacity-90 hover:scale-105"
+                }`}
+                title={c.id}
+              />
+            ))}
+            <span className="ml-1 text-[8.5px] font-mono font-bold capitalize text-gray-500">
+              {activeWireColor}
+            </span>
+          </div>
+
+          {/* Right: Premium Sandbox Toggles */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Wire Style: Orthogonal vs Curved */}
+            <div className="flex items-center bg-[#111] border border-gray-800 rounded-lg overflow-hidden divide-x divide-gray-800">
+              <button
+                onClick={() => setWireStyle("orthogonal")}
+                className={`px-2.5 py-1 text-[9px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                  wireStyle === "orthogonal"
+                    ? "bg-red-950/40 text-red-400 font-extrabold"
+                    : "text-gray-400 hover:text-white"
+                }`}
+                title="90-degree Orthogonal wiring"
+              >
+                <span className={`w-1 h-1 rounded-full bg-red-500 ${wireStyle === "orthogonal" ? "opacity-100 animate-pulse" : "opacity-0"}`} />
+                Orthogonal
+              </button>
+              <button
+                onClick={() => setWireStyle("curved")}
+                className={`px-2.5 py-1 text-[9px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                  wireStyle === "curved"
+                    ? "bg-red-950/40 text-red-400 font-extrabold"
+                    : "text-gray-400 hover:text-white"
+                }`}
+                title="Curved Bezier wiring"
+              >
+                <span className={`w-1 h-1 rounded-full bg-red-500 ${wireStyle === "curved" ? "opacity-100 animate-pulse" : "opacity-0"}`} />
+                Curved
+              </button>
+            </div>
+
+            {/* Grid Snap Level Selection */}
+            <div className="flex items-center bg-[#111] border border-gray-800 rounded-lg overflow-hidden divide-x divide-gray-800">
+              {[
+                { label: "Free Drag", value: 1 },
+                { label: "10px Snap", value: 10 },
+                { label: "20px Snap", value: 20 },
+              ].map(snapOpt => (
+                <button
+                  key={snapOpt.value}
+                  onClick={() => setSnapGridSize(snapOpt.value)}
+                  className={`px-2 py-1 text-[9px] font-bold transition cursor-pointer ${
+                    snapGridSize === snapOpt.value
+                      ? "bg-red-950/40 text-red-400 font-extrabold"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  {snapOpt.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Grid Theme Selector */}
+            <div className="flex items-center bg-[#111] border border-gray-800 rounded-lg overflow-hidden divide-x divide-gray-800">
+              {[
+                { label: "Dots Grid", value: "dots" },
+                { label: "Lines Grid", value: "lines" },
+                { label: "Clear Canvas", value: "none" },
+              ].map(themeOpt => (
+                <button
+                  key={themeOpt.value}
+                  onClick={() => setGridTheme(themeOpt.value as "dots" | "lines" | "none")}
+                  className={`px-2 py-1 text-[9px] font-bold transition cursor-pointer ${
+                    gridTheme === themeOpt.value
+                      ? "bg-red-950/40 text-red-400 font-extrabold"
+                      : "text-gray-400 hover:text-white"
+                  }`}
+                >
+                  {themeOpt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
 
       </div>
@@ -667,9 +746,15 @@ export default function WiringCanvas({
           isNightMode === false ? "bg-[#f3f4f6]" : "bg-[#070707]"
         }`}
         style={{
-          backgroundImage: isNightMode === false
-            ? "radial-gradient(#cbd5e1 1.5px, transparent 1.5px)"
-            : "radial-gradient(#222 1px, transparent 1px)",
+          backgroundImage: gridTheme === "none"
+            ? "none"
+            : gridTheme === "lines"
+              ? (isNightMode === false
+                ? "linear-gradient(to right, #e2e8f0 1px, transparent 1px), linear-gradient(to bottom, #e2e8f0 1px, transparent 1px)"
+                : "linear-gradient(to right, #141414 1px, transparent 1px), linear-gradient(to bottom, #141414 1px, transparent 1px)")
+              : (isNightMode === false
+                ? "radial-gradient(#cbd5e1 1.5px, transparent 1.5px)"
+                : "radial-gradient(#222 1px, transparent 1px)"),
           backgroundSize: "20px 20px"
         }}
       >
@@ -706,11 +791,29 @@ export default function WiringCanvas({
               const start = getPinCoords(wire.fromComponentId, wire.fromPinId)
               const end = getPinCoords(wire.toComponentId, wire.toPinId)
               
-              // Draw an elegant curved cubic bezier wire paths
-              const dx = Math.abs(end.x - start.x) * 0.4
-              const dy = Math.abs(end.y - start.y) * 0.4
-              const path = `M ${start.x} ${start.y} C ${start.x + dx} ${start.y + (end.y > start.y ? dy : -dy)} ${end.x - dx} ${end.y + (end.y > start.y ? -dy : dy)} ${end.x} ${end.y}`
-              
+              // Draw wire path based on selected routing style
+              let path = ""
+              let midX = 0
+              let midY = 0
+
+              if (wireStyle === "orthogonal") {
+                midX = start.x + (end.x - start.x) / 2
+                midY = start.y + (end.y - start.y) / 2
+                path = `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${end.y} L ${end.x} ${end.y}`
+              } else {
+                const dx = Math.abs(end.x - start.x) * 0.4
+                const dy = Math.abs(end.y - start.y) * 0.4
+                path = `M ${start.x} ${start.y} C ${start.x + dx} ${start.y + (end.y > start.y ? dy : -dy)} ${end.x - dx} ${end.y + (end.y > start.y ? -dy : dy)} ${end.x} ${end.y}`
+                
+                const p1x = start.x + dx
+                const p1y = start.y + (end.y > start.y ? dy : -dy)
+                const p2x = end.x - dx
+                const p2y = end.y + (end.y > start.y ? -dy : dy)
+                
+                midX = 0.125 * start.x + 0.375 * p1x + 0.375 * p2x + 0.125 * end.x
+                midY = 0.125 * start.y + 0.375 * p1y + 0.375 * p2y + 0.125 * end.y
+              }
+
               let strokeColor = "#eab308"
               let shadowColor = "rgba(234,179,8,0.2)"
               
@@ -739,14 +842,6 @@ export default function WiringCanvas({
                 strokeColor = "#06b6d4"
                 shadowColor = "rgba(6,182,212,0.3)"
               }
-
-              const p1x = start.x + dx
-              const p1y = start.y + (end.y > start.y ? dy : -dy)
-              const p2x = end.x - dx
-              const p2y = end.y + (end.y > start.y ? -dy : dy)
-              
-              const midX = 0.125 * start.x + 0.375 * p1x + 0.375 * p2x + 0.125 * end.x
-              const midY = 0.125 * start.y + 0.375 * p1y + 0.375 * p2y + 0.125 * end.y
 
               const isHovered = hoveredWireIdx === idx
 
@@ -829,14 +924,16 @@ export default function WiringCanvas({
                   else if (activeWireColor === "purple") previewColor = "#a855f7"
                   else if (activeWireColor === "orange") previewColor = "#f97316"
                   else if (activeWireColor === "cyan") previewColor = "#06b6d4"
+
+                  const previewPath = wireStyle === "orthogonal"
+                    ? `M ${wireStart.x} ${wireStart.y} L ${wireStart.x + (mousePos.x - wireStart.x) / 2} ${wireStart.y} L ${wireStart.x + (mousePos.x - wireStart.x) / 2} ${mousePos.y} L ${mousePos.x} ${mousePos.y}`
+                    : `M ${wireStart.x} ${wireStart.y} L ${mousePos.x} ${mousePos.y}`
                   
                   return (
                     <>
-                      <line
-                        x1={wireStart.x}
-                        y1={wireStart.y}
-                        x2={mousePos.x}
-                        y2={mousePos.y}
+                      <path
+                        d={previewPath}
+                        fill="none"
                         stroke={previewColor}
                         strokeWidth="3"
                         strokeDasharray="5,5"

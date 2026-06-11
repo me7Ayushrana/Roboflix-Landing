@@ -935,7 +935,7 @@ export default function VirtualLabPage() {
 
   // --- NEW STATES FOR ENHANCED VIRTUAL BOX ---
   const [isNightMode, setIsNightMode] = useState(true)
-  const [workspaceLayout, setWorkspaceLayout] = useState<"schematic" | "immersive" | "telemetry">("immersive")
+  const [workspaceLayout, setWorkspaceLayout] = useState<"schematic" | "immersive" | "telemetry">("schematic")
   const [isAIDrawerOpen, setIsAIDrawerOpen] = useState(false)
   const [activePlaygroundTab, setActivePlaygroundTab] = useState<"home" | "car" | "garden">("home")
   const [showEnvSim, setShowEnvSim] = useState(false)

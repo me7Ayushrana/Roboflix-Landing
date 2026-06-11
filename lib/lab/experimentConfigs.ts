@@ -7,7 +7,9 @@ export interface LabComponent {
   height: number
   color: string
   imageUrl?: string
+  category?: "microcontroller" | "sensor" | "tool" | "object"
 }
+
 
 export interface ExperimentConfig {
   id: string
@@ -742,8 +744,286 @@ export const LAB_COMPONENTS: Record<string, LabComponent> = {
     height: 75,
     color: "#6B7280",
     pins: []
+  },
+  "arduino-nano": {
+    id: "arduino-nano",
+    name: "Arduino Nano",
+    icon: "🔌",
+    width: 110,
+    height: 70,
+    color: "#00878F",
+    category: "microcontroller",
+    pins: [
+      { id: "vcc-5v", label: "5V", x: 35, y: 65 },
+      { id: "gnd-1", label: "GND", x: 50, y: 65 },
+      { id: "vcc-3v3", label: "3V3", x: 65, y: 65 },
+      { id: "pin-d2", label: "D2", x: 10, y: 5 },
+      { id: "pin-d3", label: "D3~", x: 22, y: 5 },
+      { id: "pin-d4", label: "D4", x: 34, y: 5 },
+      { id: "pin-d5", label: "D5~", x: 46, y: 5 },
+      { id: "pin-d6", label: "D6~", x: 58, y: 5 },
+      { id: "pin-d7", label: "D7", x: 70, y: 5 },
+      { id: "pin-a0", label: "A0", x: 10, y: 65 },
+      { id: "pin-a1", label: "A1", x: 20, y: 65 }
+    ]
+  },
+  "esp8266": {
+    id: "esp8266",
+    name: "ESP8266 NodeMCU",
+    icon: "📶",
+    width: 120,
+    height: 85,
+    color: "#2563EB",
+    category: "microcontroller",
+    pins: [
+      { id: "vcc-3v3", label: "3V3", x: 15, y: 80 },
+      { id: "gnd", label: "GND", x: 30, y: 80 },
+      { id: "pin-d0", label: "D0", x: 10, y: 5 },
+      { id: "pin-d1", label: "D1", x: 25, y: 5 },
+      { id: "pin-d2", label: "D2", x: 40, y: 5 },
+      { id: "pin-d3", label: "D3", x: 55, y: 5 },
+      { id: "pin-d4", label: "D4", x: 70, y: 5 },
+      { id: "pin-rx", label: "RX", x: 85, y: 5 },
+      { id: "pin-tx", label: "TX", x: 100, y: 5 }
+    ]
+  },
+  "raspberry-pi-pico": {
+    id: "raspberry-pi-pico",
+    name: "Raspberry Pi Pico",
+    icon: "⚡",
+    width: 110,
+    height: 75,
+    color: "#065F46",
+    category: "microcontroller",
+    pins: [
+      { id: "vcc-3v3", label: "3V3 OUT", x: 95, y: 70 },
+      { id: "gnd", label: "GND", x: 15, y: 70 },
+      { id: "pin-gp0", label: "GP0", x: 10, y: 5 },
+      { id: "pin-gp1", label: "GP1", x: 25, y: 5 },
+      { id: "pin-gp2", label: "GP2", x: 40, y: 5 },
+      { id: "pin-gp3", label: "GP3", x: 55, y: 5 },
+      { id: "pin-gp26", label: "GP26/A0", x: 70, y: 5 },
+      { id: "pin-gp27", label: "GP27/A1", x: 85, y: 5 }
+    ]
+  },
+  "attiny85": {
+    id: "attiny85",
+    name: "ATtiny85 Controller",
+    icon: "🧠",
+    width: 80,
+    height: 70,
+    color: "#1E293B",
+    category: "microcontroller",
+    pins: [
+      { id: "vcc", label: "VCC", x: 10, y: 10 },
+      { id: "gnd", label: "GND", x: 70, y: 60 },
+      { id: "pb0", label: "PB0", x: 10, y: 35 },
+      { id: "pb1", label: "PB1", x: 10, y: 60 },
+      { id: "pb2", label: "PB2/ADC1", x: 70, y: 10 },
+      { id: "pb3", label: "PB3/ADC3", x: 70, y: 35 }
+    ]
+  },
+  "dht22": {
+    id: "dht22",
+    name: "DHT22 Temp/Humidity",
+    icon: "🌡️",
+    width: 70,
+    height: 50,
+    color: "#0284C7",
+    category: "sensor",
+    pins: [
+      { id: "vcc", label: "VCC", x: 15, y: 40 },
+      { id: "sig", label: "DATA", x: 35, y: 40 },
+      { id: "gnd", label: "GND", x: 55, y: 40 }
+    ]
+  },
+  "sound-sensor": {
+    id: "sound-sensor",
+    name: "Sound Detection Sensor",
+    icon: "🎙️",
+    width: 80,
+    height: 50,
+    color: "#4F46E5",
+    category: "sensor",
+    pins: [
+      { id: "vcc", label: "VCC", x: 15, y: 40 },
+      { id: "gnd", label: "GND", x: 35, y: 40 },
+      { id: "ao", label: "AOUT", x: 55, y: 40 },
+      { id: "do", label: "DOUT", x: 65, y: 15 }
+    ]
+  },
+  "bmp280": {
+    id: "bmp280",
+    name: "BMP280 Barometric Pressure Sensor",
+    icon: "🎈",
+    width: 80,
+    height: 55,
+    color: "#0D9488",
+    category: "sensor",
+    pins: [
+      { id: "vcc", label: "VCC", x: 15, y: 45 },
+      { id: "gnd", label: "GND", x: 30, y: 45 },
+      { id: "scl", label: "SCL", x: 45, y: 45 },
+      { id: "sda", label: "SDA", x: 60, y: 45 }
+    ]
+  },
+  "water-level": {
+    id: "water-level",
+    name: "Water Level Sensor",
+    icon: "🌊",
+    width: 70,
+    height: 90,
+    color: "#0EA5E9",
+    category: "sensor",
+    pins: [
+      { id: "vcc", label: "VCC", x: 15, y: 80 },
+      { id: "gnd", label: "GND", x: 35, y: 80 },
+      { id: "sig", label: "SIG", x: 55, y: 80 }
+    ]
+  },
+  "full-breadboard": {
+    id: "full-breadboard",
+    name: "Full Breadboard",
+    icon: "🔲",
+    width: 340,
+    height: 90,
+    color: "#F3F4F6",
+    category: "tool",
+    pins: [
+      { id: "power-pos-1", label: "R+", x: 20, y: 10 },
+      { id: "power-neg-1", label: "R-", x: 40, y: 10 },
+      { id: "row-a-1", label: "A1", x: 20, y: 40 },
+      { id: "row-e-1", label: "E1", x: 20, y: 55 },
+      { id: "row-f-1", label: "F1", x: 20, y: 75 },
+      { id: "power-pos-2", label: "R+", x: 320, y: 10 },
+      { id: "power-neg-2", label: "R-", x: 300, y: 10 }
+    ]
+  },
+  "multimeter": {
+    id: "multimeter",
+    name: "Digital Multimeter",
+    icon: "📟",
+    width: 100,
+    height: 120,
+    color: "#F97316",
+    category: "tool",
+    pins: [
+      { id: "probe-v-omega", label: "V/Ω (+)", x: 25, y: 100 },
+      { id: "probe-com", label: "COM (-)", x: 50, y: 100 },
+      { id: "probe-10a", label: "10A", x: 75, y: 100 }
+    ]
+  },
+  "oscilloscope": {
+    id: "oscilloscope",
+    name: "USB Oscilloscope",
+    icon: "📉",
+    width: 120,
+    height: 90,
+    color: "#1E293B",
+    category: "tool",
+    pins: [
+      { id: "ch1-pos", label: "CH1+", x: 20, y: 80 },
+      { id: "ch1-neg", label: "CH1-", x: 40, y: 80 },
+      { id: "ch2-pos", label: "CH2+", x: 80, y: 80 },
+      { id: "ch2-neg", label: "CH2-", x: 100, y: 80 }
+    ]
+  },
+  "soldering-iron": {
+    id: "soldering-iron",
+    name: "Soldering Iron",
+    icon: "🔥",
+    width: 130,
+    height: 50,
+    color: "#475569",
+    category: "tool",
+    pins: [
+      { id: "tip", label: "TIP", x: 10, y: 25 },
+      { id: "gnd", label: "EARTH", x: 110, y: 25 }
+    ]
+  },
+  "led-green": {
+    id: "led-green",
+    name: "Green LED",
+    icon: "🟢",
+    width: 90,
+    height: 90,
+    color: "#16A34A",
+    category: "object",
+    pins: [
+      { id: "anode", label: "ANODE (+)", x: 25, y: 80 },
+      { id: "cathode", label: "CATHODE (-)", x: 65, y: 80 }
+    ]
+  },
+  "led-blue": {
+    id: "led-blue",
+    name: "Blue LED",
+    icon: "🔵",
+    width: 90,
+    height: 90,
+    color: "#2563EB",
+    category: "object",
+    pins: [
+      { id: "anode", label: "ANODE (+)", x: 25, y: 80 },
+      { id: "cathode", label: "CATHODE (-)", x: 65, y: 80 }
+    ]
+  },
+  "led-yellow": {
+    id: "led-yellow",
+    name: "Yellow LED",
+    icon: "🟡",
+    width: 90,
+    height: 90,
+    color: "#CA8A04",
+    category: "object",
+    pins: [
+      { id: "anode", label: "ANODE (+)", x: 25, y: 80 },
+      { id: "cathode", label: "CATHODE (-)", x: 65, y: 80 }
+    ]
   }
 }
+
+// Auto-categorize existing components to avoid tedious manual edits
+Object.keys(LAB_COMPONENTS).forEach((key) => {
+  const comp = LAB_COMPONENTS[key]
+  if (comp.category) return
+
+  if (comp.id.startsWith("obj-")) {
+    comp.category = "object"
+  } else if (
+    comp.id === "arduino-uno" ||
+    comp.id === "esp32" ||
+    comp.id === "raspberry-pi-4" ||
+    comp.id === "raspberry-pi-5"
+  ) {
+    comp.category = "microcontroller"
+  } else if (
+    comp.id === "hc-sr04" ||
+    comp.id === "dht11" ||
+    comp.id === "ir-sensor" ||
+    comp.id === "photoresistor" ||
+    comp.id === "pir-sensor" ||
+    comp.id === "gas-sensor" ||
+    comp.id === "soil-moisture" ||
+    comp.id === "rfid-module" ||
+    comp.id === "gps-module" ||
+    comp.id === "camera-module"
+  ) {
+    comp.category = "sensor"
+  } else if (
+    comp.id === "breadboard" ||
+    comp.id === "l298n" ||
+    comp.id === "pca9685" ||
+    comp.id === "tp4056" ||
+    comp.id === "lipo-battery" ||
+    comp.id === "lm2596-buck" ||
+    comp.id === "level-shifter" ||
+    comp.id === "jumper-m-m"
+  ) {
+    comp.category = "tool"
+  } else {
+    comp.category = "object"
+  }
+})
 
 export const EXPERIMENT_CONFIGS: Record<string, ExperimentConfig> = {
   "s1e1": {

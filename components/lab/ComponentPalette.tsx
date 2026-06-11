@@ -13,13 +13,18 @@ interface ComponentPaletteProps {
 export default function ComponentPalette({ config, onDragStart }: ComponentPaletteProps) {
   const [activeSubTab, setActiveSubTab] = useState<"brief" | "components" | "objects">("components")
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState<"all" | "microcontroller" | "sensor" | "tool" | "object">("all")
 
   const requiredComponents = Object.values(LAB_COMPONENTS).filter(c => 
-    config.components.includes(c.id) && !c.id.startsWith("obj-")
+    config.components.includes(c.id) && 
+    !c.id.startsWith("obj-") &&
+    (selectedCategory === "all" || c.category === selectedCategory)
   )
 
   const additionalComponents = Object.values(LAB_COMPONENTS).filter(c => 
-    !config.components.includes(c.id) && !c.id.startsWith("obj-")
+    !config.components.includes(c.id) && 
+    !c.id.startsWith("obj-") &&
+    (selectedCategory === "all" || c.category === selectedCategory)
   )
 
   const testingObjects = Object.values(LAB_COMPONENTS).filter(c =>
@@ -58,6 +63,12 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
         }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
           background: rgba(220, 38, 38, 0.7);
+        }
+        .scrollbar-none {
+          scrollbar-width: none;
+        }
+        .scrollbar-none::-webkit-scrollbar {
+          display: none;
         }
       `}</style>
 
@@ -160,6 +171,30 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
               />
               <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5" />
             </div>
+
+            {/* Category Filter Options */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+              {[
+                { id: "all", label: "All" },
+                { id: "microcontroller", label: "Controllers" },
+                { id: "sensor", label: "Sensors" },
+                { id: "tool", label: "Tools" },
+                { id: "object", label: "Objects" },
+              ].map(cat => (
+                <button
+                  key={cat.id}
+                  onClick={() => setSelectedCategory(cat.id as any)}
+                  className={`px-2.5 py-1 text-[10px] font-bold rounded-full border whitespace-nowrap transition-all cursor-pointer ${
+                    selectedCategory === cat.id
+                      ? "bg-red-950/40 text-red-400 border-red-500/50 shadow-[0_0_8px_rgba(220,38,38,0.15)] font-extrabold"
+                      : "bg-[#111] text-gray-400 border-gray-800 hover:text-gray-300 hover:border-gray-700"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
 
             {/* Required Components Section */}
             <div className="space-y-2">
