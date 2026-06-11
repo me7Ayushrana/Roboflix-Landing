@@ -445,16 +445,11 @@ export function HeroSection() {
               </Link>
 
               {/* ── START FREE TRIAL BUTTON ── */}
-              <a
-                href="https://forms.gle/RgDMJBtXSA5TE3B69"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full sm:w-auto"
-              >
+              <Link href="/free-trial" className="w-full sm:w-auto">
                 <button className="w-full px-8 py-4 bg-transparent border-2 border-red-600 text-red-500 hover:bg-red-600 hover:text-white font-semibold rounded-lg transition-all duration-300 text-base sm:text-lg shadow-lg hover:shadow-red-600/30">
                   Start Free Trial
                 </button>
-              </a>
+              </Link>
 
               {/* ── WATCH TRAILER BUTTON ── */}
               <button

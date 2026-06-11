@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { motion, AnimatePresence } from "framer-motion"
-import { ArrowLeft, Plus, Trash2, FileText, Code, CheckCircle, RefreshCw, Sparkles, Youtube, ExternalLink, AlertCircle, X } from "lucide-react"
+import { ArrowLeft, Plus, Trash2, FileText, Code, CheckCircle, RefreshCw, Sparkles, Youtube, ExternalLink, AlertCircle, X, User as UserIcon } from "lucide-react"
 import { SEASONS_DATA } from "@/lib/lms-data"
 import { supabase, isSupabaseConfigured } from "@/lib/supabase"
 
@@ -89,10 +89,11 @@ export default function LmsAdminPanel() {
   const [parsedVideoId, setParsedVideoId] = useState("")
 
   // Tab Navigation state
-  const [activeTab, setActiveTab] = useState<"course" | "users">("course")
+  const [activeTab, setActiveTab] = useState<"course" | "users" | "trials">("course")
 
   // Subscription states
   const [usersList, setUsersList] = useState<UserAccess[]>([])
+  const [trialUsers, setTrialUsers] = useState<any[]>([])
   const [newSubEmail, setNewSubEmail] = useState("")
   const [newSubPassword, setNewSubPassword] = useState("")
   const [newSubTier, setNewSubTier] = useState<"Pro" | "Founding Batch" | "Free Trial">("Pro")
@@ -389,6 +390,42 @@ export default function LmsAdminPanel() {
     setUsersList(updated)
     localStorage.setItem("roboflix_lms_users", JSON.stringify(updated))
     showToast(isSavedInSupabase ? `Removed access record globally 🌐` : `Removed access record locally 💻`)
+  }
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("roboflix_trial_profiles")
+      if (stored) {
+        setTrialUsers(JSON.parse(stored))
+      }
+    }
+  }, [activeTab])
+
+  const deleteTrialUser = (email: string) => {
+    if (!confirm(`Are you sure you want to completely delete the trial profile and LMS access for ${email}?`)) return
+    
+    const stored = localStorage.getItem("roboflix_trial_profiles")
+    if (stored) {
+      const list = JSON.parse(stored)
+      const updated = list.filter((u: any) => u.email.toLowerCase() !== email.toLowerCase())
+      localStorage.setItem("roboflix_trial_profiles", JSON.stringify(updated))
+      setTrialUsers(updated)
+    }
+
+    // Also remove from general access list
+    const updatedUsers = usersList.filter(u => u.email.toLowerCase() !== email.toLowerCase())
+    if (isSupabaseConfigured() && dbStatus !== "missing_table") {
+      supabase
+        .from("roboflix_lms_users")
+        .delete()
+        .eq("email", email)
+        .then(({ error }) => {
+          if (error) console.error("Failed to delete trial user from DB:", error)
+        })
+    }
+    setUsersList(updatedUsers)
+    localStorage.setItem("roboflix_lms_users", JSON.stringify(updatedUsers))
+    showToast("Trial User deleted successfully! 🗑️")
   }
 
   // ─── Data Initialization ───────────────────────────────────────
@@ -843,10 +880,28 @@ export default function LmsAdminPanel() {
                 {usersList.length}
               </span>
             </button>
+            <button
+              onClick={() => setActiveTab("trials")}
+              className={`px-4 py-2 rounded-lg text-xs font-bold uppercase transition-all flex items-center gap-2.5 ${
+                activeTab === "trials"
+                  ? "bg-red-600 text-white shadow-lg shadow-red-650/10"
+                  : "text-gray-400 hover:text-white hover:bg-white/5"
+              }`}
+            >
+              <UserIcon className="w-3.5 h-3.5" />
+              <span>Trial Users</span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                activeTab === "trials"
+                  ? "bg-white text-red-600"
+                  : "bg-red-600/20 text-red-400 border border-red-600/20"
+              }`}>
+                {trialUsers.length}
+              </span>
+            </button>
           </div>
         </div>
 
-        {activeTab === "course" ? (
+        {activeTab === "course" && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
           {/* Left Column: Choose Video, Season, and Episode */}
@@ -1226,9 +1281,11 @@ export default function LmsAdminPanel() {
 
             </div>
           </div>
-
         </div>
-        ) : (
+
+        )}
+
+        {activeTab === "users" && (
           <div className="space-y-6 w-full">
             {/* Supabase Status Warning Banner */}
             {(dbStatus === "missing_table" || dbStatus === "error") && (
@@ -1416,6 +1473,141 @@ export default function LmsAdminPanel() {
 
           </div>
         </div>
+        )}
+
+        {activeTab === "trials" && (
+          <div className="space-y-6 w-full">
+            <div className="border border-white/5 rounded-2xl bg-black/60 backdrop-blur p-6 sm:p-8 space-y-6 shadow-2xl">
+              {/* Header & Search */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/5 pb-4">
+                <div>
+                  <h2 className="text-xl font-extrabold text-white flex items-center gap-2.5">
+                    <span>Trial Users Onboarding Directory</span>
+                    <span className="px-2.5 py-0.5 bg-blue-600/10 text-blue-400 border border-blue-500/20 text-xs font-extrabold rounded-full">
+                      {trialUsers.length} Total
+                    </span>
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-1">Audit onboarding data collected during the free trial registration form.</p>
+                </div>
+                
+                {/* Search input */}
+                <div className="relative shrink-0 w-full sm:w-64">
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search name or email..."
+                    className="w-full bg-[#111] border border-gray-800 rounded-xl px-4 py-2.5 text-xs focus:border-red-650 outline-none text-white transition-colors placeholder:text-gray-600"
+                  />
+                </div>
+              </div>
+
+              {/* Stats Summary Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="bg-[#111] border border-gray-800/60 p-4 rounded-xl text-left">
+                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Beginners</span>
+                  <p className="text-2xl font-extrabold text-white mt-1">
+                    {trialUsers.filter((u: any) => u.experience === "Beginner").length}
+                  </p>
+                </div>
+                <div className="bg-[#111] border border-gray-800/60 p-4 rounded-xl text-left">
+                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Intermediates</span>
+                  <p className="text-2xl font-extrabold text-white mt-1">
+                    {trialUsers.filter((u: any) => u.experience === "Intermediate").length}
+                  </p>
+                </div>
+                <div className="bg-[#111] border border-gray-800/60 p-4 rounded-xl text-left">
+                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Advanced</span>
+                  <p className="text-2xl font-extrabold text-white mt-1">
+                    {trialUsers.filter((u: any) => u.experience === "Advanced").length}
+                  </p>
+                </div>
+                <div className="bg-[#111] border border-gray-800/60 p-4 rounded-xl text-left">
+                  <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Recent (24h)</span>
+                  <p className="text-2xl font-extrabold text-white mt-1">
+                    {trialUsers.filter((u: any) => {
+                      const age = Date.now() - new Date(u.timestamp).getTime()
+                      return age < 24 * 60 * 60 * 1000
+                    }).length}
+                  </p>
+                </div>
+              </div>
+
+              {/* Trial Users List */}
+              <div className="space-y-3">
+                {trialUsers.filter(u => 
+                  u.email?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                  u.name?.toLowerCase().includes(searchQuery.toLowerCase())
+                ).length === 0 ? (
+                  <div className="p-12 border border-dashed border-gray-800 rounded-2xl text-center text-gray-500 italic">
+                    No onboarding profiles found matching your search.
+                  </div>
+                ) : (
+                  trialUsers
+                    .filter(u => 
+                      u.email?.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                      u.name?.toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((sub, idx) => (
+                      <div key={idx} className="flex flex-col p-5 bg-white/5 border border-white/5 rounded-2xl gap-4 hover:border-white/10 transition-all text-left relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-blue-550/5 blur-3xl rounded-full pointer-events-none"></div>
+                        
+                        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                          <div className="flex items-start gap-4">
+                            <div className="w-12 h-12 rounded-xl bg-blue-600/10 border border-blue-500/20 flex flex-col items-center justify-center text-blue-400 font-bold shrink-0 text-sm">
+                              {sub.name ? sub.name.charAt(0).toUpperCase() : "?"}
+                            </div>
+                            <div>
+                              <h3 className="font-extrabold text-base text-white">{sub.name || "Anonymous"}</h3>
+                              <p className="text-xs text-gray-400 font-medium mt-0.5">{sub.email}</p>
+                              
+                              <div className="flex flex-wrap items-center gap-2 mt-3">
+                                <span className="text-[10px] bg-black/40 text-gray-400 px-2 py-0.5 rounded border border-white/5">
+                                  Age: {sub.age || "N/A"}
+                                </span>
+                                <span className="text-[10px] bg-black/40 text-gray-400 px-2 py-0.5 rounded border border-white/5">
+                                  City: {sub.city || "N/A"}
+                                </span>
+                                <span className="text-[10px] bg-blue-500/15 text-blue-400 px-2 py-0.5 rounded border border-blue-500/10 uppercase font-mono tracking-wider">
+                                  {sub.experience || "Beginner"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-2 sm:self-start">
+                            <button
+                              onClick={() => deleteTrialUser(sub.email)}
+                              className="p-2.5 bg-red-600/10 border border-red-500/20 text-red-500 hover:bg-red-650 hover:text-white rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold"
+                              title="Delete trial profile"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                              <span className="hidden sm:inline">Delete User</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Extended Details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-white/5 text-xs text-gray-400">
+                          <div>
+                            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider block mb-1">WhatsApp / Contact</span>
+                            <p className="text-white font-mono">{sub.whatsapp || "N/A"}</p>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider block mb-1">College / University</span>
+                            <p className="text-white truncate">{sub.college || "N/A"}</p>
+                          </div>
+                          <div>
+                            <span className="text-[10px] text-gray-500 uppercase font-bold tracking-wider block mb-1">Course / Interest</span>
+                            <p className="text-white truncate">{sub.course || "N/A"}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
       </main>

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { BookOpen, Cpu, Sparkles, HelpCircle } from "lucide-react"
+import { BookOpen, Cpu, Sparkles, HelpCircle, Package, Search } from "lucide-react"
 import { ExperimentConfig, LAB_COMPONENTS } from "@/lib/lab/experimentConfigs"
 
 interface ComponentPaletteProps {
@@ -11,62 +11,95 @@ interface ComponentPaletteProps {
 }
 
 export default function ComponentPalette({ config, onDragStart }: ComponentPaletteProps) {
-  const [activeSubTab, setActiveSubTab] = useState<"brief" | "components">("brief")
+  const [activeSubTab, setActiveSubTab] = useState<"brief" | "components" | "objects">("components")
+  const [searchQuery, setSearchQuery] = useState("")
 
   const requiredComponents = Object.values(LAB_COMPONENTS).filter(c => 
-    config.components.includes(c.id)
+    config.components.includes(c.id) && !c.id.startsWith("obj-")
   )
 
-  const allowedSpares = [
-    "arduino-uno",
-    "esp32",
-    "servo-motor",
-    "servo-mg996r",
-    "pca9685",
-    "geared-dc-motor",
-    "raspberry-pi-4",
-    "raspberry-pi-5",
-    "tp4056",
-    "lipo-battery",
-    "lm2596-buck",
-    "level-shifter",
-    "jumper-m-m"
-  ]
-
   const additionalComponents = Object.values(LAB_COMPONENTS).filter(c => 
-    !config.components.includes(c.id) && allowedSpares.includes(c.id)
+    !config.components.includes(c.id) && !c.id.startsWith("obj-")
+  )
+
+  const testingObjects = Object.values(LAB_COMPONENTS).filter(c =>
+    c.id.startsWith("obj-")
+  )
+
+  const filteredRequired = requiredComponents.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredAdditional = additionalComponents.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
+  )
+
+  const filteredObjects = testingObjects.filter(c =>
+    c.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
   return (
-    <div className="w-[280px] bg-[#0c0c0c] border-r border-gray-800 flex flex-col h-full flex-shrink-0 text-white select-none">
+    <div className="w-[280px] bg-[#0c0c0c] border-r border-gray-800 flex flex-col h-full flex-shrink-0 text-white relative">
+      {/* CSS Scrollbar rules styling injection */}
+      <style>{`
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: rgba(220, 38, 38, 0.4) transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 5px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: rgba(220, 38, 38, 0.4);
+          border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: rgba(220, 38, 38, 0.7);
+        }
+      `}</style>
+
       {/* Panel Selector Header */}
-      <div className="grid grid-cols-2 border-b border-gray-800 text-xs uppercase font-semibold tracking-wider text-center">
+      <div className="grid grid-cols-3 border-b border-gray-800 text-[10px] uppercase font-semibold tracking-wider text-center">
         <button
           onClick={() => setActiveSubTab("brief")}
-          className={`py-3 flex items-center justify-center gap-1.5 transition-all ${
+          className={`py-3 flex items-center justify-center gap-1 transition-all ${
             activeSubTab === "brief"
-              ? "text-red-500 border-b-2 border-red-600 bg-red-950/5"
+              ? "text-red-500 border-b-2 border-red-650 bg-red-950/5"
               : "text-gray-500 hover:text-gray-300"
           }`}
         >
-          <BookOpen className="w-3.5 h-3.5" />
+          <BookOpen className="w-3 h-3" />
           Brief
         </button>
         <button
           onClick={() => setActiveSubTab("components")}
-          className={`py-3 flex items-center justify-center gap-1.5 transition-all ${
+          className={`py-3 flex items-center justify-center gap-1 transition-all ${
             activeSubTab === "components"
-              ? "text-red-500 border-b-2 border-red-600 bg-red-950/5"
+              ? "text-red-500 border-b-2 border-red-650 bg-red-950/5"
               : "text-gray-500 hover:text-gray-300"
           }`}
         >
-          <Cpu className="w-3.5 h-3.5" />
+          <Cpu className="w-3 h-3" />
           Parts
+        </button>
+        <button
+          onClick={() => setActiveSubTab("objects")}
+          className={`py-3 flex items-center justify-center gap-1 transition-all ${
+            activeSubTab === "objects"
+              ? "text-red-500 border-b-2 border-red-650 bg-red-950/5"
+              : "text-gray-500 hover:text-gray-300"
+          }`}
+        >
+          <Package className="w-3 h-3" />
+          Objects
         </button>
       </div>
 
       {/* Panel Scroll Area */}
-      <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+      <div className="h-0 flex-grow overflow-y-auto p-4 custom-scrollbar">
         {activeSubTab === "brief" ? (
           <div className="space-y-5">
             <div>
@@ -104,26 +137,39 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
               </ul>
             </div>
           </div>
-        ) : (
+        ) : activeSubTab === "components" ? (
           <div className="space-y-4">
             <div>
-              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1">
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                <Cpu className="w-3.5 h-3.5 text-red-500" />
                 Hardware Bin
               </h3>
               <p className="text-[10px] text-gray-500">
-                Drag parts onto the wire canvas grid below.
+                Drag sensors & controllers onto wire grid.
               </p>
+            </div>
+
+            {/* Component Search Bar */}
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                placeholder="Search hardware parts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors"
+              />
+              <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5" />
             </div>
 
             {/* Required Components Section */}
             <div className="space-y-2">
               <div className="flex items-center gap-1.5 text-[10px] text-red-500 font-bold uppercase tracking-wider">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-600 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-red-650 animate-pulse" />
                 Required Components
               </div>
               <div className="grid grid-cols-1 gap-2">
-                {requiredComponents.length > 0 ? (
-                  requiredComponents.map(item => (
+                {filteredRequired.length > 0 ? (
+                  filteredRequired.map(item => (
                     <div
                       key={item.id}
                       draggable
@@ -131,7 +177,7 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
                       className="p-3 bg-gray-900 border border-red-950 hover:border-red-600/40 rounded-xl transition-all cursor-grab active:cursor-grabbing flex items-center gap-3.5 group hover:bg-red-950/5 relative overflow-hidden text-left"
                     >
                       <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-red-600" />
-                      <div className="w-9 h-9 bg-red-600/10 border border-red-500/10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 transition-colors overflow-hidden">
+                      <div className="w-9 h-9 bg-red-650/10 border border-red-500/10 rounded-lg flex items-center justify-center text-lg flex-shrink-0 transition-colors overflow-hidden">
                         {item.imageUrl ? (
                           <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain p-0.5" />
                         ) : (
@@ -139,9 +185,12 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
                         )}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-xs font-semibold text-white group-hover:text-red-400 transition-colors truncate">
-                          {item.name}
-                        </p>
+                        <div className="flex items-center gap-2 px-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-red-600 shadow-[0_0_5px_#dc2626] flex-shrink-0" />
+                          <p className="text-xs font-semibold text-white group-hover:text-red-400 transition-colors whitespace-normal break-words leading-tight">
+                            {item.name}
+                          </p>
+                        </div>
                         <p className="text-[9px] text-gray-500 mt-0.5">
                           {item.pins.length} Pins
                         </p>
@@ -150,7 +199,7 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
                   ))
                 ) : (
                   <div className="text-center p-3 text-gray-600 text-xs italic">
-                    No required components.
+                    No components found.
                   </div>
                 )}
               </div>
@@ -163,8 +212,8 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
                 Additional Hardware Spares
               </div>
               <div className="grid grid-cols-1 gap-2">
-                {additionalComponents.length > 0 ? (
-                  additionalComponents.map(item => (
+                {filteredAdditional.length > 0 ? (
+                  filteredAdditional.map(item => (
                     <div
                       key={item.id}
                       draggable
@@ -190,7 +239,67 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
                   ))
                 ) : (
                   <div className="text-center p-3 text-gray-600 text-xs italic">
-                    No hardware spares.
+                    No spares found.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* OBJECTS TAB PANEL */
+          <div className="space-y-4">
+            <div>
+              <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                <Package className="w-3.5 h-3.5 text-red-500" />
+                Testing Assets
+              </h3>
+              <p className="text-[10px] text-gray-500">
+                Drag objects onto canvas to test sensor triggers.
+              </p>
+            </div>
+
+            {/* Object Search Input */}
+            <div className="relative flex items-center">
+              <input
+                type="text"
+                placeholder="Search testing objects..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-gray-900 border border-gray-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-red-500 transition-colors"
+              />
+              <Search className="w-3.5 h-3.5 text-gray-500 absolute left-2.5" />
+            </div>
+
+            {/* Objects List */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 gap-2">
+                {filteredObjects.length > 0 ? (
+                  filteredObjects.map(item => (
+                    <div
+                      key={item.id}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, item.id)}
+                      className="p-3 bg-gray-950/65 border border-gray-900 hover:border-gray-800 rounded-xl transition-all cursor-grab active:cursor-grabbing flex items-center gap-3.5 group hover:bg-white/5 relative overflow-hidden text-left"
+                    >
+                      <div className="w-9 h-9 bg-white/5 border border-white/5 rounded-lg flex items-center justify-center text-lg flex-shrink-0 transition-colors overflow-hidden">
+                        {item.icon}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 px-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-600 group-hover:bg-gray-400 transition-colors flex-shrink-0" />
+                          <p className="text-xs font-semibold text-gray-300 group-hover:text-white transition-colors whitespace-normal break-words leading-tight">
+                            {item.name}
+                          </p>
+                        </div>
+                        <p className="text-[9px] text-gray-500 mt-0.5">
+                          Testing Object
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center p-3 text-gray-600 text-xs italic">
+                    No objects found.
                   </div>
                 )}
               </div>

@@ -14,6 +14,7 @@ export interface PlacedComponent {
   x: number
   y: number
   scale?: number
+  rotation?: number
 }
 
 export interface SimulationResult {

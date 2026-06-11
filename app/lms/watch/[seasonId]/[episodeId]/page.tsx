@@ -309,7 +309,11 @@ export default function VideoPlayerPage() {
           }
 
           const isActivePaid = fetchedStatus === "Active" && (fetchedTier === "Pro" || fetchedTier === "Founding Batch")
-          setUserTier(isActivePaid ? fetchedTier : "Free Trial")
+          const resolvedTier = isActivePaid ? fetchedTier : "Free Trial"
+          setUserTier(resolvedTier)
+          if (resolvedTier === "Free Trial" && (seasonId !== 1 || episodeId !== 1)) {
+            setShowUpgradePrompt(true)
+          }
           setIsLoading(false)
         } else {
           // If not logged in, but episode is marked as free, allow access (tier: "Guest")
@@ -1550,7 +1554,7 @@ export default function VideoPlayerPage() {
                     {/* Season Episodes */}
                     {s.episodes.map((ep) => {
                       const isActive = s.id === season.id && ep.id === episode.id
-                      const isClickable = s.id === 1
+                      const isClickable = s.id === 1 && (userTier !== "Free Trial" || ep.id === 1)
 
                       return (
                         <div key={`${s.id}-${ep.id}`}>
@@ -1568,9 +1572,17 @@ export default function VideoPlayerPage() {
                               </div>
                             </Link>
                           ) : (
-                            <div className="p-3 border-l-2 border-transparent text-gray-500 cursor-not-allowed opacity-50 text-xs sm:text-sm">
-                              <p className="font-semibold line-clamp-2">{ep.title}</p>
-                              <p className="text-gray-600 text-xs mt-1">Coming Soon</p>
+                            <div 
+                              onClick={() => { if (userTier === "Free Trial" && s.id === 1) setShowUpgradePrompt(true) }}
+                              className={`p-3 border-l-2 border-transparent text-gray-500 cursor-pointer ${userTier === "Free Trial" && s.id === 1 ? "hover:bg-white/5" : "cursor-not-allowed"} opacity-50 text-xs sm:text-sm flex items-center justify-between`}
+                            >
+                              <div>
+                                <p className="font-semibold line-clamp-2">{ep.title}</p>
+                                <p className="text-gray-600 text-xs mt-1">
+                                  {s.id === 1 ? "Premium Locked" : "Coming Soon"}
+                                </p>
+                              </div>
+                              {s.id === 1 && <Lock className="w-3.5 h-3.5 text-gray-500 shrink-0" />}
                             </div>
                           )}
                         </div>
@@ -1625,7 +1637,7 @@ export default function VideoPlayerPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) setShowUpgradePrompt(false) }}
+            onClick={(e) => { if (e.target === e.currentTarget) router.push(`/lms/season/${seasonId}`) }}
           >
             {/* Backdrop */}
             <div className="absolute inset-0 bg-black/95 backdrop-blur-md" />
@@ -1643,7 +1655,7 @@ export default function VideoPlayerPage() {
               <div className="relative">
                 {/* Close button */}
                 <button
-                  onClick={() => setShowUpgradePrompt(false)}
+                  onClick={() => router.push(`/lms/season/${seasonId}`)}
                   className="absolute right-0 top-0 flex items-center justify-center w-8 h-8 rounded-full bg-white/5 hover:bg-red-600/20 border border-white/10 hover:border-red-500/40 text-gray-400 hover:text-white transition-all duration-200"
                 >
                   <X className="w-4 h-4" />
@@ -1670,13 +1682,13 @@ export default function VideoPlayerPage() {
                 </div>
 
                 <div className="space-y-3">
-                  <Link href="/#pricing" onClick={() => setShowUpgradePrompt(false)}>
+                  <Link href="/#pricing">
                     <button className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg transition-all flex items-center justify-center gap-2 text-sm shadow-lg shadow-red-600/35 hover:scale-[1.01]">
                       Unlock Premium Now
                     </button>
                   </Link>
                   <button
-                    onClick={() => setShowUpgradePrompt(false)}
+                    onClick={() => router.push(`/lms/season/${seasonId}`)}
                     className="w-full py-3 bg-transparent hover:bg-white/5 border border-gray-800 hover:border-gray-700 text-gray-400 hover:text-white text-sm font-semibold rounded-lg transition-all"
                   >
                     Keep Exploring Free Content

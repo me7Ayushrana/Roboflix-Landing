@@ -10,6 +10,7 @@ import { getLastWatched, getAllProgress, type WatchProgress } from "@/lib/player
 
 interface User {
   email: string
+  tier?: string
 }
 
 const ADMIN_CREDENTIALS: Record<string, string> = {
@@ -196,7 +197,19 @@ export default function LmsDashboardPage() {
         // Fallback to local storage if Supabase is not configured or has no active session
         const storedUser = localStorage.getItem("lms_user")
         if (storedUser) {
-          setUser(JSON.parse(storedUser))
+          const parsedUser = JSON.parse(storedUser)
+          
+          // Get extended user info like tier
+          const allUsers = localStorage.getItem("roboflix_lms_users")
+          if (allUsers) {
+            const list = JSON.parse(allUsers)
+            const fullProfile = list.find((u: any) => u.email === parsedUser.email)
+            if (fullProfile) {
+              parsedUser.tier = fullProfile.tier
+            }
+          }
+
+          setUser(parsedUser)
           setIsLoading(false)
         } else {
           window.location.href = "/lms/login"
