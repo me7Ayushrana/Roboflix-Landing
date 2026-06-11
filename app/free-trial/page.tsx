@@ -92,7 +92,7 @@ export default function FreeTrialPage() {
       // 2. Insert into LMS Users for Auth Access
       const lmsUser = {
         email: formData.email,
-        phone: "demo",
+        phone: "demoo",
         status: "Active",
         tier: "Free Trial"
       }
@@ -307,7 +307,7 @@ export default function FreeTrialPage() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Password</p>
-                      <p className="text-white font-mono font-medium text-lg">demo</p>
+                      <p className="text-white font-mono font-medium text-lg">demoo</p>
                     </div>
                   </div>
 

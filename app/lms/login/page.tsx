@@ -97,7 +97,8 @@ export default function LmsLoginPage() {
       const trimmedPassword = password.trim()
       const sessionId = Math.random().toString(36).substring(2) + Date.now().toString()
 
-      const isDemoPass = trimmedPassword.toLowerCase() === "demo" || 
+      const isDemoPass = trimmedPassword.toLowerCase() === "demoo" || 
+                         trimmedPassword.toLowerCase() === "demo" || 
                          trimmedPassword.toLowerCase() === "trial" || 
                          trimmedPassword.toLowerCase() === "free"
 
@@ -306,9 +307,6 @@ export default function LmsLoginPage() {
               <p>
                 <span className="text-red-500 font-semibold">🔑 Paid student access:</span> Use your registered email, and your registered phone number as the password.
               </p>
-              <p>
-                <span className="text-red-500 font-semibold">✨ Free trial / Demo access:</span> Enter any email and type <code className="text-red-400 bg-red-950/40 px-1.5 py-0.5 rounded font-mono font-bold">demo</code> as the password.
-              </p>
             </div>
           </div>
         </div>
@@ -351,10 +349,7 @@ export default function LmsLoginPage() {
                   </div>
                 </div>
 
-                {/* Demo / Free Trial Guide */}
-                <div className="p-3 bg-red-950/20 border border-red-900/40 rounded-lg text-xs text-gray-400 leading-relaxed">
-                  <span className="text-red-500 font-bold">💡 Free Trial:</span> Use password <code className="text-red-400 font-mono font-bold">demo</code> to view the trial version immediately.
-                </div>
+
 
                 {/* Error Message */}
                 {error && (
