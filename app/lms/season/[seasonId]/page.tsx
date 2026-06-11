@@ -117,16 +117,18 @@ export default function SeasonPage() {
 
           // Fetch tier from Supabase first
           let fetchedTier = ""
+          let fetchedStatus = ""
           if (isSupabaseConfigured()) {
             try {
               const { data, error } = await supabase
                 .from("roboflix_lms_users")
-                .select("tier")
+                .select("tier, status")
                 .eq("email", loggedInEmail.trim().toLowerCase())
                 .maybeSingle()
               
               if (!error && data) {
                 fetchedTier = data.tier
+                fetchedStatus = data.status
               }
             } catch (err) {
               console.error("Error fetching user tier from Supabase:", err)
@@ -142,12 +144,14 @@ export default function SeasonPage() {
                 const record = usersList.find(u => u.email.toLowerCase() === loggedInEmail.trim().toLowerCase())
                 if (record) {
                   fetchedTier = record.tier
+                  fetchedStatus = record.status
                 }
               } catch (e) {}
             }
           }
 
-          setUserTier(fetchedTier || "Pro") // Default to Pro if not found
+          const isActivePaid = fetchedStatus === "Active" && (fetchedTier === "Pro" || fetchedTier === "Founding Batch")
+          setUserTier(isActivePaid ? fetchedTier : "Free Trial")
           setIsLoading(false)
         } else {
           router.push("/lms/login")
