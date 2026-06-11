@@ -393,38 +393,128 @@ export default function LmsAdminPanel() {
   }
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("roboflix_trial_profiles")
-      if (stored) {
-        setTrialUsers(JSON.parse(stored))
+    const loadTrialProfiles = async () => {
+      let loadedFromDb = false
+      let profiles = []
+      
+      if (isSupabaseConfigured()) {
+        try {
+          const { data, error } = await supabase
+            .from("roboflix_lms_settings")
+            .select("value")
+            .eq("key", "trial_profiles")
+            .maybeSingle()
+
+          if (!error && data && data.value) {
+            profiles = Array.isArray(data.value) ? data.value : []
+            loadedFromDb = true
+          }
+        } catch (err) {
+          console.error("Failed to load trial profiles from db:", err)
+        }
+      }
+
+      if (!loadedFromDb && typeof window !== "undefined") {
+        const stored = localStorage.getItem("roboflix_trial_profiles")
+        if (stored) {
+          try {
+            profiles = JSON.parse(stored)
+          } catch (e) {
+            profiles = []
+          }
+        }
+      }
+
+      // ─── Auto-Heal / Merge Logic ───
+      // Find all users in usersList with tier === "Free Trial"
+      const freeTrialAuthUsers = usersList.filter(u => u.tier === "Free Trial")
+      
+      let updatedProfiles = [...profiles]
+
+      freeTrialAuthUsers.forEach(authU => {
+        const hasProfile = updatedProfiles.some(p => p.email?.toLowerCase() === authU.email?.toLowerCase())
+        if (!hasProfile) {
+          // Synthesize a placeholder profile
+          updatedProfiles.push({
+            name: authU.email.split("@")[0] || "Trial User",
+            email: authU.email,
+            age: "N/A",
+            city: "N/A",
+            whatsapp: authU.phone || "demo",
+            college: "N/A",
+            course: "N/A",
+            experience: "Beginner",
+            timestamp: new Date().toISOString(),
+            status: authU.status,
+            tier: "Free Trial"
+          })
+        }
+      })
+
+      // Update state
+      setTrialUsers(updatedProfiles)
+
+      // Sync updated list back to localStorage
+      if (typeof window !== "undefined") {
+        localStorage.setItem("roboflix_trial_profiles", JSON.stringify(updatedProfiles))
       }
     }
-  }, [activeTab])
 
-  const deleteTrialUser = (email: string) => {
+    loadTrialProfiles()
+  }, [activeTab, usersList, dbStatus])
+
+  const deleteTrialUser = async (email: string) => {
     if (!confirm(`Are you sure you want to completely delete the trial profile and LMS access for ${email}?`)) return
     
+    // 1. Remove from local storage / local state
     const stored = localStorage.getItem("roboflix_trial_profiles")
+    let updatedProfiles = []
     if (stored) {
       const list = JSON.parse(stored)
-      const updated = list.filter((u: any) => u.email.toLowerCase() !== email.toLowerCase())
-      localStorage.setItem("roboflix_trial_profiles", JSON.stringify(updated))
-      setTrialUsers(updated)
+      updatedProfiles = list.filter((u: any) => u.email.toLowerCase() !== email.toLowerCase())
+      localStorage.setItem("roboflix_trial_profiles", JSON.stringify(updatedProfiles))
+      setTrialUsers(updatedProfiles)
     }
 
-    // Also remove from general access list
+    // 2. Remove from general access list locally
     const updatedUsers = usersList.filter(u => u.email.toLowerCase() !== email.toLowerCase())
-    if (isSupabaseConfigured() && dbStatus !== "missing_table") {
-      supabase
-        .from("roboflix_lms_users")
-        .delete()
-        .eq("email", email)
-        .then(({ error }) => {
-          if (error) console.error("Failed to delete trial user from DB:", error)
-        })
-    }
     setUsersList(updatedUsers)
     localStorage.setItem("roboflix_lms_users", JSON.stringify(updatedUsers))
+
+    // 3. Database operations
+    if (isSupabaseConfigured() && dbStatus !== "missing_table") {
+      try {
+        // Delete from auth access table
+        await supabase
+          .from("roboflix_lms_users")
+          .delete()
+          .eq("email", email)
+
+        // Fetch existing profiles in database settings, delete the profile, and save back
+        const { data: settingsData, error: settingsError } = await supabase
+          .from("roboflix_lms_settings")
+          .select("value")
+          .eq("key", "trial_profiles")
+          .maybeSingle()
+
+        let dbProfiles = []
+        if (!settingsError && settingsData && settingsData.value) {
+          dbProfiles = Array.isArray(settingsData.value) ? settingsData.value : []
+        }
+        dbProfiles = dbProfiles.filter((p: any) => p.email?.toLowerCase() !== email.toLowerCase())
+
+        await supabase
+          .from("roboflix_lms_settings")
+          .upsert([{ 
+            key: "trial_profiles", 
+            value: dbProfiles, 
+            updated_at: new Date().toISOString() 
+          }], { onConflict: "key" })
+      } catch (err) {
+        console.error("Failed to delete trial user from database:", err)
+      }
+    }
+
     showToast("Trial User deleted successfully! 🗑️")
   }
 

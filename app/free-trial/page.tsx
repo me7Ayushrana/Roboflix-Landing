@@ -100,6 +100,31 @@ export default function FreeTrialPage() {
       if (isSupabaseConfigured()) {
         try {
           await supabase.from("roboflix_lms_users").upsert([lmsUser], { onConflict: "email" })
+
+          // Fetch existing profiles array from settings to append new record
+          const { data: settingsData, error: settingsError } = await supabase
+            .from("roboflix_lms_settings")
+            .select("value")
+            .eq("key", "trial_profiles")
+            .maybeSingle()
+
+          let dbProfiles = []
+          if (!settingsError && settingsData && settingsData.value) {
+            dbProfiles = Array.isArray(settingsData.value) ? settingsData.value : []
+          }
+
+          // Prevent duplicates
+          dbProfiles = dbProfiles.filter((p: any) => p.email?.toLowerCase() !== formData.email.toLowerCase())
+          dbProfiles.push(trialProfile)
+
+          // Save updated array back to Supabase settings
+          await supabase
+            .from("roboflix_lms_settings")
+            .upsert([{ 
+              key: "trial_profiles", 
+              value: dbProfiles, 
+              updated_at: new Date().toISOString() 
+            }], { onConflict: "key" })
         } catch (e) {
           console.error("Supabase upsert failed, continuing with local storage", e)
         }

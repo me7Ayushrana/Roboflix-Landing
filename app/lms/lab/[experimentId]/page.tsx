@@ -1946,14 +1946,10 @@ export default function VirtualLabPage() {
   }
 
   return (
-    <div className={`h-screen max-h-screen flex flex-col font-mono overflow-hidden transition-colors ${
-      isNightMode === false ? "bg-white text-gray-800" : "bg-black text-white"
-    }`}>
+    <div className="h-screen max-h-screen flex flex-col font-mono overflow-hidden bg-black text-white">
       {/* ─── Premium Header Ribbon ─── */}
       {!isFullscreen && (
-        <header className={`h-16 border-b flex items-center justify-between px-6 flex-shrink-0 z-40 select-none transition-colors ${
-          isNightMode === false ? "bg-white border-gray-200" : "bg-black border-gray-800"
-        }`}>
+        <header className="h-16 border-b flex items-center justify-between px-6 flex-shrink-0 z-40 select-none bg-black border-gray-800">
           <div className="flex items-center gap-6">
             <Link href="/">
               <span className="text-xl sm:text-2xl font-bold cursor-pointer">
@@ -1961,15 +1957,11 @@ export default function VirtualLabPage() {
               </span>
             </Link>
 
-            <span className={`h-5 w-[1px] hidden sm:inline ${
-              isNightMode === false ? "bg-gray-200" : "bg-gray-800"
-            }`} />
+            <span className="h-5 w-[1px] hidden sm:inline bg-gray-800" />
 
             <div className="hidden sm:flex items-center gap-2">
               <Cpu className="w-4 h-4 text-red-650" />
-              <span className={`text-xs font-mono font-bold uppercase tracking-widest ${
-                isNightMode === false ? "text-gray-650" : "text-gray-305"
-              }`}>
+              <span className="text-xs font-mono font-bold uppercase tracking-widest text-gray-305">
                 Virtual Lab Sandbox v2.0
               </span>
             </div>
@@ -1989,11 +1981,7 @@ export default function VirtualLabPage() {
             {/* Watch Page Link */}
             <button
               onClick={() => router.back()}
-              className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-[10px] font-bold tracking-wider transition-all hover:scale-105 shrink-0 ${
-                isNightMode === false 
-                  ? "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700" 
-                  : "bg-white/5 border-white/10 hover:bg-white/10 text-gray-305"
-              }`}
+              className="flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-[10px] font-bold tracking-wider transition-all hover:scale-105 shrink-0 bg-white/5 border-white/10 hover:bg-white/10 text-gray-305"
             >
               <ArrowLeft className="w-3.5 h-3.5 text-red-500 shrink-0" />
               <span>WATCH LECTURE</span>
@@ -2004,20 +1992,16 @@ export default function VirtualLabPage() {
 
       {/* ─── Unified Workspace Sub-Header Toolbar ─── */}
       {!isFullscreen && (
-        <div className={`h-11 px-6 border-b flex items-center justify-between select-none z-30 transition-colors ${
-          isNightMode === false ? "bg-gray-50 border-gray-200 text-gray-700" : "bg-[#0b0b0b] border-gray-850 text-white"
-        }`}>
+        <div className="h-11 px-6 border-b flex items-center justify-between select-none z-30 bg-[#0b0b0b] border-gray-850 text-white">
           {/* Left: Layout Toggles + Environment Sim Toggle */}
           <div className="flex items-center gap-3">
-            <div className={`flex items-center border rounded-lg overflow-hidden shrink-0 ${
-              isNightMode === false ? "bg-white border-gray-250" : "bg-gray-900 border-gray-800"
-            }`}>
+            <div className="flex items-center border rounded-lg overflow-hidden shrink-0 bg-gray-900 border-gray-800">
               <button
                 onClick={() => setWorkspaceLayout("schematic")}
                 className={`px-2.5 py-1 text-[9px] font-bold transition flex items-center gap-1 ${
                   workspaceLayout === "schematic" 
                     ? "bg-red-650 text-white" 
-                    : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
+                    : "text-gray-400 hover:bg-white/5"
                 }`}
                 title="Switch to Schematic Focus Layout"
               >
@@ -2029,7 +2013,7 @@ export default function VirtualLabPage() {
                 className={`px-2.5 py-1 text-[9px] font-bold transition flex items-center gap-1 ${
                   workspaceLayout === "immersive" 
                     ? "bg-red-650 text-white" 
-                    : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
+                    : "text-gray-400 hover:bg-white/5"
                 }`}
                 title="Switch to Immersive Split Layout"
               >
@@ -2041,7 +2025,7 @@ export default function VirtualLabPage() {
                 className={`px-2.5 py-1 text-[9px] font-bold transition flex items-center gap-1 ${
                   workspaceLayout === "telemetry" 
                     ? "bg-red-650 text-white" 
-                    : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
+                    : "text-gray-400 hover:bg-white/5"
                 }`}
                 title="Switch to Telemetry Focus Layout"
               >
@@ -2063,9 +2047,7 @@ export default function VirtualLabPage() {
               className={`flex items-center gap-1 px-2.5 py-1 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-102 ${
                 showEnvSim && workspaceLayout === "immersive"
                   ? "bg-red-650 border-red-500 text-white shadow-[0_0_10px_rgba(220,38,38,0.25)]"
-                  : isNightMode === false
-                    ? "bg-white border-gray-250 text-gray-700 hover:bg-gray-100"
-                    : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
+                  : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
               }`}
             >
               <Sliders className="w-3 h-3 text-red-500 shrink-0" />
@@ -2078,11 +2060,7 @@ export default function VirtualLabPage() {
             <button
               onClick={() => setIsDefaultWorksOpen(true)}
               title="Browse ready-made demo projects"
-              className={`flex items-center gap-1 px-2.5 py-1 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-102 ${
-                isNightMode === false
-                  ? "bg-gradient-to-r from-red-50 to-orange-50 border-red-200 hover:border-red-400 text-red-650"
-                  : "bg-gray-900 border-red-900/55 hover:border-red-650 text-red-400 hover:text-red-300 shadow-[0_0_10px_rgba(220,38,38,0.1)]"
-              }`}
+              className="flex items-center gap-1 px-2.5 py-1 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-102 bg-gray-900 border-red-900/55 hover:border-red-650 text-red-400 hover:text-red-300 shadow-[0_0_10px_rgba(220,38,38,0.1)]"
             >
               <span>DEFAULT WORKS</span>
             </button>
@@ -2091,11 +2069,7 @@ export default function VirtualLabPage() {
             <div className="relative">
               <button
                 onClick={() => setIsFileMenuOpen(!isFileMenuOpen)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-102 ${
-                  isNightMode === false
-                    ? "bg-white border-gray-250 text-gray-700 hover:bg-gray-100"
-                    : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
-                }`}
+                className="flex items-center gap-1.5 px-2.5 py-1 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-102 bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
                 title="Project Save/Load Actions"
               >
                 <span>PROJECT FILE</span>
@@ -2105,19 +2079,13 @@ export default function VirtualLabPage() {
               {isFileMenuOpen && (
                 <>
                   <div className="fixed inset-0 z-40" onClick={() => setIsFileMenuOpen(false)} />
-                  <div className={`absolute left-0 mt-1.5 w-44 rounded-lg border shadow-xl py-1 z-50 transition-all ${
-                    isNightMode === false
-                      ? "bg-white border-gray-200 text-gray-700"
-                      : "bg-[#0f0f0f] border-gray-800 text-gray-200"
-                  }`}>
+                  <div className="absolute left-0 mt-1.5 w-44 rounded-lg border shadow-xl py-1 z-50 transition-all bg-[#0f0f0f] border-gray-850 text-gray-200">
                     <button
                       onClick={() => {
                         handleSaveToBrowser()
                         setIsFileMenuOpen(false)
                       }}
-                      className={`w-full text-left px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 transition-colors ${
-                        isNightMode === false ? "hover:bg-gray-100" : "hover:bg-white/5"
-                      }`}
+                      className="w-full text-left px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 transition-colors hover:bg-white/5"
                     >
                       <Save className="w-3.5 h-3.5 text-red-500" />
                       <span>Save to Browser</span>
@@ -2127,17 +2095,13 @@ export default function VirtualLabPage() {
                         handleExportProject()
                         setIsFileMenuOpen(false)
                       }}
-                      className={`w-full text-left px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 transition-colors ${
-                        isNightMode === false ? "hover:bg-gray-100" : "hover:bg-white/5"
-                      }`}
+                      className="w-full text-left px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 transition-colors hover:bg-white/5"
                     >
                       <Download className="w-3.5 h-3.5 text-red-500" />
                       <span>Export to PC (.json)</span>
                     </button>
                     <label
-                      className={`w-full text-left px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 cursor-pointer transition-colors ${
-                        isNightMode === false ? "hover:bg-gray-100" : "hover:bg-white/5"
-                      }`}
+                      className="w-full text-left px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 cursor-pointer transition-colors hover:bg-white/5"
                     >
                       <Upload className="w-3.5 h-3.5 text-red-500" />
                       <span>Import from PC</span>
@@ -2161,11 +2125,7 @@ export default function VirtualLabPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setIsNightMode(!isNightMode)}
-              className={`p-1.5 rounded-lg border transition-all hover:scale-105 ${
-                isNightMode === false 
-                  ? "bg-white border-gray-200 text-gray-700 hover:bg-gray-100" 
-                  : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
-              }`}
+              className="p-1.5 rounded-lg border transition-all hover:scale-105 bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
               title={isNightMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
               {isNightMode ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-indigo-500" />}
@@ -2173,11 +2133,7 @@ export default function VirtualLabPage() {
 
             <button
               onClick={toggleFullscreen}
-              className={`p-1.5 rounded-lg border transition-all hover:scale-105 ${
-                isNightMode === false 
-                  ? "bg-white border-gray-200 text-gray-700 hover:bg-gray-100" 
-                  : "bg-gray-900 border-gray-800 text-gray-305 hover:text-white"
-              }`}
+              className="p-1.5 rounded-lg border transition-all hover:scale-105 bg-gray-900 border-gray-800 text-gray-305 hover:text-white"
               title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
               {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-red-500" /> : <Maximize2 className="w-3.5 h-3.5 text-red-500" />}
@@ -2245,9 +2201,7 @@ export default function VirtualLabPage() {
 
             {/* Right Editor/Monitor sidebar */}
             {!isFullscreen && (
-              <div className={`w-[380px] border-l flex flex-col h-full flex-shrink-0 transition-colors ${
-                isNightMode === false ? "bg-white border-gray-200" : "bg-[#0c0c0c] border-gray-800"
-              }`}>
+              <div className="w-[380px] border-l flex flex-col h-full flex-shrink-0 bg-[#0c0c0c] border-gray-800">
                 <CodeEditor code={code} onChange={handleCodeChange} />
                 <SerialMonitor
                   logs={logs}
@@ -2301,9 +2255,7 @@ export default function VirtualLabPage() {
 
               {/* Right portion is the 2.5D visual playground environment */}
               {showEnvSim && !isFullscreen && (
-                <div className={`w-[360px] border-l flex flex-col h-full flex-shrink-0 p-4 space-y-4 overflow-y-auto custom-scrollbar ${
-                  isNightMode === false ? "bg-[#f9fafb] border-gray-200 text-gray-700" : "bg-black/90 border-gray-850"
-                }`}>
+                <div className="w-[360px] border-l flex flex-col h-full flex-shrink-0 p-4 space-y-4 overflow-y-auto custom-scrollbar bg-black/90 border-gray-850">
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-widest text-red-500 mb-1">
                     Environment Simulation
@@ -2314,15 +2266,13 @@ export default function VirtualLabPage() {
                 </div>
 
                 {/* Environment Sandbox Switch Tabs */}
-                <div className={`flex border rounded-lg overflow-hidden text-[10px] uppercase font-bold tracking-wider ${
-                  isNightMode === false ? "bg-gray-150 border-gray-250 text-gray-700" : "bg-gray-950 border-gray-850"
-                }`}>
+                <div className="flex border rounded-lg overflow-hidden text-[10px] uppercase font-bold tracking-wider bg-gray-950 border-gray-850">
                   <button
                     onClick={() => setActivePlaygroundTab("home")}
                     className={`flex-1 py-1.5 text-center transition ${
                       activePlaygroundTab === "home" 
                         ? "bg-red-650 text-white" 
-                        : isNightMode === false ? "hover:bg-gray-100" : "hover:bg-white/5"
+                        : "hover:bg-white/5"
                     }`}
                   >
                     Smart Home
@@ -2332,7 +2282,7 @@ export default function VirtualLabPage() {
                     className={`flex-1 py-1.5 text-center transition ${
                       activePlaygroundTab === "car" 
                         ? "bg-red-650 text-white" 
-                        : isNightMode === false ? "hover:bg-gray-100" : "hover:bg-white/5"
+                        : "hover:bg-white/5"
                     }`}
                   >
                     Obstacle Car
@@ -2342,7 +2292,7 @@ export default function VirtualLabPage() {
                     className={`flex-1 py-1.5 text-center transition ${
                       activePlaygroundTab === "garden" 
                         ? "bg-red-650 text-white" 
-                        : isNightMode === false ? "hover:bg-gray-100" : "hover:bg-white/5"
+                        : "hover:bg-white/5"
                     }`}
                   >
                     Agriculture
@@ -2603,9 +2553,7 @@ export default function VirtualLabPage() {
         {workspaceLayout === "telemetry" && (
           <div className="flex-1 flex overflow-hidden min-h-0">
             {/* Center Expanded Telemetry Dashboard */}
-            <div className={`flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar ${
-              isNightMode === false ? "bg-white text-gray-700" : "bg-[#070707] text-white"
-            }`}>
+            <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar bg-[#070707] text-white">
               <div>
                 <h2 className="text-lg font-bold text-red-500 uppercase tracking-widest flex items-center gap-2">
                   <Activity className="w-5 h-5 text-red-650 animate-pulse" />
@@ -2619,9 +2567,7 @@ export default function VirtualLabPage() {
               {/* Sliders Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 font-mono">
                 {/* LDR light sensor */}
-                <div className={`p-4 rounded-xl border ${
-                  isNightMode === false ? "bg-gray-50 border-gray-250" : "bg-gray-900/60 border-gray-850"
-                }`}>
+                <div className="p-4 rounded-xl border bg-gray-900/60 border-gray-850">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs text-gray-400 font-bold">LDR LIGHT LEVEL</span>
                     <span className="text-sm font-bold text-amber-500">{envLight} / 1023</span>
@@ -2640,9 +2586,7 @@ export default function VirtualLabPage() {
                 </div>
 
                 {/* HC-SR04 distance sensor */}
-                <div className={`p-4 rounded-xl border ${
-                  isNightMode === false ? "bg-gray-50 border-gray-250" : "bg-gray-900/60 border-gray-850"
-                }`}>
+                <div className="p-4 rounded-xl border bg-gray-900/60 border-gray-850">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs text-gray-400 font-bold">HC-SR04 DISTANCE</span>
                     <span className="text-sm font-bold text-blue-500">{envDistance} cm</span>
@@ -2661,9 +2605,7 @@ export default function VirtualLabPage() {
                 </div>
 
                 {/* Soil Moisture sensor */}
-                <div className={`p-4 rounded-xl border ${
-                  isNightMode === false ? "bg-gray-50 border-gray-250" : "bg-gray-900/60 border-gray-850"
-                }`}>
+                <div className="p-4 rounded-xl border bg-gray-900/60 border-gray-850">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs text-gray-400 font-bold">SOIL MOISTURE</span>
                     <span className="text-sm font-bold text-green-500">{envMoisture}%</span>
@@ -2682,9 +2624,7 @@ export default function VirtualLabPage() {
                 </div>
 
                 {/* DHT11 temperature */}
-                <div className={`p-4 rounded-xl border ${
-                  isNightMode === false ? "bg-gray-50 border-gray-250" : "bg-gray-900/60 border-gray-850"
-                }`}>
+                <div className="p-4 rounded-xl border bg-gray-900/60 border-gray-850">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs text-gray-400 font-bold">DHT11 TEMPERATURE</span>
                     <span className="text-sm font-bold text-red-500">{envTemp}°C</span>
@@ -2700,9 +2640,7 @@ export default function VirtualLabPage() {
                 </div>
 
                 {/* Gas MQ-2 Sensor */}
-                <div className={`p-4 rounded-xl border ${
-                  isNightMode === false ? "bg-gray-50 border-gray-250" : "bg-gray-900/60 border-gray-850"
-                }`}>
+                <div className="p-4 rounded-xl border bg-gray-900/60 border-gray-850">
                   <div className="flex justify-between items-center mb-2">
                     <span className="text-xs text-gray-400 font-bold">MQ-2 GAS DENSITY</span>
                     <span className="text-sm font-bold text-purple-500">{envGas} PPM</span>
@@ -2721,9 +2659,7 @@ export default function VirtualLabPage() {
                 </div>
 
                 {/* Export Project and presets quick button */}
-                <div className={`p-4 rounded-xl border flex flex-col justify-between ${
-                  isNightMode === false ? "bg-gray-50 border-gray-250" : "bg-gray-900/60 border-gray-850"
-                }`}>
+                <div className="p-4 rounded-xl border flex flex-col justify-between bg-gray-900/60 border-gray-850">
                   <span className="text-xs text-gray-400 font-bold mb-2">PROJECT EXPORT</span>
                   <div className="grid grid-cols-2 gap-2">
                     <button
@@ -2752,9 +2688,7 @@ export default function VirtualLabPage() {
               </div>
 
               {/* Lower Section: Telemetry Console Monitor */}
-              <div className={`rounded-xl border p-4 space-y-3 ${
-                isNightMode === false ? "bg-gray-50 border-gray-250" : "bg-gray-950/80 border-gray-850"
-              }`}>
+              <div className="rounded-xl border p-4 space-y-3 bg-gray-950/80 border-gray-850">
                 <div className="flex justify-between items-center">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-red-500">Live Serial Data logs</h4>
                   <button onClick={handleClearLogs} className="text-xs text-gray-500 hover:text-gray-300">Clear</button>
@@ -2775,9 +2709,7 @@ export default function VirtualLabPage() {
             </div>
 
             {/* Right Editor sidebar */}
-            <div className={`w-[380px] border-l flex flex-col h-full flex-shrink-0 transition-colors ${
-              isNightMode === false ? "bg-white border-gray-200" : "bg-[#0c0c0c] border-gray-800"
-            }`}>
+            <div className="w-[380px] border-l flex flex-col h-full flex-shrink-0 bg-[#0c0c0c] border-gray-800">
               <CodeEditor code={code} onChange={handleCodeChange} />
               <div className="h-[25%] p-4 border-t border-gray-850 flex flex-col justify-between font-sans">
                 <span className="text-[10px] font-bold uppercase text-gray-500">Interactive Controls</span>
@@ -2967,9 +2899,7 @@ export default function VirtualLabPage() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "tween", duration: 0.3 }}
-              className={`absolute right-0 top-0 bottom-0 w-[420px] max-w-full border-l z-50 flex flex-col h-full shadow-2xl transition-colors ${
-                isNightMode === false ? "bg-white border-gray-200 text-gray-800" : "bg-[#090909] border-gray-800 text-white"
-              }`}
+              className="absolute right-0 top-0 bottom-0 w-[420px] max-w-full border-l z-50 flex flex-col h-full shadow-2xl bg-[#090909] border-gray-800 text-white"
             >
               {/* Drawer Header */}
               <div className="h-16 border-b border-gray-850 flex items-center justify-between px-6 flex-shrink-0">
@@ -3001,9 +2931,7 @@ export default function VirtualLabPage() {
                     <div className={`max-w-[85%] rounded-2xl p-3.5 text-xs leading-relaxed shadow-sm font-sans ${
                       msg.sender === "user"
                         ? "bg-red-650 text-white rounded-tr-none"
-                        : isNightMode === false
-                          ? "bg-gray-100 border border-gray-250 text-gray-800 rounded-tl-none"
-                          : "bg-gray-900 border border-gray-850 text-gray-250 rounded-tl-none"
+                        : "bg-gray-900 border border-gray-850 text-gray-250 rounded-tl-none"
                     }`}>
                       {msg.text.split("\n").map((para, pidx) => (
                         <p key={pidx} className={pidx > 0 ? "mt-1.5" : ""}>{para}</p>
@@ -3035,11 +2963,7 @@ export default function VirtualLabPage() {
                     <button
                       key={pText}
                       onClick={() => handleQuickPrompt(pText)}
-                      className={`px-2.5 py-1 text-[10px] font-semibold rounded-full border transition cursor-pointer ${
-                        isNightMode === false 
-                          ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" 
-                          : "bg-gray-900 border-gray-850 text-gray-300 hover:bg-white/5 hover:text-white"
-                      }`}
+                      className="px-2.5 py-1 text-[10px] font-semibold rounded-full border transition cursor-pointer bg-gray-900 border-gray-850 text-gray-300 hover:bg-white/5 hover:text-white"
                     >
                       {pText}
                     </button>
@@ -3048,9 +2972,7 @@ export default function VirtualLabPage() {
               </div>
 
               {/* Chat Input Bar */}
-              <div className={`p-4 border-t flex items-center gap-2 flex-shrink-0 ${
-                isNightMode === false ? "bg-white border-gray-200" : "bg-[#0d0d0d] border-gray-850"
-              }`}>
+              <div className="p-4 border-t flex items-center gap-2 flex-shrink-0 bg-[#0d0d0d] border-gray-850">
                 <input
                   type="text"
                   placeholder="Ask a question about wiring, code, or sensors..."
@@ -3059,11 +2981,7 @@ export default function VirtualLabPage() {
                   onKeyDown={(e) => {
                     if (e.key === "Enter") handleSendChatMessage()
                   }}
-                  className={`flex-1 px-4 py-2 border rounded-xl text-xs focus:outline-none focus:border-red-650 transition ${
-                    isNightMode === false 
-                      ? "bg-gray-50 border-gray-200 text-gray-800 placeholder-gray-500" 
-                      : "bg-gray-950 border-gray-850 text-white placeholder-gray-600"
-                  }`}
+                  className="flex-1 px-4 py-2 border rounded-xl text-xs focus:outline-none focus:border-red-650 transition bg-gray-950 border-gray-850 text-white placeholder-gray-600"
                 />
                 <button
                   onClick={handleSendChatMessage}
