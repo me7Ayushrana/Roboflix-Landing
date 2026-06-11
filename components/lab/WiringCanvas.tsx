@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { ZoomIn, ZoomOut, RotateCcw, Trash2, Sliders, Cpu, Play, Pause, Undo, Maximize2, Minimize2 } from "lucide-react"
+import { ZoomIn, ZoomOut, RotateCcw, Trash2, Sliders, Cpu, Play, Pause, Undo, Redo, Maximize2, Minimize2 } from "lucide-react"
 import { LAB_COMPONENTS } from "@/lib/lab/experimentConfigs"
 import { PlacedComponent, WireConnection } from "@/lib/lab/simulationEngine"
 
@@ -22,6 +22,14 @@ interface WiringCanvasProps {
   buzzerActive?: boolean
   isFullscreen?: boolean
   onToggleFullscreen?: () => void
+  onStop?: () => void
+  envDistance?: number
+  envLight?: number
+  envPIRMotion?: boolean
+  envTemp?: number
+  envHumidity?: number
+  envMoisture?: number
+  envGas?: number
 }
 
 const getWireHexColor = (colorName: string) => {
@@ -52,13 +60,30 @@ export default function WiringCanvas({
   ledActive = false,
   buzzerActive = false,
   isFullscreen = false,
-  onToggleFullscreen
+  onToggleFullscreen,
+  onStop,
+  envDistance = 200,
+  envLight = 400,
+  envPIRMotion = false,
+  envTemp = 24,
+  envHumidity = 55,
+  envMoisture = 45,
+  envGas = 150
 }: WiringCanvasProps) {
   const [zoom, setZoom] = useState(1.0)
   const [activeWireColor, setActiveWireColor] = useState<string>("red")
   const [draggingCompId, setDraggingCompId] = useState<string | null>(null)
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null)
   
+  const isPanningRef = useRef(false)
+  const [isPanning, setIsPanning] = useState(false)
+  const startPanRef = useRef({ x: 0, y: 0 })
+  const startScrollRef = useRef({ x: 0, y: 0 })
+  const [isSpacePressed, setIsSpacePressed] = useState(false)
+  const [isHelpModalOpen, setIsHelpModalOpen] = useState(false)
+  
+  const [hoveredWireIdx, setHoveredWireIdx] = useState<number | null>(null)
+
   // Drawing Wire State
   const [wireStart, setWireStart] = useState<{ compId: string; pinId: string; x: number; y: number } | null>(null)
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
@@ -68,20 +93,25 @@ export default function WiringCanvas({
 
   // Undo history stack for wire connections
   const [connectionsHistory, setConnectionsHistory] = useState<WireConnection[][]>([])
+  const [redoHistory, setRedoHistory] = useState<WireConnection[][]>([])
 
-  // Rotate component when pressing 'R'
+  // Workspace Keyboard Shortcuts (Pan, Zoom, Undo, Escape, Rotate)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "r" && selectedCompId) {
-        // Skip if user is typing in code editor or fields
-        if (
-          document.activeElement?.tagName === "INPUT" || 
-          document.activeElement?.tagName === "TEXTAREA" ||
-          document.activeElement?.classList.contains("monaco-editor") ||
-          document.activeElement?.getAttribute("contenteditable") === "true"
-        ) {
-          return
-        }
+      // Check if user is typing
+      if (
+        document.activeElement?.tagName === "INPUT" || 
+        document.activeElement?.tagName === "TEXTAREA" ||
+        document.activeElement?.classList.contains("monaco-editor") ||
+        document.activeElement?.getAttribute("contenteditable") === "true"
+      ) {
+        return
+      }
+
+      const key = e.key.toLowerCase()
+
+      // 1. Rotate Component: 'r'
+      if (key === "r" && selectedCompId) {
         e.preventDefault()
         const updated = placedComponents.map(c => {
           if (c.id === selectedCompId) {
@@ -94,10 +124,70 @@ export default function WiringCanvas({
         })
         onUpdateComponents(updated)
       }
+
+      // 2. Spacebar down: Pan Mode trigger
+      if (e.code === "Space") {
+        e.preventDefault()
+        setIsSpacePressed(true)
+      }
+
+      // 3. Zoom In: '+' or '='
+      if (key === "+" || key === "=") {
+        e.preventDefault()
+        setZoom(prev => Math.min(1.5, prev + 0.1))
+      }
+
+      // 4. Zoom Out: '-'
+      if (key === "-") {
+        e.preventDefault()
+        setZoom(prev => Math.max(0.6, prev - 0.1))
+      }
+
+      // 5. Reset Zoom: '0'
+      if (key === "0") {
+        e.preventDefault()
+        setZoom(1.0)
+        if (canvasRef.current) {
+          canvasRef.current.scrollLeft = 0
+          canvasRef.current.scrollTop = 0
+        }
+      }
+
+      // 6. Undo/Redo Connection: 'z' or 'y'
+      if (key === "z") {
+        e.preventDefault()
+        if (e.shiftKey) {
+          handleRedo()
+        } else {
+          handleUndo()
+        }
+      }
+      if (key === "y") {
+        e.preventDefault()
+        handleRedo()
+      }
+
+      // 7. Cancel Wire Connection: Escape
+      if (e.key === "Escape") {
+        e.preventDefault()
+        setWireStart(null)
+      }
     }
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        e.preventDefault()
+        setIsSpacePressed(false)
+      }
+    }
+
     window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [selectedCompId, placedComponents, onUpdateComponents])
+    window.addEventListener("keyup", handleKeyUp)
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+      window.removeEventListener("keyup", handleKeyUp)
+    }
+  }, [selectedCompId, placedComponents, onUpdateComponents, connectionsHistory])
 
   // Mouse scroll wheel & trackpad pinch-to-zoom event listener
   useEffect(() => {
@@ -117,8 +207,17 @@ export default function WiringCanvas({
   const handleUndo = () => {
     if (connectionsHistory.length === 0) return
     const prev = connectionsHistory[connectionsHistory.length - 1]
+    setRedoHistory(red => [...red, connections])
     setConnectionsHistory(hist => hist.slice(0, -1))
     onUpdateConnections(prev)
+  }
+
+  const handleRedo = () => {
+    if (redoHistory.length === 0) return
+    const next = redoHistory[redoHistory.length - 1]
+    setConnectionsHistory(hist => [...hist, connections])
+    setRedoHistory(red => red.slice(0, -1))
+    onUpdateConnections(next)
   }
 
   // Snaps coordinate to a 10px grid
@@ -154,14 +253,14 @@ export default function WiringCanvas({
   }
 
   // Handle Dragging Placed Components on Canvas
-  const handleCanvasMouseDown = (e: React.MouseEvent, plCompId: string) => {
+  const handleCompDragStart = (e: React.MouseEvent, plCompId: string) => {
     e.stopPropagation()
     const comp = placedComponents.find(c => c.id === plCompId)
     if (!comp || !canvasRef.current) return
 
     const rect = canvasRef.current.getBoundingClientRect()
-    const mouseX = (e.clientX - rect.left) / zoom
-    const mouseY = (e.clientY - rect.top) / zoom
+    const mouseX = (e.clientX - rect.left + canvasRef.current.scrollLeft) / zoom
+    const mouseY = (e.clientY - rect.top + canvasRef.current.scrollTop) / zoom
 
     dragOffset.current = {
       x: mouseX - comp.x,
@@ -170,11 +269,36 @@ export default function WiringCanvas({
     setDraggingCompId(plCompId)
   }
 
+  // Handle clicking on Canvas background (either for panning or deselecting)
+  const handleCanvasBgMouseDown = (e: React.MouseEvent) => {
+    // Left click + Space, or Middle click
+    if (e.button === 1 || (e.button === 0 && isSpacePressed)) {
+      e.preventDefault()
+      isPanningRef.current = true
+      setIsPanning(true)
+      startPanRef.current = { x: e.clientX, y: e.clientY }
+      if (canvasRef.current) {
+        startScrollRef.current = { x: canvasRef.current.scrollLeft, y: canvasRef.current.scrollTop }
+      }
+    }
+  }
+
   const handleCanvasMouseMove = (e: React.MouseEvent) => {
     if (!canvasRef.current) return
+
+    // If Panning active, update scroll coordinates
+    if (isPanningRef.current) {
+      e.preventDefault()
+      const dx = e.clientX - startPanRef.current.x
+      const dy = e.clientY - startPanRef.current.y
+      canvasRef.current.scrollLeft = startScrollRef.current.x - dx
+      canvasRef.current.scrollTop = startScrollRef.current.y - dy
+      return
+    }
+
     const rect = canvasRef.current.getBoundingClientRect()
-    const mouseX = (e.clientX - rect.left) / zoom
-    const mouseY = (e.clientY - rect.top) / zoom
+    const mouseX = (e.clientX - rect.left + canvasRef.current.scrollLeft) / zoom
+    const mouseY = (e.clientY - rect.top + canvasRef.current.scrollTop) / zoom
 
     // Update dragging component position
     if (draggingCompId) {
@@ -201,6 +325,8 @@ export default function WiringCanvas({
 
   const handleCanvasMouseUp = () => {
     setDraggingCompId(null)
+    isPanningRef.current = false
+    setIsPanning(false)
   }
 
   // Cancel drawing wire on escape key press
@@ -286,15 +412,16 @@ export default function WiringCanvas({
           color: activeWireColor
         }
         setConnectionsHistory(prev => [...prev, connections])
+        setRedoHistory([])
         onUpdateConnections([...connections, newWire])
       }
       setWireStart(null)
     }
   }
 
-  // Clear Canvas
   const handleClearCanvas = () => {
     setConnectionsHistory(prev => [...prev, connections])
+    setRedoHistory([])
     onUpdateComponents([])
     onUpdateConnections([])
     setWireStart(null)
@@ -314,6 +441,7 @@ export default function WiringCanvas({
 
   const handleDeleteComponent = (compId: string) => {
     setConnectionsHistory(prev => [...prev, connections])
+    setRedoHistory([])
     onUpdateComponents(placedComponents.filter(c => c.id !== compId))
     onUpdateConnections(connections.filter(conn => 
       conn.fromComponentId !== compId && conn.toComponentId !== compId
@@ -339,17 +467,17 @@ export default function WiringCanvas({
     <div className="flex-1 bg-[#070707] flex flex-col relative h-full overflow-hidden text-white select-none">
       
       {/* ─── Toolbar (2-row, clean) ─── */}
-      <div className="flex flex-col border-b border-gray-800 bg-[#0d0d0d] px-4 py-2.5 gap-2 select-none flex-shrink-0">
+      <div className="flex flex-col border-b border-gray-800 bg-[#0d0d0d] px-4 py-2 gap-2 select-none flex-shrink-0">
 
         {/* Row 1 — 2-Column grid */}
-        <div className="grid grid-cols-2 gap-3 items-center">
+        <div className="flex items-center justify-between gap-3">
 
           {/* LEFT: Simulation Controls */}
           {onUpload ? (
             <div className="flex items-center gap-2 flex-wrap">
               {/* Status badge */}
-              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-[#111] border border-gray-800 rounded-lg shrink-0">
-                <span className={`w-2 h-2 rounded-full shrink-0 transition-all ${
+              <div className="flex items-center gap-1.5 px-2 py-1 bg-[#111] border border-gray-800 rounded-lg shrink-0">
+                <span className={`w-1.5 h-1.5 rounded-full shrink-0 transition-all ${
                   isSimulating  ? "bg-green-500 animate-pulse shadow-[0_0_6px_#22c55e]"
                   : passed      ? "bg-green-500 shadow-[0_0_5px_#22c55e]"
                   : passed===false ? "bg-red-500 shadow-[0_0_5px_#ef4444]"
@@ -364,28 +492,39 @@ export default function WiringCanvas({
               <button
                 onClick={onRun}
                 disabled={isSimulating}
-                className="px-3 py-1.5 bg-[#111] hover:bg-white/8 disabled:opacity-40 border border-gray-700 hover:border-gray-600 rounded-lg text-[10px] font-bold text-gray-300 hover:text-white transition-all cursor-pointer whitespace-nowrap"
+                className="px-2.5 py-1 bg-[#111] hover:bg-white/8 disabled:opacity-40 border border-gray-700 hover:border-gray-600 rounded-lg text-[9px] font-bold text-gray-300 hover:text-white transition-all cursor-pointer whitespace-nowrap"
                 title="Verify & Compile"
               >
                 Verify
               </button>
 
               {/* Upload & Run */}
-              <button
-                onClick={onUpload}
-                disabled={isSimulating}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 hover:bg-red-500 disabled:opacity-40 disabled:bg-red-900 text-[10px] font-bold text-white rounded-lg transition-all shadow-md shadow-red-900/30 cursor-pointer whitespace-nowrap"
-                title="Flash & Run"
-              >
-                <Cpu className="w-3 h-3 shrink-0" />
-                Upload &amp; Run
-              </button>
+              {isSimulating ? (
+                <button
+                  onClick={onStop}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-[9px] font-bold text-red-400 hover:text-red-300 rounded-lg transition-all cursor-pointer whitespace-nowrap"
+                  title="Stop Simulation"
+                >
+                  <span className="w-1.5 h-1.5 bg-red-500 rounded-sm shrink-0" />
+                  Stop Sim
+                </button>
+              ) : (
+                <button
+                  onClick={onUpload}
+                  disabled={isSimulating}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-red-650 hover:bg-red-600 disabled:opacity-40 disabled:bg-red-900 text-[9px] font-bold text-white rounded-lg transition-all shadow-md shadow-red-900/30 cursor-pointer whitespace-nowrap"
+                  title="Flash & Run"
+                >
+                  <Cpu className="w-3 h-3 shrink-0" />
+                  Upload &amp; Run
+                </button>
+              )}
 
               {/* Reset */}
               <button
                 onClick={onClear}
-                className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/8 border border-gray-700 hover:border-gray-600 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition cursor-pointer"
-                title="Reset Simulation"
+                className="flex items-center gap-1 px-2.5 py-1 bg-[#111] hover:bg-white/8 border border-gray-700 hover:border-gray-600 rounded-lg text-[9px] font-bold text-gray-400 hover:text-white transition cursor-pointer"
+                title="Reset Logs & Status"
               >
                 <RotateCcw className="w-3 h-3 text-red-500 shrink-0" />
                 <span>Reset Logs</span>
@@ -394,14 +533,14 @@ export default function WiringCanvas({
           ) : <div />}
 
           {/* RIGHT: View & Edit Controls */}
-          <div className="flex items-center justify-end gap-2">
+          <div className="flex items-center justify-end gap-1.5">
 
             {/* Zoom group */}
             <div className="flex items-center bg-[#111] border border-gray-800 rounded-lg overflow-hidden divide-x divide-gray-800">
               <button
                 onClick={() => setZoom(Math.max(0.6, zoom - 0.1))}
-                className="px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-white/5 transition"
-                title="Zoom Out"
+                className="px-2 py-1 text-gray-400 hover:text-red-400 hover:bg-white/5 transition"
+                title="Zoom Out (-)"
               >
                 <ZoomOut className="w-3.5 h-3.5" />
               </button>
@@ -410,83 +549,82 @@ export default function WiringCanvas({
               </span>
               <button
                 onClick={() => setZoom(Math.min(1.5, zoom + 0.1))}
-                className="px-2 py-1.5 text-gray-400 hover:text-red-400 hover:bg-white/5 transition"
-                title="Zoom In"
+                className="px-2 py-1 text-gray-400 hover:text-red-400 hover:bg-white/5 transition"
+                title="Zoom In (+)"
               >
                 <ZoomIn className="w-3.5 h-3.5" />
               </button>
             </div>
 
-            {/* Divider */}
-            <span className="w-px h-5 bg-gray-800 shrink-0" />
+            <span className="w-px h-4 bg-gray-800 shrink-0 mx-0.5" />
+
+            {/* Helper Guide */}
+            <button
+              onClick={() => setIsHelpModalOpen(true)}
+              className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-gray-400 hover:text-white transition"
+              title="Keyboard Shortcuts & Helper Guide"
+            >
+              <Cpu className="w-3.5 h-3.5 text-blue-400" />
+            </button>
 
             {/* Auto-arrange */}
             <button
               onClick={handleAutoArrange}
-              className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition whitespace-nowrap"
-              title="Auto Arrange"
+              className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-gray-400 hover:text-white transition"
+              title="Auto Arrange Layout"
             >
-              <Sliders className="w-3 h-3 text-red-500 shrink-0" />
-              Auto Arrange
+              <Sliders className="w-3.5 h-3.5 text-red-500" />
             </button>
 
             {/* Reset Zoom */}
             <button
-              onClick={() => setZoom(1.0)}
-              className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition"
-              title="Reset Zoom"
+              onClick={() => {
+                setZoom(1.0)
+                if (canvasRef.current) {
+                  canvasRef.current.scrollLeft = 0
+                  canvasRef.current.scrollTop = 0
+                }
+              }}
+              className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-gray-400 hover:text-white transition"
+              title="Reset Zoom & Pan (0)"
             >
-              <RotateCcw className="w-3 h-3 text-red-500 shrink-0" />
-              Reset Zoom
+              <RotateCcw className="w-3.5 h-3.5 text-red-500" />
             </button>
 
             {/* Undo */}
             <button
               onClick={handleUndo}
               disabled={connectionsHistory.length === 0}
-              className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 disabled:opacity-25 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition cursor-pointer"
-              title="Undo Last Wire"
+              className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 disabled:opacity-25 rounded-lg text-gray-400 hover:text-white transition"
+              title="Undo Last Connection (Z)"
             >
-              <Undo className="w-3 h-3 text-red-500 shrink-0" />
-              Undo Wire
+              <Undo className="w-3.5 h-3.5 text-red-500" />
             </button>
 
-            {/* Fullscreen Toggle */}
-            {onToggleFullscreen && (
-              <button
-                onClick={onToggleFullscreen}
-                className="flex items-center gap-1 px-2 py-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 hover:border-gray-700 rounded-lg text-[10px] font-bold text-gray-400 hover:text-white transition whitespace-nowrap"
-                title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-              >
-                {isFullscreen ? (
-                  <>
-                    <Minimize2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                    <span>Exit Fullscreen</span>
-                  </>
-                ) : (
-                  <>
-                    <Maximize2 className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                    <span>Fullscreen</span>
-                  </>
-                )}
-              </button>
-            )}
+            {/* Redo */}
+            <button
+              onClick={handleRedo}
+              disabled={redoHistory.length === 0}
+              className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 disabled:opacity-25 rounded-lg text-gray-400 hover:text-white transition"
+              title="Redo Undone Connection (Y)"
+            >
+              <Redo className="w-3.5 h-3.5 text-red-500" />
+            </button>
 
             {/* Clear Canvas */}
             <button
               onClick={handleClearCanvas}
-              className="flex items-center gap-1 px-2.5 py-1.5 bg-red-950/50 hover:bg-red-600 border border-red-900/40 hover:border-red-500 rounded-lg text-[10px] font-bold text-red-400 hover:text-white transition"
+              className="p-1.5 bg-red-950/40 hover:bg-red-600 border border-red-900/30 hover:border-red-500 rounded-lg text-red-400 hover:text-white transition"
               title="Clear Canvas"
             >
-              <Trash2 className="w-3.5 h-3.5 shrink-0" />
-              Clear Canvas
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
         {/* Row 2 — Wire Colors */}
-        <div className="flex items-center gap-2 border-t border-gray-800/40 pt-2">
-          <span className="text-[8.5px] text-gray-600 font-bold uppercase tracking-widest shrink-0">Wire:</span>
+        <div className="flex items-center gap-2 border-t border-gray-800/40 pt-1.5">
+          <span className="text-[8.5px] text-gray-500 font-bold uppercase tracking-widest shrink-0">Wire Color:</span>
           {[
             { id: "red",    hex: "#ef4444" },
             { id: "black",  hex: "#374151" },
@@ -501,16 +639,16 @@ export default function WiringCanvas({
               key={c.id}
               onClick={() => setActiveWireColor(c.id)}
               style={{ backgroundColor: c.hex }}
-              className={`w-5 h-5 rounded-full transition-all ${
+              className={`w-4 h-4 rounded-full transition-all ${
                 activeWireColor === c.id
-                  ? "ring-2 ring-white ring-offset-2 ring-offset-[#0d0d0d] scale-125"
-                  : "opacity-50 hover:opacity-90 hover:scale-110"
+                  ? "ring-2 ring-white ring-offset-2 ring-offset-[#0d0d0d] scale-110"
+                  : "opacity-55 hover:opacity-90 hover:scale-105"
               }`}
               title={c.id}
             />
           ))}
           {/* Active label */}
-          <span className="ml-1 text-[9px] font-mono font-bold capitalize text-gray-500">
+          <span className="ml-1 text-[8.5px] font-mono font-bold capitalize text-gray-500">
             {activeWireColor}
           </span>
         </div>
@@ -552,6 +690,16 @@ export default function WiringCanvas({
           className="absolute top-0 left-0"
         >
           {/* Wire SVG Layer */}
+          <style dangerouslySetInnerHTML={{__html: `
+            @keyframes wire-flow {
+              to {
+                stroke-dashoffset: -18;
+              }
+            }
+            .animate-wire-flow {
+              animation: wire-flow 0.8s linear infinite;
+            }
+          `}} />
           <svg className="absolute inset-0 pointer-events-none w-full h-full">
             {/* Draw Permanent Wires */}
             {connections.map((wire, idx) => {
@@ -592,15 +740,26 @@ export default function WiringCanvas({
                 shadowColor = "rgba(6,182,212,0.3)"
               }
 
+              const p1x = start.x + dx
+              const p1y = start.y + (end.y > start.y ? dy : -dy)
+              const p2x = end.x - dx
+              const p2y = end.y + (end.y > start.y ? -dy : dy)
+              
+              const midX = 0.125 * start.x + 0.375 * p1x + 0.375 * p2x + 0.125 * end.x
+              const midY = 0.125 * start.y + 0.375 * p1y + 0.375 * p2y + 0.125 * end.y
+
+              const isHovered = hoveredWireIdx === idx
+
               return (
                 <g key={idx}>
                   {/* Glowing Outline */}
                   <path
                     d={path}
                     fill="none"
-                    stroke={shadowColor}
-                    strokeWidth="7"
+                    stroke={isHovered ? "#ef4444" : shadowColor}
+                    strokeWidth={isHovered ? "8" : "7"}
                     strokeLinecap="round"
+                    className="transition-all"
                   />
                   {/* Core Wire */}
                   <path
@@ -609,8 +768,50 @@ export default function WiringCanvas({
                     stroke={strokeColor}
                     strokeWidth="3.5"
                     strokeLinecap="round"
-                    className={`transition-all ${isSimulating ? "animate-dash" : ""}`}
                   />
+                  {/* Visual Current Flow pulses in simulation */}
+                  {isSimulating && (
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke="#ffffff"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeDasharray="6,12"
+                      className="animate-wire-flow pointer-events-none"
+                    />
+                  )}
+                  {/* Hover Hit Target (wide stroke for easy interaction) */}
+                  <path
+                    d={path}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth="16"
+                    strokeLinecap="round"
+                    className="cursor-pointer pointer-events-auto"
+                    onMouseEnter={() => setHoveredWireIdx(idx)}
+                    onMouseLeave={() => setHoveredWireIdx(null)}
+                  />
+                  {/* Interactive Delete Midpoint Button */}
+                  {isHovered && (
+                    <g 
+                      transform={`translate(${midX}, ${midY})`}
+                      className="pointer-events-auto cursor-pointer"
+                      onMouseEnter={() => setHoveredWireIdx(idx)}
+                      onMouseLeave={() => setHoveredWireIdx(null)}
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setConnectionsHistory(prev => [...prev, connections])
+                        setRedoHistory([])
+                        onUpdateConnections(connections.filter((_, i) => i !== idx))
+                        setHoveredWireIdx(null)
+                      }}
+                    >
+                      <circle cx="0" cy="0" r="7.5" fill="#ef4444" stroke="#ffffff" strokeWidth="1.2" style={{ filter: "drop-shadow(0px 2px 4px rgba(0,0,0,0.5))" }} />
+                      <line x1="-3" y1="-3" x2="3" y2="3" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" />
+                      <line x1="3" y1="-3" x2="-3" y2="3" stroke="#ffffff" strokeWidth="1.2" strokeLinecap="round" />
+                    </g>
+                  )}
                 </g>
               )
             })}
@@ -1049,6 +1250,283 @@ export default function WiringCanvas({
                       </g>
                     </svg>
                   );
+                case "oled-display":
+                  return (
+                    <div className="w-full h-full bg-[#1e293b] border-2 border-slate-700 rounded-md p-1.5 flex flex-col justify-between font-mono select-none">
+                      <div className="flex-1 bg-[#020617] border border-slate-800 rounded p-1 flex flex-col justify-center text-[#22d3ee] shadow-[0_0_8px_rgba(6,182,212,0.15)] relative overflow-hidden">
+                        {isSimulating ? (
+                          <div className="text-[5.5px] leading-tight space-y-0.5">
+                            <div className="text-yellow-400 font-bold border-b border-yellow-500/20 pb-0.5 flex justify-between">
+                              <span>T: {envTemp}°C</span>
+                              <span>H: {envHumidity}%</span>
+                            </div>
+                            <div className="pt-0.5">D: {envDistance} CM</div>
+                            <div>MOIST: {envMoisture}%</div>
+                            <div className="flex justify-between">
+                              <span>GAS: {envGas} PPM</span>
+                              <span className="text-red-500 animate-pulse">●</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="text-center space-y-1 py-1">
+                            <div className="text-[6.5px] text-yellow-500 font-bold tracking-wider">ROBOFLIX LAB</div>
+                            <div className="text-[5px] text-slate-500">SYSTEM STANDBY</div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex justify-between px-2 text-[5px] text-slate-500 font-bold pt-1">
+                        <span>GND</span>
+                        <span>VCC</span>
+                        <span>SCL</span>
+                        <span>SDA</span>
+                      </div>
+                    </div>
+                  );
+                case "relay-module":
+                  const relayActive = isSimulating && envMoisture < 35;
+                  return (
+                    <div className="w-full h-full bg-[#064e3b] border border-[#047857] rounded-md p-1 flex flex-col justify-between font-mono select-none">
+                      <div className="flex justify-between items-center text-[5px] text-emerald-300 font-bold px-1">
+                        <span>COM</span>
+                        <span>NO</span>
+                        <span>NC</span>
+                      </div>
+                      <div className="flex-1 flex items-center justify-around py-0.5">
+                        <div className="w-9 h-6 bg-[#1e293b] border border-slate-900 rounded flex items-center justify-center text-[5.5px] text-slate-400 font-bold shadow-inner">
+                          RELAY
+                        </div>
+                        <div className="flex flex-col items-center gap-1">
+                          <span className="text-[5px] text-gray-400">ACT</span>
+                          <div className={`w-2 h-2 rounded-full border border-gray-900 transition-all ${
+                            relayActive 
+                              ? "bg-green-500 shadow-[0_0_8px_#22c55e]" 
+                              : "bg-green-950"
+                          }`} />
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center text-[5px] text-emerald-300 font-bold px-1 pb-0.5">
+                        <span>VCC</span>
+                        <span>GND</span>
+                        <span>IN</span>
+                      </div>
+                    </div>
+                  );
+                case "soil-moisture":
+                  return (
+                    <div className="w-full h-full flex flex-col items-center justify-between select-none relative p-1 bg-[#1e293b]/20 border border-slate-800 rounded-md">
+                      <div className="w-full bg-[#1e293b] border border-slate-700 rounded p-1 flex flex-col items-center justify-center font-mono">
+                        <span className="text-[5px] text-slate-400">SOIL MOIST</span>
+                        <span className={`text-[7px] font-bold ${isSimulating ? "text-green-400 animate-pulse" : "text-slate-500"}`}>
+                          {isSimulating ? `${envMoisture}%` : "OFF"}
+                        </span>
+                      </div>
+                      {/* Forked probe */}
+                      <svg viewBox="0 0 60 45" className="w-10 h-10 mt-1">
+                        <path d="M 15 0 L 15 35 A 5 5 0 0 0 25 35 L 25 0" fill="none" stroke="#334155" strokeWidth="3" />
+                        <path d="M 35 0 L 35 35 A 5 5 0 0 0 45 35 L 45 0" fill="none" stroke="#334155" strokeWidth="3" />
+                        {/* Gold plating */}
+                        <path d="M 15 15 L 15 35 A 5 5 0 0 0 25 35 L 25 15" fill="none" stroke="#ca8a04" strokeWidth="1.5" />
+                        <path d="M 35 15 L 35 35 A 5 5 0 0 0 45 35 L 45 15" fill="none" stroke="#ca8a04" strokeWidth="1.5" />
+                      </svg>
+                    </div>
+                  );
+                case "gas-sensor":
+                  const gasWarning = isSimulating && envGas > 300;
+                  return (
+                    <div className="w-full h-full bg-[#3f3f46] border border-zinc-600 rounded-md p-1 flex flex-col items-center justify-between select-none relative overflow-hidden">
+                      <div className="flex justify-between w-full text-[5px] font-mono text-zinc-400 px-1 font-bold">
+                        <span>MQ-2</span>
+                        <div className={`w-1.5 h-1.5 rounded-full ${gasWarning ? "bg-red-500 animate-ping" : "bg-green-500"}`} />
+                      </div>
+                      <div className="w-11 h-11 rounded-full bg-zinc-700 border-2 border-zinc-800 flex items-center justify-center relative shadow-inner">
+                        <div 
+                          className="w-8 h-8 rounded-full bg-zinc-800" 
+                          style={{
+                            backgroundImage: "radial-gradient(#111 20%, transparent 20%)",
+                            backgroundSize: "3px 3px"
+                          }}
+                        />
+                        {gasWarning && (
+                          <div className="absolute inset-0 rounded-full bg-red-500/25 animate-pulse" />
+                        )}
+                      </div>
+                      <span className="text-[5.5px] font-mono text-zinc-300">
+                        {isSimulating ? `GAS: ${envGas} PPM` : "STANDBY"}
+                      </span>
+                    </div>
+                  );
+                case "pir-sensor":
+                  return (
+                    <div className="w-full h-full bg-[#1e3a8a] border border-blue-800 rounded-md p-1 flex flex-col items-center justify-between select-none font-mono">
+                      <span className="text-[5px] text-blue-300 font-bold uppercase tracking-wider">PIR MOTION</span>
+                      <div className="w-10 h-10 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center relative shadow-lg overflow-hidden">
+                        <div className="w-8 h-8 rounded-full bg-slate-50 border border-slate-200" style={{ opacity: 0.8 }} />
+                        {isSimulating && envPIRMotion && (
+                          <div className="absolute inset-0 bg-red-500/20 animate-pulse flex items-center justify-center">
+                            <span className="w-6 h-6 rounded-full border border-red-500/40 animate-ping" />
+                          </div>
+                        )}
+                      </div>
+                      <span className={`text-[5.5px] font-bold ${isSimulating && envPIRMotion ? "text-red-400" : "text-blue-400"}`}>
+                        {isSimulating && envPIRMotion ? "DETECTED" : "NO MOTION"}
+                      </span>
+                    </div>
+                  );
+                case "dht11":
+                  return (
+                    <div className="w-full h-full bg-[#3b82f6] border border-blue-700 rounded-md p-1 flex flex-col items-center justify-between select-none relative font-mono">
+                      <div className="w-full bg-[#2563eb] border border-blue-600 rounded py-0.5 px-1 flex justify-between items-center text-[5.5px] font-bold text-white">
+                        <span>DHT11</span>
+                        {isSimulating && <span className="text-emerald-400 animate-pulse">●</span>}
+                      </div>
+                      <div className="w-9 h-8 border border-blue-700 bg-[#3b82f6] rounded flex flex-col gap-0.5 p-0.5 justify-center">
+                        <div className="flex justify-between">
+                          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="w-1.5 h-1 bg-[#1d4ed8]" />)}
+                        </div>
+                        <div className="flex justify-between">
+                          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="w-1.5 h-1 bg-[#1d4ed8]" />)}
+                        </div>
+                        <div className="flex justify-between">
+                          {Array.from({ length: 4 }).map((_, i) => <div key={i} className="w-1.5 h-1 bg-[#1d4ed8]" />)}
+                        </div>
+                      </div>
+                      <span className="text-[5px] text-blue-100 font-bold">
+                        {isSimulating ? `${envTemp}°C | ${envHumidity}%` : "DHT SENSOR"}
+                      </span>
+                    </div>
+                  );
+                case "photoresistor":
+                  return (
+                    <div className="w-full h-full bg-[#f59e0b]/10 border border-amber-600/30 rounded-md p-1 flex flex-col items-center justify-between select-none font-mono">
+                      <span className="text-[5px] text-amber-500 font-bold uppercase">LDR Sensor</span>
+                      <div className="w-10 h-7 bg-amber-500/10 border border-amber-500/20 rounded flex flex-col items-center justify-center p-0.5 relative">
+                        <div className="w-8 h-4 border border-red-500 bg-[#fee2e2] rounded flex flex-col justify-between p-0.5 overflow-hidden">
+                          {/* Snake resistive track */}
+                          <path d="M 0 2 L 10 2 L 10 4 L 0 4 L 0 6 L 10 6" stroke="#b91c1c" strokeWidth="0.8" fill="none" />
+                        </div>
+                      </div>
+                      <span className="text-[5.5px] text-amber-500 font-bold">
+                        {isSimulating ? `LIGHT: ${envLight}` : "STANDBY"}
+                      </span>
+                    </div>
+                  );
+                case "obj-car":
+                  return (
+                    <svg viewBox="0 0 90 65" className="w-full h-full select-none pointer-events-none">
+                      <rect x="15" y="10" width="60" height="45" rx="8" fill="#ef4444" stroke="#b91c1c" strokeWidth="1.5" />
+                      {/* Stripes */}
+                      <rect x="25" y="10" width="8" height="45" fill="#fde047" opacity="0.8" />
+                      {/* Wheels */}
+                      <rect x="20" y="2" width="14" height="8" rx="2" fill="#1e293b" />
+                      <rect x="56" y="2" width="14" height="8" rx="2" fill="#1e293b" />
+                      <rect x="20" y="55" width="14" height="8" rx="2" fill="#1e293b" />
+                      <rect x="56" y="55" width="14" height="8" rx="2" fill="#1e293b" />
+                      {/* Ultrasonic eyes */}
+                      <circle cx="72" cy="22" r="5" fill="#94a3b8" stroke="#475569" />
+                      <circle cx="72" cy="22" r="2.5" fill="#111" />
+                      <circle cx="72" cy="43" r="5" fill="#94a3b8" stroke="#475569" />
+                      <circle cx="72" cy="43" r="2.5" fill="#111" />
+                      {/* Headlights */}
+                      <circle cx="70" cy="14" r="2.5" fill={isSimulating ? "#fef08a" : "#cbd5e1"} />
+                      <circle cx="70" cy="51" r="2.5" fill={isSimulating ? "#fef08a" : "#cbd5e1"} />
+                      <text x="45" y="36" fill="#fff" fontSize="6.5" fontFamily="monospace" fontWeight="bold" textAnchor="middle">CAR</text>
+                    </svg>
+                  );
+                case "obj-animal":
+                  return (
+                    <svg viewBox="0 0 75 60" className="w-full h-full select-none pointer-events-none">
+                      <ellipse cx="38" cy="34" rx="16" ry="11" fill="#d97706" stroke="#92400e" strokeWidth="1" />
+                      <circle cx="54" cy="22" r="7.5" fill="#d97706" stroke="#92400e" />
+                      {/* Ears */}
+                      <path d="M 50 16 L 47 8 L 54 15 Z" fill="#92400e" />
+                      {/* Legs */}
+                      <rect x="28" y="44" width="4" height="10" rx="1" fill="#92400e" />
+                      <rect x="44" y="44" width="4" height="10" rx="1" fill="#92400e" />
+                      <rect x="24" y="42" width="4" height="10" rx="1" fill="#b45309" />
+                      <rect x="48" y="42" width="4" height="10" rx="1" fill="#b45309" />
+                      {/* Tail */}
+                      <path d="M22,34 Q10,25 14,20" fill="none" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" />
+                      {/* Collar */}
+                      <ellipse cx="50" cy="27" rx="3.5" ry="1.2" fill="#ef4444" />
+                    </svg>
+                  );
+                case "obj-wall":
+                  return (
+                    <svg viewBox="0 0 100 50" className="w-full h-full select-none pointer-events-none">
+                      <rect x="2" y="2" width="96" height="46" rx="2" fill="#b45309" stroke="#78350f" strokeWidth="1.5" />
+                      {/* Joints */}
+                      <line x1="2" y1="13" x2="98" y2="13" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      <line x1="2" y1="25" x2="98" y2="25" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      <line x1="2" y1="37" x2="98" y2="37" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      {/* Vertical joints */}
+                      <line x1="20" y1="2" x2="20" y2="13" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      <line x1="50" y1="2" x2="50" y2="13" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      <line x1="80" y1="2" x2="80" y2="13" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      <line x1="35" y1="13" x2="35" y2="25" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      <line x1="65" y1="13" x2="65" y2="25" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      <line x1="20" y1="25" x2="20" y2="37" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      <line x1="50" y1="25" x2="50" y2="37" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                      <line x1="80" y1="25" x2="80" y2="37" stroke="#f1f5f9" strokeWidth="1" opacity="0.4" />
+                    </svg>
+                  );
+                case "obj-cone":
+                  return (
+                    <svg viewBox="0 0 60 65" className="w-full h-full select-none pointer-events-none">
+                      <rect x="5" y="52" width="50" height="8" rx="2" fill="#1e293b" />
+                      {/* Orange Cone */}
+                      <polygon points="20,10 40,10 48,52 12,52" fill="#f97316" stroke="#ea580c" strokeWidth="1" />
+                      {/* Reflective stripes */}
+                      <polygon points="23,20 37,20 38,26 22,26" fill="#ffffff" />
+                      <polygon points="18,36 42,36 43,42 17,42" fill="#ffffff" />
+                    </svg>
+                  );
+                case "obj-smart-home":
+                  const lightsOn = isSimulating && envPIRMotion;
+                  return (
+                    <svg viewBox="0 0 95 85" className="w-full h-full select-none pointer-events-none">
+                      <rect x="10" y="25" width="75" height="55" rx="4" fill="#475569" stroke="#1e293b" strokeWidth="1.5" />
+                      <polygon points="47,5 5,25 90,25" fill="#b91c1c" stroke="#7f1d1d" strokeWidth="1.5" />
+                      {/* Window */}
+                      <rect x="22" y="36" width="20" height="18" rx="2" fill={lightsOn ? "#fef08a" : "#1e293b"} stroke="#0f172a" />
+                      <line x1="32" y1="36" x2="32" y2="54" stroke="#0f172a" />
+                      <line x1="22" y1="45" x2="42" y2="45" stroke="#0f172a" />
+                      {/* Door */}
+                      <rect x="52" y="45" width="22" height="35" rx="1" fill="#78350f" stroke="#451a03" />
+                      <circle cx="56" cy="62" r="1.5" fill="#ca8a04" />
+                    </svg>
+                  );
+                case "obj-door":
+                  const doorOpen = isSimulating && envPIRMotion;
+                  return (
+                    <svg viewBox="0 0 65 95" className="w-full h-full select-none pointer-events-none">
+                      {/* Frame */}
+                      <rect x="5" y="5" width="55" height="85" rx="2" fill="none" stroke="#451a03" strokeWidth="3" />
+                      {doorOpen ? (
+                        /* Open door polygon in perspective */
+                        <polygon points="8,8 35,16 35,80 8,88" fill="#78350f" stroke="#451a03" strokeWidth="1" />
+                      ) : (
+                        /* Closed door rect */
+                        <>
+                          <rect x="8" y="8" width="49" height="79" fill="#78350f" stroke="#451a03" />
+                          <circle cx="48" cy="48" r="2" fill="#ca8a04" />
+                        </>
+                      )}
+                    </svg>
+                  );
+                case "obj-furniture":
+                  return (
+                    <svg viewBox="0 0 80 75" className="w-full h-full select-none pointer-events-none">
+                      <rect x="5" y="25" width="70" height="42" rx="3" fill="#d97706" stroke="#92400e" strokeWidth="1.5" />
+                      {/* Desk legs */}
+                      <line x1="8" y1="67" x2="8" y2="73" stroke="#451a03" strokeWidth="2.5" />
+                      <line x1="72" y1="67" x2="72" y2="73" stroke="#451a03" strokeWidth="2.5" />
+                      {/* Laptop */}
+                      <rect x="25" y="36" width="30" height="20" fill="#cbd5e1" stroke="#475569" rx="1" />
+                      <rect x="28" y="38" width="24" height="12" fill={isSimulating ? "#22d3ee" : "#1e293b"} />
+                      {/* Office chair */}
+                      <rect x="28" y="58" width="24" height="12" rx="3" fill="#475569" />
+                    </svg>
+                  );
                 case "obj-rfid-card":
                   return (
                     <svg viewBox="0 0 80 50" className="w-full h-full select-none pointer-events-none">
@@ -1116,7 +1594,7 @@ export default function WiringCanvas({
                     isSelected ? "ring-2 ring-red-500 shadow-[0_0_15px_#E50914] bg-red-950/5" : ""
                   }`}
                   onMouseDown={(e) => {
-                    handleCanvasMouseDown(e, comp.id)
+                    handleCompDragStart(e, comp.id)
                     setSelectedCompId(comp.id)
                   }}
                 >
@@ -1224,7 +1702,7 @@ export default function WiringCanvas({
                     isSelected ? "ring-2 ring-red-500 ring-offset-2 ring-offset-black shadow-[0_0_20px_rgba(239,68,68,0.7)]" : ""
                   }`}
                   onMouseDown={(e) => {
-                    handleCanvasMouseDown(e, comp.id)
+                    handleCompDragStart(e, comp.id)
                     setSelectedCompId(comp.id)
                   }}
                 >
@@ -1288,7 +1766,7 @@ export default function WiringCanvas({
                   isSelected ? "ring-2 ring-red-500 shadow-[0_0_15px_#E50914]" : "shadow-2xl"
                 }`}
                 onMouseDown={(e) => {
-                  handleCanvasMouseDown(e, comp.id)
+                  handleCompDragStart(e, comp.id)
                   setSelectedCompId(comp.id)
                 }}
               >
@@ -1426,6 +1904,60 @@ export default function WiringCanvas({
             animation: wire-dash 0.8s linear infinite !important;
           }
         `}</style>
+
+        {/* Keyboard Shortcuts Dialog Modal */}
+        {isHelpModalOpen && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <div className="bg-[#0c0c0ced] border border-gray-800 rounded-2xl w-full max-w-sm p-6 shadow-2xl relative text-white font-mono">
+              <button
+                onClick={() => setIsHelpModalOpen(false)}
+                className="absolute top-4 right-4 text-gray-400 hover:text-white text-xs font-bold"
+              >
+                ✕
+              </button>
+              <h3 className="text-xs font-bold text-red-500 uppercase tracking-widest mb-4 flex items-center gap-1.5">
+                <Cpu className="w-4 h-4" />
+                Keyboard Shortcuts Guide
+              </h3>
+              <div className="space-y-2 text-[10px]">
+                <div className="flex justify-between border-b border-gray-800/40 pb-1.5">
+                  <span className="text-gray-400">Pan Workspace:</span>
+                  <span className="text-red-400 bg-red-950/40 border border-red-900/35 px-1.5 rounded font-bold">Space + Left Mouse Drag</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-800/40 pb-1.5">
+                  <span className="text-gray-400">Zoom Canvas:</span>
+                  <span className="text-red-400 bg-red-950/40 border border-red-900/35 px-1.5 rounded font-bold">Scroll Wheel / +/- Keys</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-800/40 pb-1.5">
+                  <span className="text-gray-400">Reset Zoom & Pan:</span>
+                  <span className="text-red-400 bg-red-950/40 border border-red-900/35 px-1.5 rounded font-bold">0 Key</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-800/40 pb-1.5">
+                  <span className="text-gray-400">Rotate Component:</span>
+                  <span className="text-red-400 bg-red-950/40 border border-red-900/35 px-1.5 rounded font-bold">R Key</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-800/40 pb-1.5">
+                  <span className="text-gray-400">Cancel Wire:</span>
+                  <span className="text-red-400 bg-red-950/40 border border-red-900/35 px-1.5 rounded font-bold">ESC Key</span>
+                </div>
+                <div className="flex justify-between border-b border-gray-800/40 pb-1.5">
+                  <span className="text-gray-400">Undo Wire:</span>
+                  <span className="text-red-400 bg-red-950/40 border border-red-900/35 px-1.5 rounded font-bold">Z Key</span>
+                </div>
+                <div className="flex justify-between pb-1.5">
+                  <span className="text-gray-400">Redo Wire:</span>
+                  <span className="text-red-400 bg-red-950/40 border border-red-900/35 px-1.5 rounded font-bold">Y / Shift + Z</span>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsHelpModalOpen(false)}
+                className="w-full mt-5 py-2 bg-red-650 hover:bg-red-600 rounded-lg text-[10px] font-bold uppercase transition"
+              >
+                Close Guide
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )

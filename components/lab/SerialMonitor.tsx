@@ -11,6 +11,7 @@ interface SerialMonitorProps {
   passed: boolean | null
   xpAwarded: number
   hint?: string
+  onStop?: () => void
 }
 
 export default function SerialMonitor({
@@ -21,7 +22,8 @@ export default function SerialMonitor({
   onClear,
   passed,
   xpAwarded,
-  hint
+  hint,
+  onStop
 }: SerialMonitorProps) {
   return (
     <div className="h-[40%] bg-[#0c0c0c] flex flex-col min-h-[160px] text-white">
@@ -43,24 +45,37 @@ export default function SerialMonitor({
             <Trash2 className="w-3.5 h-3.5" />
           </button>
           
-          <button
-            onClick={onRun}
-            disabled={isSimulating}
-            className="flex items-center gap-1 px-2.5 py-1 bg-white/5 hover:bg-white/10 border border-white/10 disabled:opacity-50 text-[10px] font-bold text-gray-300 hover:text-white rounded transition-all cursor-pointer"
-            title="Verify & Compile Code"
-          >
-            Verify
-          </button>
+          {isSimulating ? (
+            <button
+              onClick={onStop}
+              className="flex items-center gap-1 px-2.5 py-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-[10px] font-bold text-red-400 hover:text-red-300 rounded transition-all cursor-pointer"
+              title="Stop Simulation"
+            >
+              <span className="w-2 h-2 bg-red-500 rounded-sm shrink-0" />
+              Stop Sim
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={onRun}
+                disabled={isSimulating}
+                className="flex items-center gap-1 px-2.5 py-1 bg-white/5 hover:bg-white/10 border border-white/10 disabled:opacity-50 text-[10px] font-bold text-gray-300 hover:text-white rounded transition-all cursor-pointer"
+                title="Verify & Compile Code"
+              >
+                Verify
+              </button>
 
-          <button
-            onClick={onUpload}
-            disabled={isSimulating}
-            className="flex items-center gap-1 px-2.5 py-1 bg-red-650 hover:bg-red-600 disabled:opacity-50 text-[10px] font-bold text-white rounded transition-all shadow-lg shadow-red-600/10 cursor-pointer"
-            title="Compile & Upload Code to Board"
-          >
-            <Cpu className="w-3 h-3" />
-            Upload
-          </button>
+              <button
+                onClick={onUpload}
+                disabled={isSimulating}
+                className="flex items-center gap-1 px-2.5 py-1 bg-red-650 hover:bg-red-600 disabled:opacity-50 text-[10px] font-bold text-white rounded transition-all shadow-lg shadow-red-600/10 cursor-pointer"
+                title="Compile & Upload Code to Board"
+              >
+                <Cpu className="w-3 h-3" />
+                Upload
+              </button>
+            </>
+          )}
         </div>
       </div>
 

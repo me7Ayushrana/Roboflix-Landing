@@ -737,6 +737,152 @@ void loop() {
 }`,
     simTab: "car",
   },
+
+  // ── 9. IoT Weather Station ────────────────────────────────────────────────
+  {
+    id: "demo-weather-station",
+    title: "IoT Weather Station",
+    emoji: "📶",
+    description: "ESP32 reads temperature/humidity from DHT11. Data is printed to the serial monitor and displayed on the I2C OLED screen.",
+    difficulty: "Intermediate",
+    category: "IoT",
+    expectedBehaviors: ["📶 ESP32 connects to WiFi", "🌡️ Reads Temp and Humidity from DHT11", "📟 Updates local OLED Display"],
+    components: [
+      { id: "esp1",  componentId: "esp32",        x: 80,  y: 140, rotation: 0, scale: 1 },
+      { id: "dht1",  componentId: "dht11",        x: 300, y: 80,  rotation: 0, scale: 1 },
+      { id: "oled1", componentId: "oled-display",  x: 300, y: 240, rotation: 0, scale: 1 },
+    ],
+    connections: [
+      { fromComponentId: "esp1", fromPinId: "vcc-3v3", toComponentId: "dht1", toPinId: "vcc", color: "red" },
+      { fromComponentId: "esp1", fromPinId: "gnd",     toComponentId: "dht1", toPinId: "gnd", color: "black" },
+      { fromComponentId: "esp1", fromPinId: "pin-g4",  toComponentId: "dht1", toPinId: "sig", color: "green" },
+      { fromComponentId: "esp1", fromPinId: "vcc-3v3", toComponentId: "oled1",toPinId: "vcc", color: "red" },
+      { fromComponentId: "esp1", fromPinId: "gnd",     toComponentId: "oled1",toPinId: "gnd", color: "black" },
+      { fromComponentId: "esp1", fromPinId: "pin-g14", toComponentId: "oled1",toPinId: "scl", color: "yellow" },
+      { fromComponentId: "esp1", fromPinId: "pin-g15", toComponentId: "oled1",toPinId: "sda", color: "blue" },
+    ],
+    code: `// 📶 IoT Smart Greenhouse – ESP32 + DHT11 + OLED Display
+#include <DHT.h>
+#include <Adafruit_SSD1306.h>
+
+#define DHT_PIN    4
+#define OLED_SDA   15
+#define OLED_SCL   14
+
+DHT dht(DHT_PIN, DHT11);
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+
+void setup() {
+  Serial.begin(115200);
+  dht.begin();
+  
+  Serial.println("Initializing ESP32 Smart Greenhouse...");
+  Serial.println("WiFi connected! IP: 192.168.1.50");
+  Serial.println("Displaying readings on local OLED screen.");
+}
+
+void loop() {
+  float temp = dht.readTemperature();
+  float hum  = dht.readHumidity();
+
+  Serial.print("[IoT] Temperature: ");
+  Serial.print(temp);
+  Serial.print(" C | Humidity: ");
+  Serial.print(hum);
+  Serial.println(" %");
+
+  if (temp > 30.0) {
+    Serial.println("WARNING: High temperature in greenhouse!");
+  }
+  delay(1500);
+}`,
+    simTab: "garden",
+  },
+
+  // ── 10. Sonar Radar Turret ────────────────────────────────────────────────
+  {
+    id: "demo-radar-turret",
+    title: "Sonar Radar Turret",
+    emoji: "🦾",
+    description: "Arduino sweeps SG90 servo carrying HC-SR04 to scan for targets. Active Buzzer sounds alarm when a target is within 25 cm.",
+    difficulty: "Advanced",
+    category: "Robotics",
+    expectedBehaviors: ["🔄 Servo sweeps sensor from 0° to 180°", "📡 HC-SR04 measures target distance", "🚨 Buzzer sounds if target < 25 cm"],
+    components: [
+      { id: "ard1", componentId: "arduino-uno",  x: 80,  y: 140, rotation: 0, scale: 1 },
+      { id: "sr1",  componentId: "hc-sr04",      x: 310, y: 80,  rotation: 0, scale: 1 },
+      { id: "srv1", componentId: "servo-motor",   x: 310, y: 220, rotation: 0, scale: 1 },
+      { id: "buz1", componentId: "buzzer",        x: 460, y: 80,  rotation: 0, scale: 1 },
+      { id: "obj1", componentId: "obj-box",       x: 580, y: 90,  rotation: 0, scale: 1 },
+    ],
+    connections: [
+      { fromComponentId: "ard1", fromPinId: "vcc-5v", toComponentId: "srv1", toPinId: "vcc", color: "red" },
+      { fromComponentId: "ard1", fromPinId: "gnd-1",  toComponentId: "srv1", toPinId: "gnd", color: "black" },
+      { fromComponentId: "ard1", fromPinId: "pin-9",  toComponentId: "srv1", toPinId: "pwm", color: "orange" },
+      { fromComponentId: "ard1", fromPinId: "vcc-5v", toComponentId: "sr1",  toPinId: "vcc", color: "red" },
+      { fromComponentId: "ard1", fromPinId: "gnd-1",  toComponentId: "sr1",  toPinId: "gnd", color: "black" },
+      { fromComponentId: "ard1", fromPinId: "pin-7",  toComponentId: "sr1",  toPinId: "trig", color: "yellow" },
+      { fromComponentId: "ard1", fromPinId: "pin-6",  toComponentId: "sr1",  toPinId: "echo", color: "green" },
+      { fromComponentId: "ard1", fromPinId: "pin-8",  toComponentId: "buz1", toPinId: "pos",  color: "purple" },
+      { fromComponentId: "ard1", fromPinId: "gnd-2",  toComponentId: "buz1", toPinId: "neg",  color: "black" },
+    ],
+    code: `// 🦾 Sonar Radar Turret – Servo sweep + HC-SR04 Scan + Buzzer
+#include <Servo.h>
+
+#define TRIG_PIN   7
+#define ECHO_PIN   6
+#define BUZZER_PIN 8
+#define SERVO_PIN  9
+#define SCAN_LIMIT 25   // cm to sound alarm
+
+Servo radarServo;
+int angle = 0;
+int stepDir = 5;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  radarServo.attach(SERVO_PIN);
+  Serial.println("Radar Scanning System Activated.");
+}
+
+void loop() {
+  radarServo.write(angle);
+  
+  digitalWrite(TRIG_PIN, LOW);
+  delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+
+  long duration = pulseIn(ECHO_PIN, HIGH);
+  long distanceCm = duration * 0.034 / 2;
+
+  Serial.print("Angle: ");
+  Serial.print(angle);
+  Serial.print(" deg | Distance: ");
+  Serial.print(distanceCm);
+  Serial.println(" cm");
+
+  if (distanceCm < SCAN_LIMIT) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    Serial.println("⚠️ INTRUDER DETECTED! Sounding radar alarm!");
+    delay(150);
+    digitalWrite(BUZZER_PIN, LOW);
+  } else {
+    digitalWrite(BUZZER_PIN, LOW);
+  }
+
+  angle += stepDir;
+  if (angle >= 180 || angle <= 0) {
+    stepDir = -stepDir;
+  }
+  delay(300);
+}`,
+    simTab: "car",
+  },
 ]
 
 // TypeScript interface for demo projects
@@ -794,6 +940,7 @@ export default function VirtualLabPage() {
   const [activePlaygroundTab, setActivePlaygroundTab] = useState<"home" | "car" | "garden">("home")
   const [showEnvSim, setShowEnvSim] = useState(false)
   const [browserSaveMessage, setBrowserSaveMessage] = useState<string | null>(null)
+  const [isFileMenuOpen, setIsFileMenuOpen] = useState(false)
 
   // Web Audio API context ref for buzzer sound synthesis
   const audioCtxRef = useRef<AudioContext | null>(null)
@@ -930,63 +1077,113 @@ export default function VirtualLabPage() {
 
   // 2b. Dynamic Real-time Canvas Proximity Asset Interaction
   useEffect(() => {
-    // 1. Distance sensor trigger (hc-sr04 + obj-box)
+    // 1. Distance sensor trigger: find closest object of any type starting with "obj-"
     const hcComp = placedComponents.find(c => c.componentId === "hc-sr04")
-    const boxComp = placedComponents.find(c => c.componentId === "obj-box")
-    if (hcComp && boxComp) {
-      const dx = boxComp.x - hcComp.x
-      const dy = boxComp.y - hcComp.y
-      const distPx = Math.sqrt(dx * dx + dy * dy)
-      // Map pixel distance to simulated cm (e.g., 2.5px = 1cm)
-      const realDist = Math.max(10, Math.min(200, Math.round(distPx / 2.5)))
-      setEnvDistance(realDist)
+    if (hcComp) {
+      const obstacleObjects = placedComponents.filter(c => c.componentId.startsWith("obj-"))
+      if (obstacleObjects.length > 0) {
+        let minDistancePx = Infinity
+        obstacleObjects.forEach(obj => {
+          const dx = obj.x - hcComp.x
+          const dy = obj.y - hcComp.y
+          const distPx = Math.sqrt(dx * dx + dy * dy)
+          if (distPx < minDistancePx) {
+            minDistancePx = distPx
+          }
+        })
+        // Map pixel distance to simulated cm (e.g., 2.5px = 1cm)
+        const realDist = Math.max(10, Math.min(200, Math.round(minDistancePx / 2.5)))
+        setEnvDistance(realDist)
+      }
     }
 
-    // 2. Soil Moisture sensor trigger (soil-moisture + obj-water)
+    // 2. Soil Moisture sensor trigger: find closest "obj-water"
     const soilComp = placedComponents.find(c => c.componentId === "soil-moisture")
-    const waterComp = placedComponents.find(c => c.componentId === "obj-water")
-    if (soilComp && waterComp) {
-      const dx = waterComp.x - soilComp.x
-      const dy = waterComp.y - soilComp.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < 120) {
-        // Wet soil intensity scales higher as they get closer
-        const intensity = Math.round(100 - (dist / 1.6))
-        setEnvMoisture(Math.max(45, Math.min(95, intensity)))
+    if (soilComp) {
+      const waterObjects = placedComponents.filter(c => c.componentId === "obj-water")
+      if (waterObjects.length > 0) {
+        let minDistancePx = Infinity
+        waterObjects.forEach(obj => {
+          const dx = obj.x - soilComp.x
+          const dy = obj.y - soilComp.y
+          const distPx = Math.sqrt(dx * dx + dy * dy)
+          if (distPx < minDistancePx) {
+            minDistancePx = distPx
+          }
+        })
+        if (minDistancePx < 120) {
+          // Wet soil intensity scales higher as they get closer
+          const intensity = Math.round(100 - (minDistancePx / 1.6))
+          setEnvMoisture(Math.max(45, Math.min(95, intensity)))
+        } else {
+          setEnvMoisture(15) // dry default
+        }
       } else {
         setEnvMoisture(15) // dry default
       }
     }
 
-    // 3. PIR motion sensor trigger (pir-sensor + obj-human)
+    // 3. PIR motion sensor trigger: find closest "obj-human" or "obj-animal"
     const pirComp = placedComponents.find(c => c.componentId === "pir-sensor")
-    const humanComp = placedComponents.find(c => c.componentId === "obj-human")
-    if (pirComp && humanComp) {
-      const dx = humanComp.x - pirComp.x
-      const dy = humanComp.y - pirComp.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < 120) {
-        setEnvPIRMotion(true)
+    if (pirComp) {
+      const humanObjects = placedComponents.filter(c => c.componentId === "obj-human" || c.componentId === "obj-animal")
+      if (humanObjects.length > 0) {
+        let minDistancePx = Infinity
+        humanObjects.forEach(obj => {
+          const dx = obj.x - pirComp.x
+          const dy = obj.y - pirComp.y
+          const distPx = Math.sqrt(dx * dx + dy * dy)
+          if (distPx < minDistancePx) {
+            minDistancePx = distPx
+          }
+        })
+        if (minDistancePx < 120) {
+          setEnvPIRMotion(true)
+        } else {
+          setEnvPIRMotion(false)
+        }
       } else {
         setEnvPIRMotion(false)
       }
     }
 
-    // 4. Gas sensor trigger (gas-sensor + obj-gas)
+    // 4. Gas sensor trigger: find closest "obj-gas"
     const gasComp = placedComponents.find(c => c.componentId === "gas-sensor")
-    const smokeComp = placedComponents.find(c => c.componentId === "obj-gas")
-    if (gasComp && smokeComp) {
-      const dx = smokeComp.x - gasComp.x
-      const dy = smokeComp.y - gasComp.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < 120) {
-        const ppm = Math.round(750 - (dist * 4.2))
-        setEnvGas(Math.max(100, Math.min(750, ppm)))
+    if (gasComp) {
+      const gasObjects = placedComponents.filter(c => c.componentId === "obj-gas")
+      if (gasObjects.length > 0) {
+        let minDistancePx = Infinity
+        gasObjects.forEach(obj => {
+          const dx = obj.x - gasComp.x
+          const dy = obj.y - gasComp.y
+          const distPx = Math.sqrt(dx * dx + dy * dy)
+          if (distPx < minDistancePx) {
+            minDistancePx = distPx
+          }
+        })
+        if (minDistancePx < 120) {
+          const ppm = Math.round(750 - (minDistancePx * 4.2))
+          setEnvGas(Math.max(100, Math.min(750, ppm)))
+        } else {
+          setEnvGas(70) // clean default
+        }
       } else {
         setEnvGas(70) // clean default
       }
     }
   }, [placedComponents])
+
+  const initAudioContext = () => {
+    try {
+      if (!audioCtxRef.current || audioCtxRef.current.state === "closed") {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)()
+      }
+      const ctx = audioCtxRef.current
+      if (ctx.state === "suspended") {
+        ctx.resume()
+      }
+    } catch (_) {}
+  }
 
   // Web Audio API helpers – play / stop buzzer beep
   const startBuzzerSound = () => {
@@ -1126,17 +1323,30 @@ export default function VirtualLabPage() {
     }, 3000)
   }
 
+  // Manage buzzer sound based on buzzerActive state
+  useEffect(() => {
+    if (isSimulating && buzzerActive) {
+      startBuzzerSound()
+    } else {
+      stopBuzzerSound()
+    }
+    return () => {
+      stopBuzzerSound()
+    }
+  }, [buzzerActive, isSimulating])
+
   // Real-time simulation loop: drives LED + buzzer + relays dynamically from active sensors
   useEffect(() => {
     if (!isSimulating) {
       setLedActive(false)
       setBuzzerActive(false)
-      stopBuzzerSound()
       setSimBanner(null)
       return
     }
 
+    let tickCount = 0
     const interval = setInterval(() => {
+      tickCount++
       const hasUltrasonic = placedComponents.some(c => c.componentId === "hc-sr04")
       const hasGas = placedComponents.some(c => c.componentId === "gas-sensor")
       const hasSoil = placedComponents.some(c => c.componentId === "soil-moisture")
@@ -1145,69 +1355,82 @@ export default function VirtualLabPage() {
       const hasLed = placedComponents.some(c => c.componentId === "led-red")
       const hasBuzzer = placedComponents.some(c => c.componentId === "buzzer")
 
+      let shouldLedBeActive = false
+      let shouldBuzzerBeActive = false
+
       if (hasGas) {
         if (envGas > 300) {
-          if (hasLed) setLedActive(true)
-          if (hasBuzzer) {
-            if (!buzzerActive) {
-              setBuzzerActive(true)
-              startBuzzerSound()
-            }
-          }
+          if (hasLed) shouldLedBeActive = true
+          if (hasBuzzer) shouldBuzzerBeActive = true
           setSimBanner(`🚨 SMOKE/GAS LEAK DETECTED! PPM: ${envGas} – BUZZER ALARM ACTIVE!`)
         } else {
-          setLedActive(false)
-          if (buzzerActive) {
-            setBuzzerActive(false)
-            stopBuzzerSound()
-          }
           setSimBanner(`✅ Air quality healthy – PPM: ${envGas}.`)
         }
       } else if (hasSoil) {
         if (envMoisture < 35) {
-          if (hasLed) setLedActive(true)
+          if (hasLed) shouldLedBeActive = true
           setSimBanner(`🌱 Soil dry: ${envMoisture}%. Relay ON – Water pump activated!`)
         } else {
-          setLedActive(false)
           setSimBanner(`✅ Soil moisture healthy: ${envMoisture}%. Relay OFF.`)
         }
       } else if (hasUltrasonic) {
         if (envDistance < 30) {
-          if (hasLed) setLedActive(true)
-          if (hasBuzzer) {
-            if (!buzzerActive) {
-              setBuzzerActive(true)
-              startBuzzerSound()
-            }
-          }
+          if (hasLed) shouldLedBeActive = true
+          if (hasBuzzer) shouldBuzzerBeActive = true
           setSimBanner(`🔴 OBSTACLE DETECTED at ${envDistance} cm! LED ON – BUZZER ACTIVE`)
         } else {
-          setLedActive(false)
-          if (buzzerActive) {
-            setBuzzerActive(false)
-            stopBuzzerSound()
-          }
           setSimBanner(`✅ Path clear – ${envDistance} cm. LED OFF.`)
         }
       } else if (hasPIR) {
         if (envPIRMotion) {
-          if (hasLed) setLedActive(true)
+          if (hasLed) shouldLedBeActive = true
           setSimBanner(`🏠 Motion detected! LED/Lamp ON – Servo Door Open!`)
         } else {
-          setLedActive(false)
           setSimBanner(`🏠 Standby – No motion detected. Lamp OFF.`)
         }
       } else {
         setSimBanner("🔬 Simulating circuit execution... Use code editor to write functions.")
       }
+
+      setLedActive(shouldLedBeActive)
+      setBuzzerActive(shouldBuzzerBeActive)
+
+      // Periodically (every 1.5 seconds, i.e., every 3 ticks) append telemetry values to logs
+      if (tickCount % 3 === 0) {
+        const now = new Date()
+        const timeStr = `[${now.toTimeString().split(' ')[0]}]`
+        if (hasUltrasonic) {
+          setLogs(prev => [
+            ...prev,
+            `${timeStr} [SERIAL] HC-SR04 Distance: ${envDistance} cm | LED: ${envDistance < 30 && hasLed ? "ON" : "OFF"} | Buzzer: ${envDistance < 30 && hasBuzzer ? "ACTIVE" : "OFF"}`
+          ])
+        }
+        if (hasGas) {
+          setLogs(prev => [
+            ...prev,
+            `${timeStr} [SERIAL] MQ-2 Gas Level: ${envGas} PPM | LED: ${envGas > 300 && hasLed ? "ON" : "OFF"} | Buzzer: ${envGas > 300 && hasBuzzer ? "ACTIVE" : "OFF"}`
+          ])
+        }
+        if (hasSoil) {
+          setLogs(prev => [
+            ...prev,
+            `${timeStr} [SERIAL] Soil Moisture: ${envMoisture}% | Pump/Relay: ${envMoisture < 35 ? "ON" : "OFF"}`
+          ])
+        }
+        if (hasPIR) {
+          setLogs(prev => [
+            ...prev,
+            `${timeStr} [SERIAL] PIR Motion: ${envPIRMotion ? "DETECTED" : "NONE"} | Light/Servo: ${envPIRMotion ? "ACTIVE" : "STANDBY"}`
+          ])
+        }
+      }
     }, 500)
 
     return () => {
       clearInterval(interval)
-      stopBuzzerSound()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isSimulating, envDistance, envMoisture, envGas, envLight, envPIRMotion, envTemp, placedComponents, buzzerActive])
+  }, [isSimulating, envDistance, envMoisture, envGas, envLight, envPIRMotion, envTemp, placedComponents])
 
   // Load a demo project onto the canvas (Default Works feature)
   const handleLoadDemoProject = (project: DemoProject) => {
@@ -1325,6 +1548,7 @@ export default function VirtualLabPage() {
   // 3b. Upload Code Flashing HUD Simulation
   const handleUploadCode = () => {
     if (!config) return
+    initAudioContext()
     setIsUploading(true)
     setUploadProgress(0)
     setUploadStepText("Checking syntax rules & compiling compiler variables...")
@@ -1357,6 +1581,7 @@ export default function VirtualLabPage() {
   // 4. Run Client-Side Simulation & grading
   const handleRunSimulation = () => {
     if (!config) return
+    initAudioContext()
     setIsSimulating(true)
     setLogs(["⚙️ Starting build environment...", "🔨 Checking circuit connectivity rules..."])
     setPassed(null)
@@ -1495,7 +1720,6 @@ export default function VirtualLabPage() {
       }
 
       setLogs(logsTemp)
-      setIsSimulating(false)
 
       if (validationPassed) {
         const completed = localStorage.getItem("roboflix_completed_experiments")
@@ -1518,6 +1742,8 @@ export default function VirtualLabPage() {
     setPassed(null)
     setXpAwarded(0)
     setSimulationHint(undefined)
+    setIsSimulating(false)
+    stopBuzzerSound()
   }
 
   // Preset Template Loader Trigger
@@ -1708,220 +1934,257 @@ export default function VirtualLabPage() {
               The Virtual Lab experiment ID <span className="font-mono text-red-400">"{experimentId}"</span> is currently under construction or does not exist.
             </p>
           </div>
-          <Link href="/lms/dashboard">
-            <button className="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-xs font-bold rounded-lg transition-all cursor-pointer">
-              Go to Dashboard
-            </button>
-          </Link>
+          <button
+            onClick={() => router.push("/lms/dashboard")}
+            className="w-full py-2 bg-red-650 hover:bg-red-600 rounded-lg text-xs font-bold uppercase transition"
+          >
+            Back to Dashboard
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className={`h-screen w-screen flex flex-col overflow-hidden font-sans antialiased transition-colors duration-300 ${
-      isNightMode === false ? "bg-[#f3f4f6] text-[#1f2937]" : "bg-[#070707] text-white"
+    <div className={`h-screen max-h-screen flex flex-col font-mono overflow-hidden transition-colors ${
+      isNightMode === false ? "bg-white text-gray-800" : "bg-black text-white"
     }`}>
-      
       {/* ─── Premium Header Ribbon ─── */}
-      <header className={`h-16 border-b flex items-center justify-between px-6 flex-shrink-0 z-40 select-none transition-colors ${
-        isNightMode === false ? "bg-white border-gray-200" : "bg-black border-gray-800"
-      }`}>
-        <div className="flex items-center gap-6">
-          <Link href="/">
-            <span className="text-xl sm:text-2xl font-bold cursor-pointer">
-              ROBO<span className="text-red-600">FLIX</span>
-            </span>
-          </Link>
+      {!isFullscreen && (
+        <header className={`h-16 border-b flex items-center justify-between px-6 flex-shrink-0 z-40 select-none transition-colors ${
+          isNightMode === false ? "bg-white border-gray-200" : "bg-black border-gray-800"
+        }`}>
+          <div className="flex items-center gap-6">
+            <Link href="/">
+              <span className="text-xl sm:text-2xl font-bold cursor-pointer">
+                ROBO<span className="text-red-650">FLIX</span>
+              </span>
+            </Link>
 
-          <span className={`h-5 w-[1px] hidden sm:inline ${
-            isNightMode === false ? "bg-gray-200" : "bg-gray-800"
-          }`} />
+            <span className={`h-5 w-[1px] hidden sm:inline ${
+              isNightMode === false ? "bg-gray-200" : "bg-gray-800"
+            }`} />
 
-          <div className="hidden sm:flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-red-650" />
-            <span className={`text-xs font-mono font-bold uppercase tracking-widest ${
-              isNightMode === false ? "text-gray-650" : "text-gray-300"
+            <div className="hidden sm:flex items-center gap-2">
+              <Cpu className="w-4 h-4 text-red-650" />
+              <span className={`text-xs font-mono font-bold uppercase tracking-widest ${
+                isNightMode === false ? "text-gray-650" : "text-gray-305"
+              }`}>
+                Virtual Lab Sandbox v2.0
+              </span>
+            </div>
+          </div>
+
+          {/* Right actions */}
+          <div className="flex items-center gap-3">
+            {/* AI Helper Toggle Button */}
+            <button
+              onClick={() => setIsAIDrawerOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-red-650 hover:bg-red-500 text-[10px] font-bold tracking-wider text-white rounded-lg transition-all hover:scale-105 shadow-md shadow-red-950/20 shrink-0"
+            >
+              <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+              <span>ASK TUTOR</span>
+            </button>
+
+            {/* Watch Page Link */}
+            <button
+              onClick={() => router.back()}
+              className={`flex items-center gap-1.5 px-3 py-1.5 border rounded-lg text-[10px] font-bold tracking-wider transition-all hover:scale-105 shrink-0 ${
+                isNightMode === false 
+                  ? "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700" 
+                  : "bg-white/5 border-white/10 hover:bg-white/10 text-gray-305"
+              }`}
+            >
+              <ArrowLeft className="w-3.5 h-3.5 text-red-500 shrink-0" />
+              <span>WATCH LECTURE</span>
+            </button>
+          </div>
+        </header>
+      )}
+
+      {/* ─── Unified Workspace Sub-Header Toolbar ─── */}
+      {!isFullscreen && (
+        <div className={`h-11 px-6 border-b flex items-center justify-between select-none z-30 transition-colors ${
+          isNightMode === false ? "bg-gray-50 border-gray-200 text-gray-700" : "bg-[#0b0b0b] border-gray-850 text-white"
+        }`}>
+          {/* Left: Layout Toggles + Environment Sim Toggle */}
+          <div className="flex items-center gap-3">
+            <div className={`flex items-center border rounded-lg overflow-hidden shrink-0 ${
+              isNightMode === false ? "bg-white border-gray-250" : "bg-gray-900 border-gray-800"
             }`}>
-              Virtual Lab Sandbox v2.0
-            </span>
+              <button
+                onClick={() => setWorkspaceLayout("schematic")}
+                className={`px-2.5 py-1 text-[9px] font-bold transition flex items-center gap-1 ${
+                  workspaceLayout === "schematic" 
+                    ? "bg-red-650 text-white" 
+                    : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
+                }`}
+                title="Switch to Schematic Focus Layout"
+              >
+                <Layout className="w-3 h-3 text-red-500 shrink-0" />
+                <span>SCHEMATIC</span>
+              </button>
+              <button
+                onClick={() => setWorkspaceLayout("immersive")}
+                className={`px-2.5 py-1 text-[9px] font-bold transition flex items-center gap-1 ${
+                  workspaceLayout === "immersive" 
+                    ? "bg-red-650 text-white" 
+                    : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
+                }`}
+                title="Switch to Immersive Split Layout"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-red-500 shrink-0" />
+                <span>IMMERSIVE</span>
+              </button>
+              <button
+                onClick={() => setWorkspaceLayout("telemetry")}
+                className={`px-2.5 py-1 text-[9px] font-bold transition flex items-center gap-1 ${
+                  workspaceLayout === "telemetry" 
+                    ? "bg-red-650 text-white" 
+                    : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
+                }`}
+                title="Switch to Telemetry Focus Layout"
+              >
+                <Activity className="w-3 h-3 text-red-500 shrink-0" />
+                <span>TELEMETRY</span>
+              </button>
+            </div>
+
+            <button
+              onClick={() => {
+                if (workspaceLayout !== "immersive") {
+                  setWorkspaceLayout("immersive")
+                  setShowEnvSim(true)
+                } else {
+                  setShowEnvSim(!showEnvSim)
+                }
+              }}
+              title="Toggle environment simulation sliders and visual playground"
+              className={`flex items-center gap-1 px-2.5 py-1 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-102 ${
+                showEnvSim && workspaceLayout === "immersive"
+                  ? "bg-red-650 border-red-500 text-white shadow-[0_0_10px_rgba(220,38,38,0.25)]"
+                  : isNightMode === false
+                    ? "bg-white border-gray-250 text-gray-700 hover:bg-gray-100"
+                    : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
+              }`}
+            >
+              <Sliders className="w-3 h-3 text-red-500 shrink-0" />
+              <span>ENVIRON VARIABLE</span>
+            </button>
           </div>
-        </div>
 
-        {/* Toolbar Center/Right Actions */}
-        <div className="flex items-center gap-2 max-w-full overflow-x-auto custom-scrollbar py-1">
+          {/* Center: Default Works + File Actions Dropdown */}
+          <div className="flex items-center gap-3 relative">
+            <button
+              onClick={() => setIsDefaultWorksOpen(true)}
+              title="Browse ready-made demo projects"
+              className={`flex items-center gap-1 px-2.5 py-1 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-102 ${
+                isNightMode === false
+                  ? "bg-gradient-to-r from-red-50 to-orange-50 border-red-200 hover:border-red-400 text-red-650"
+                  : "bg-gray-900 border-red-900/55 hover:border-red-650 text-red-400 hover:text-red-300 shadow-[0_0_10px_rgba(220,38,38,0.1)]"
+              }`}
+            >
+              <span>DEFAULT WORKS</span>
+            </button>
 
-          {/* DEFAULT WORKS Button – opens demo project library */}
-          <button
-            onClick={() => setIsDefaultWorksOpen(true)}
-            title="Browse ready-made demo projects"
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 ${
-              isNightMode === false
-                ? "bg-gradient-to-r from-red-50 to-orange-50 border-red-200 hover:border-red-400 text-red-650"
-                : "bg-[#111] border-red-900/55 hover:border-red-650 text-red-400 hover:text-red-300 shadow-[0_0_10px_rgba(220,38,38,0.15)]"
-            }`}
-          >
-            <span>DEFAULT WORKS</span>
-          </button>
+            {/* Project File Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setIsFileMenuOpen(!isFileMenuOpen)}
+                className={`flex items-center gap-1.5 px-2.5 py-1 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-102 ${
+                  isNightMode === false
+                    ? "bg-white border-gray-250 text-gray-700 hover:bg-gray-100"
+                    : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
+                }`}
+                title="Project Save/Load Actions"
+              >
+                <span>PROJECT FILE</span>
+                <span className="text-[7px] text-gray-500">▼</span>
+              </button>
 
-          {/* ENVIRON VARIABLE Button */}
-          <button
-            onClick={() => {
-              if (workspaceLayout !== "immersive") {
-                setWorkspaceLayout("immersive")
-                setShowEnvSim(true)
-              } else {
-                setShowEnvSim(!showEnvSim)
-              }
-            }}
-            title="Toggle environment simulation sliders and visual playground"
-            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 ${
-              showEnvSim && workspaceLayout === "immersive"
-                ? "bg-red-650 border-red-500 text-white shadow-[0_0_12px_rgba(220,38,38,0.35)]"
-                : isNightMode === false
-                  ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+              {isFileMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsFileMenuOpen(false)} />
+                  <div className={`absolute left-0 mt-1.5 w-44 rounded-lg border shadow-xl py-1 z-50 transition-all ${
+                    isNightMode === false
+                      ? "bg-white border-gray-200 text-gray-700"
+                      : "bg-[#0f0f0f] border-gray-800 text-gray-200"
+                  }`}>
+                    <button
+                      onClick={() => {
+                        handleSaveToBrowser()
+                        setIsFileMenuOpen(false)
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 transition-colors ${
+                        isNightMode === false ? "hover:bg-gray-100" : "hover:bg-white/5"
+                      }`}
+                    >
+                      <Save className="w-3.5 h-3.5 text-red-500" />
+                      <span>Save to Browser</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleExportProject()
+                        setIsFileMenuOpen(false)
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 transition-colors ${
+                        isNightMode === false ? "hover:bg-gray-100" : "hover:bg-white/5"
+                      }`}
+                    >
+                      <Download className="w-3.5 h-3.5 text-red-500" />
+                      <span>Export to PC (.json)</span>
+                    </button>
+                    <label
+                      className={`w-full text-left px-3 py-1.5 text-[10px] font-bold flex items-center gap-2 cursor-pointer transition-colors ${
+                        isNightMode === false ? "hover:bg-gray-100" : "hover:bg-white/5"
+                      }`}
+                    >
+                      <Upload className="w-3.5 h-3.5 text-red-500" />
+                      <span>Import from PC</span>
+                      <input 
+                        type="file" 
+                        accept=".json" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          handleImportProject(e)
+                          setIsFileMenuOpen(false)
+                        }} 
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Right: Theme Toggle + Fullscreen Toggle */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsNightMode(!isNightMode)}
+              className={`p-1.5 rounded-lg border transition-all hover:scale-105 ${
+                isNightMode === false 
+                  ? "bg-white border-gray-200 text-gray-700 hover:bg-gray-100" 
                   : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
-            }`}
-          >
-            <Sliders className="w-3 h-3 text-red-500 shrink-0" />
-            <span>ENVIRON VARIABLE</span>
-          </button>
-
-          {/* SAVE TO BROWSER Button */}
-          <button
-            onClick={handleSaveToBrowser}
-            title="Save project state to browser local cache"
-            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 ${
-              isNightMode === false
-                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
-            }`}
-          >
-            <Save className="w-3 h-3 text-red-500 shrink-0" />
-            <span>SAVE TO BROWSER</span>
-          </button>
-
-          {/* SAVE TO PC Button */}
-          <button
-            onClick={handleExportProject}
-            title="Export project configuration file (.json) to your PC"
-            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 ${
-              isNightMode === false
-                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
-            }`}
-          >
-            <Download className="w-3 h-3 text-red-500 shrink-0" />
-            <span>SAVE TO PC</span>
-          </button>
-
-          {/* LOAD FROM PC Button */}
-          <label
-            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 cursor-pointer ${
-              isNightMode === false
-                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
-                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
-            }`}
-            title="Upload a saved project configuration file (.json) from your PC"
-          >
-            <Upload className="w-3 h-3 text-red-500 shrink-0" />
-            <span>LOAD FROM PC</span>
-            <input type="file" accept=".json" className="hidden" onChange={handleImportProject} />
-          </label>
-
-          {/* Workspace Layout Selector */}
-          <div className={`flex items-center border rounded-lg overflow-hidden shrink-0 ${
-            isNightMode === false ? "bg-gray-50 border-gray-200" : "bg-gray-900 border-gray-850"
-          }`}>
-            <button
-              onClick={() => setWorkspaceLayout("schematic")}
-              className={`px-2 py-1.5 text-[9px] font-bold transition flex items-center gap-1 ${
-                workspaceLayout === "schematic" 
-                  ? "bg-red-650 text-white" 
-                  : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
               }`}
-              title="Switch to Schematic Focus Layout"
+              title={isNightMode ? "Switch to Light Mode" : "Switch to Dark Mode"}
             >
-              <Layout className="w-3 h-3 text-red-500 shrink-0" />
-              <span>SCHEMATIC</span>
+              {isNightMode ? <Sun className="w-3.5 h-3.5 text-amber-500" /> : <Moon className="w-3.5 h-3.5 text-indigo-500" />}
             </button>
+
             <button
-              onClick={() => setWorkspaceLayout("immersive")}
-              className={`px-2 py-1.5 text-[9px] font-bold transition flex items-center gap-1 ${
-                workspaceLayout === "immersive" 
-                  ? "bg-red-650 text-white" 
-                  : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
+              onClick={toggleFullscreen}
+              className={`p-1.5 rounded-lg border transition-all hover:scale-105 ${
+                isNightMode === false 
+                  ? "bg-white border-gray-200 text-gray-700 hover:bg-gray-100" 
+                  : "bg-gray-900 border-gray-800 text-gray-305 hover:text-white"
               }`}
-              title="Switch to Immersive Split Layout"
+              title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
             >
-              <Sparkles className="w-3.5 h-3.5 text-red-500 shrink-0" />
-              <span>IMMERSIVE</span>
-            </button>
-            <button
-              onClick={() => setWorkspaceLayout("telemetry")}
-              className={`px-2 py-1.5 text-[9px] font-bold transition flex items-center gap-1 ${
-                workspaceLayout === "telemetry" 
-                  ? "bg-red-650 text-white" 
-                  : isNightMode === false ? "text-gray-500 hover:bg-gray-100" : "text-gray-400 hover:bg-white/5"
-              }`}
-              title="Switch to Telemetry Focus Layout"
-            >
-              <Activity className="w-3 h-3 text-red-500 shrink-0" />
-              <span>TELEMETRY</span>
+              {isFullscreen ? <Minimize2 className="w-3.5 h-3.5 text-red-500" /> : <Maximize2 className="w-3.5 h-3.5 text-red-500" />}
             </button>
           </div>
-
-          {/* Day/Night Theme Toggle */}
-          <button
-            onClick={() => setIsNightMode(!isNightMode)}
-            className={`px-2 py-1.5 rounded-lg border text-[9px] font-bold tracking-wider transition-all hover:scale-105 flex items-center gap-1 shrink-0 ${
-              isNightMode === false 
-                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" 
-                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
-            }`}
-            title="Toggle day or night dark mode theme"
-          >
-            {isNightMode ? <Sun className="w-3 h-3 text-amber-500 shrink-0" /> : <Moon className="w-3 h-3 text-indigo-500 shrink-0" />}
-            <span>VIEWPORT: {isNightMode ? "DARK" : "LIGHT"}</span>
-          </button>
-
-          {/* Fullscreen Toggle Button */}
-          <button
-            onClick={toggleFullscreen}
-            className={`px-2 py-1.5 rounded-lg border text-[9px] font-bold tracking-wider transition-all hover:scale-105 flex items-center gap-1 shrink-0 ${
-              isNightMode === false 
-                ? "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100" 
-                : "bg-gray-900 border-gray-800 text-gray-300 hover:text-white"
-            }`}
-            title={isFullscreen ? "Exit Fullscreen Workspace Mode" : "Enter Fullscreen Workspace Mode"}
-          >
-            {isFullscreen ? <Minimize2 className="w-3 h-3 text-red-500 shrink-0" /> : <Maximize2 className="w-3 h-3 text-red-500 shrink-0" />}
-            <span>{isFullscreen ? "EXIT FULLSCREEN" : "FULLSCREEN"}</span>
-          </button>
-
-          {/* AI Helper Toggle Button */}
-          <button
-            onClick={() => setIsAIDrawerOpen(true)}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-red-650 hover:bg-red-500 text-[9px] font-bold tracking-wider text-white rounded-lg transition-all hover:scale-105 shadow-md shadow-red-950/20 shrink-0"
-          >
-            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-            <span>ASK TUTOR</span>
-          </button>
-
-          {/* Watch Page Link */}
-          <button
-            onClick={() => router.back()}
-            className={`flex items-center gap-1 px-2.5 py-1.5 border rounded-lg text-[9px] font-bold tracking-wider transition-all hover:scale-105 shrink-0 ${
-              isNightMode === false 
-                ? "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700" 
-                : "bg-white/5 border-white/10 hover:bg-white/10 text-gray-300"
-            }`}
-          >
-            <ArrowLeft className="w-3.5 h-3.5 text-red-500 shrink-0" />
-            <span>WATCH LECTURE</span>
-          </button>
         </div>
-      </header>
+      )}
 
       {/* ─── Live Simulation Status Banner ─── */}
       {isSimulating && simBanner && (
@@ -1942,10 +2205,12 @@ export default function VirtualLabPage() {
       <div className="flex-1 flex overflow-hidden min-h-0 relative">
         
         {/* Left bin remains standard Component Palette */}
-        <ComponentPalette
-          config={config}
-          onDragStart={handleDragStart}
-        />
+        {!isFullscreen && (
+          <ComponentPalette
+            config={config}
+            onDragStart={handleDragStart}
+          />
+        )}
 
         {/* ─── RENDERING LAYOUT VARIATIONS ─── */}
         
@@ -1953,7 +2218,7 @@ export default function VirtualLabPage() {
         {workspaceLayout === "schematic" && (
           <div className="flex-1 flex overflow-hidden min-h-0">
             {/* Center Canvas */}
-          <WiringCanvas
+            <WiringCanvas
               placedComponents={placedComponents}
               connections={connections}
               onUpdateComponents={handleUpdateComponents}
@@ -1968,24 +2233,35 @@ export default function VirtualLabPage() {
               buzzerActive={buzzerActive}
               isFullscreen={isFullscreen}
               onToggleFullscreen={toggleFullscreen}
+              onStop={() => { setIsSimulating(false); stopBuzzerSound(); }}
+              envDistance={envDistance}
+              envLight={envLight}
+              envPIRMotion={envPIRMotion}
+              envTemp={envTemp}
+              envHumidity={envHumidity}
+              envMoisture={envMoisture}
+              envGas={envGas}
             />
 
             {/* Right Editor/Monitor sidebar */}
-            <div className={`w-[380px] border-l flex flex-col h-full flex-shrink-0 transition-colors ${
-              isNightMode === false ? "bg-white border-gray-200" : "bg-[#0c0c0c] border-gray-800"
-            }`}>
-              <CodeEditor code={code} onChange={handleCodeChange} />
-              <SerialMonitor
-                logs={logs}
-                isSimulating={isSimulating}
-                onRun={handleRunSimulation}
-                onUpload={handleUploadCode}
-                onClear={handleClearLogs}
-                passed={passed}
-                xpAwarded={xpAwarded}
-                hint={simulationHint}
-              />
-            </div>
+            {!isFullscreen && (
+              <div className={`w-[380px] border-l flex flex-col h-full flex-shrink-0 transition-colors ${
+                isNightMode === false ? "bg-white border-gray-200" : "bg-[#0c0c0c] border-gray-800"
+              }`}>
+                <CodeEditor code={code} onChange={handleCodeChange} />
+                <SerialMonitor
+                  logs={logs}
+                  isSimulating={isSimulating}
+                  onRun={handleRunSimulation}
+                  onUpload={handleUploadCode}
+                  onClear={handleClearLogs}
+                  passed={passed}
+                  xpAwarded={xpAwarded}
+                  hint={simulationHint}
+                  onStop={() => { setIsSimulating(false); stopBuzzerSound(); }}
+                />
+              </div>
+            )}
           </div>
         )}
 
@@ -2012,11 +2288,19 @@ export default function VirtualLabPage() {
                   buzzerActive={buzzerActive}
                   isFullscreen={isFullscreen}
                   onToggleFullscreen={toggleFullscreen}
+                  onStop={() => { setIsSimulating(false); stopBuzzerSound(); }}
+                  envDistance={envDistance}
+                  envLight={envLight}
+                  envPIRMotion={envPIRMotion}
+                  envTemp={envTemp}
+                  envHumidity={envHumidity}
+                  envMoisture={envMoisture}
+                  envGas={envGas}
                 />
               </div>
 
               {/* Right portion is the 2.5D visual playground environment */}
-              {showEnvSim && (
+              {showEnvSim && !isFullscreen && (
                 <div className={`w-[360px] border-l flex flex-col h-full flex-shrink-0 p-4 space-y-4 overflow-y-auto custom-scrollbar ${
                   isNightMode === false ? "bg-[#f9fafb] border-gray-200 text-gray-700" : "bg-black/90 border-gray-850"
                 }`}>
@@ -2289,26 +2573,29 @@ export default function VirtualLabPage() {
             </div>
 
             {/* Lower Editor/Monitor Row */}
-            <div className="h-[40%] flex min-h-[180px] border-t border-gray-850">
-              {/* Left Code Editor */}
-              <div className="flex-1 h-full border-r border-gray-850">
-                <CodeEditor code={code} onChange={handleCodeChange} />
+            {!isFullscreen && (
+              <div className="h-[40%] flex min-h-[180px] border-t border-gray-850">
+                {/* Left Code Editor */}
+                <div className="flex-1 h-full border-r border-gray-850">
+                  <CodeEditor code={code} onChange={handleCodeChange} />
+                </div>
+                
+                {/* Right Serial Monitor Output */}
+                <div className="w-[380px] h-full flex-shrink-0">
+                  <SerialMonitor
+                    logs={logs}
+                    isSimulating={isSimulating}
+                    onRun={handleRunSimulation}
+                    onUpload={handleUploadCode}
+                    onClear={handleClearLogs}
+                    passed={passed}
+                    xpAwarded={xpAwarded}
+                    hint={simulationHint}
+                    onStop={() => { setIsSimulating(false); stopBuzzerSound(); }}
+                  />
+                </div>
               </div>
-              
-              {/* Right Serial Monitor Output */}
-              <div className="w-[380px] h-full flex-shrink-0">
-                <SerialMonitor
-                  logs={logs}
-                  isSimulating={isSimulating}
-                  onRun={handleRunSimulation}
-                  onUpload={handleUploadCode}
-                  onClear={handleClearLogs}
-                  passed={passed}
-                  xpAwarded={xpAwarded}
-                  hint={simulationHint}
-                />
-              </div>
-            </div>
+            )}
           </div>
         )}
 

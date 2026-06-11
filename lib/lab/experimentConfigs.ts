@@ -679,6 +679,69 @@ export const LAB_COMPONENTS: Record<string, LabComponent> = {
     height: 50,
     color: "#4F46E5",
     pins: []
+  },
+  "obj-car": {
+    id: "obj-car",
+    name: "Obstacle Robot Car (Testing)",
+    icon: "🚗",
+    width: 90,
+    height: 65,
+    color: "#DC2626",
+    pins: []
+  },
+  "obj-animal": {
+    id: "obj-animal",
+    name: "Testing Animal (Testing)",
+    icon: "🐕",
+    width: 75,
+    height: 60,
+    color: "#D97706",
+    pins: []
+  },
+  "obj-wall": {
+    id: "obj-wall",
+    name: "Brick Wall (Testing)",
+    icon: "🧱",
+    width: 100,
+    height: 50,
+    color: "#B45309",
+    pins: []
+  },
+  "obj-cone": {
+    id: "obj-cone",
+    name: "Traffic Safety Cone (Testing)",
+    icon: "🚧",
+    width: 60,
+    height: 65,
+    color: "#EA580C",
+    pins: []
+  },
+  "obj-smart-home": {
+    id: "obj-smart-home",
+    name: "Smart Home Unit (Testing)",
+    icon: "🏠",
+    width: 95,
+    height: 85,
+    color: "#4B5563",
+    pins: []
+  },
+  "obj-door": {
+    id: "obj-door",
+    name: "Interactive Door (Testing)",
+    icon: "🚪",
+    width: 65,
+    height: 95,
+    color: "#78350F",
+    pins: []
+  },
+  "obj-furniture": {
+    id: "obj-furniture",
+    name: "Office Furniture (Testing)",
+    icon: "🪑",
+    width: 80,
+    height: 75,
+    color: "#6B7280",
+    pins: []
   }
 }
 
