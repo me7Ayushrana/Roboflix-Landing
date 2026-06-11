@@ -92,7 +92,7 @@ export default function FreeTrialPage() {
       // 2. Insert into LMS Users for Auth Access
       const lmsUser = {
         email: formData.email,
-        phone: formData.whatsapp.trim(),
+        phone: "demo",
         status: "Active",
         tier: "Free Trial"
       }
@@ -297,7 +297,7 @@ export default function FreeTrialPage() {
                 </div>
                 <div>
                   <h3 className="text-2xl font-bold text-white mb-2">Welcome to Roboflix!</h3>
-                  <p className="text-gray-400 mb-6">Your Free Trial account has been successfully created. We've sent these credentials to your WhatsApp and Email.</p>
+                  <p className="text-gray-400 mb-6">Your Free Trial account has been successfully created. Use the credentials below to log in immediately.</p>
                   
                   <div className="bg-[#0c0c0c] border border-gray-800 p-6 rounded-2xl text-left space-y-4 max-w-sm mx-auto mb-8 shadow-2xl relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/10 blur-3xl rounded-full"></div>
@@ -307,7 +307,7 @@ export default function FreeTrialPage() {
                     </div>
                     <div>
                       <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold mb-1">Password</p>
-                      <p className="text-white font-mono font-medium text-lg">{formData.whatsapp} <span className="text-gray-500 text-xs font-sans block mt-1">(or use "demoo")</span></p>
+                      <p className="text-white font-mono font-medium text-lg">demo</p>
                     </div>
                   </div>
 
