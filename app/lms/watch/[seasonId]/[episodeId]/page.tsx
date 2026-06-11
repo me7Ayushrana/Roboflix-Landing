@@ -62,7 +62,22 @@ export default function VideoPlayerPage() {
     return url
   }
 
+  const isVimeoUrl = (url: string): boolean => {
+    return url ? url.includes("vimeo.com") : false
+  }
+
+  const getVimeoEmbedUrl = (url: string): string => {
+    if (!url) return ""
+    // Extract ID from vimeo.com/123456789 or player.vimeo.com/video/123456789
+    const match = url.match(/(?:vimeo\.com\/|video\/)(\d+)/)
+    if (match && match[1]) {
+      return `https://player.vimeo.com/video/${match[1]}?autoplay=1&dnt=1`
+    }
+    return url
+  }
+
   const isGdrive = isGDriveUrl(episode?.videoUrl || "")
+  const isVimeo = isVimeoUrl(episode?.videoUrl || "")
 
   useEffect(() => {
     const loadSeasons = async () => {
@@ -174,6 +189,7 @@ export default function VideoPlayerPage() {
   const controlsTimeoutRef = useRef<any>(null)
   // Privacy shield ref — controlled directly via DOM (synchronous), bypasses React async re-render lag
   const shieldRef = useRef<HTMLDivElement>(null)
+  const shadowContainerRef = useRef<HTMLDivElement>(null)
 
   // ─── Smart Player additions ───────────────────────────────────────────────
   const [heatmap, setHeatmap] = useState<HeatmapBucket[]>([])
@@ -341,10 +357,10 @@ export default function VideoPlayerPage() {
 
 
 
-  // 2. Initialize YouTube Player API
+  // 2. Initialize YouTube Player API inside a closed Shadow DOM to hide the iframe source
   useEffect(() => {
     if (isLoading) return
-    if (isGdrive) {
+    if (isGdrive || isVimeo || !currentVideoId) {
       setPlayer(null)
       playerRef.current = null
       return
@@ -359,50 +375,73 @@ export default function VideoPlayerPage() {
     }
 
     const initYTPlayer = () => {
-      if (window.YT && window.YT.Player) {
-        const iframeElement = document.getElementById("roboflix-player-iframe")
-        if (!iframeElement) {
-          // If not in DOM yet, retry in 100ms
-          setTimeout(initYTPlayer, 100)
-          return
-        }
+      if (window.YT && window.YT.Player && shadowContainerRef.current) {
+        try {
+          // Clear any old nodes
+          shadowContainerRef.current.innerHTML = ""
 
-        new window.YT.Player("roboflix-player-iframe", {
-          events: {
-            onReady: (event: any) => {
-              setPlayer(event.target)
-              playerRef.current = event.target
-              setDuration(event.target.getDuration() || 0)
-              event.target.setVolume(volume * 100)
-            },
-            onStateChange: (event: any) => {
-              const state = event.data
-              const YTS = window.YT.PlayerState
-              if (state === YTS.PLAYING) {
-                // SYNCHRONOUS — hide shield the instant YouTube starts playing, no React delay
-                hideShield()
-                setIsPlaying(true)
-              } else if (state === YTS.PAUSED) {
-                // SYNCHRONOUS — show shield the instant YouTube pauses (before any React re-render)
-                showShield()
-                setIsPlaying(false)
-              } else if (state === YTS.ENDED) {
-                // SYNCHRONOUS — show shield AND immediately reset video before YouTube can render recommendation grid
-                showShield()
-                event.target.seekTo(0, true)
-                event.target.pauseVideo()
-                setIsPlaying(false)
-                setCurrentTime(0)
-              } else if (state === YTS.BUFFERING) {
-                // Keep shield visible during buffering — YouTube shows spinner/UI while buffering
-                showShield()
-              } else {
-                // Unstarted (-1) or Cued (5) — always shield
-                showShield()
+          // Create Closed Shadow Root
+          const shadowRoot = shadowContainerRef.current.attachShadow({ mode: "closed" })
+
+          // Add styling to clip and hide YouTube player controls
+          const style = document.createElement("style")
+          style.textContent = `
+            iframe {
+              width: 100%;
+              height: calc(100% + 120px);
+              border: none;
+              position: absolute;
+              top: -60px;
+              left: 0;
+              pointer-events: none;
+            }
+          `
+          shadowRoot.appendChild(style)
+
+          // Create the iframe element inside shadow root
+          const iframe = document.createElement("iframe")
+          iframe.src = `https://www.youtube-nocookie.com/embed/${currentVideoId}?enablejsapi=1&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&disablekb=1&fs=0`
+          iframe.title = "Lecture Video Player"
+          iframe.allow = "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          iframe.tabIndex = -1
+          
+          shadowRoot.appendChild(iframe)
+
+          // Initialize YouTube player directly passing the iframe DOM node
+          new window.YT.Player(iframe, {
+            events: {
+              onReady: (event: any) => {
+                setPlayer(event.target)
+                playerRef.current = event.target
+                setDuration(event.target.getDuration() || 0)
+                event.target.setVolume(volume * 100)
+              },
+              onStateChange: (event: any) => {
+                const state = event.data
+                const YTS = window.YT.PlayerState
+                if (state === YTS.PLAYING) {
+                  hideShield()
+                  setIsPlaying(true)
+                } else if (state === YTS.PAUSED) {
+                  showShield()
+                  setIsPlaying(false)
+                } else if (state === YTS.ENDED) {
+                  showShield()
+                  event.target.seekTo(0, true)
+                  event.target.pauseVideo()
+                  setIsPlaying(false)
+                  setCurrentTime(0)
+                } else if (state === YTS.BUFFERING) {
+                  showShield()
+                } else {
+                  showShield()
+                }
               }
             }
-          }
-        })
+          })
+        } catch (e) {
+          console.error("Shadow DOM initialization error:", e)
+        }
       }
     }
 
@@ -426,8 +465,11 @@ export default function VideoPlayerPage() {
       setIsPlaying(false)
       setCurrentTime(0)
       setDuration(0)
+      if (shadowContainerRef.current) {
+        shadowContainerRef.current.innerHTML = ""
+      }
     }
-  }, [isLoading, isGdrive, currentVideoId])
+  }, [isLoading, isGdrive, isVimeo, currentVideoId])
 
   // 3. Track current playback position, duration, and fire heatmap events
   useEffect(() => {
@@ -1045,25 +1087,28 @@ export default function VideoPlayerPage() {
                     allowFullScreen
                   />
                 </div>
-              ) : (
-                /* YouTube Iframe - 16:9 aspect crop mask, pointer-isolated, always rendered for API control */
-                <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-10">
+              ) : isVimeo ? (
+                <div className="absolute inset-0 w-full h-full">
                   <iframe
-                    key={currentVideoId}
-                    id="roboflix-player-iframe"
-                    src={getYouTubeEmbedUrl()}
+                    src={getVimeoEmbedUrl(episode.videoUrl)}
                     title={episode.title}
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    className={`w-full h-[calc(100%+120px)] border-0 absolute -top-[60px] left-0 pointer-events-none transition-opacity duration-150 ${
-                      isPlaying ? "opacity-100" : "opacity-0"
-                    }`}
-                    tabIndex={-1}
+                    className="w-full h-full border-0 absolute top-0 left-0 z-30 bg-black rounded-[24px]"
+                    allowFullScreen
                   />
                 </div>
+              ) : (
+                /* YouTube Iframe - Hidden inside Closed Shadow DOM to prevent browser inspect element tool discovery */
+                <div 
+                  ref={shadowContainerRef}
+                  className={`absolute inset-0 w-full h-full overflow-hidden pointer-events-none z-10 transition-opacity duration-150 ${
+                    isPlaying ? "opacity-100" : "opacity-0"
+                  }`}
+                />
               )}
 
               {/* Permanent Privacy Shield — controlled via DOM ref (zero React async delay). Opacity toggled synchronously inside YouTube's own onStateChange callback. Always mounted so there is never a missing-frame gap. */}
-              {!isGdrive && (
+              {!isGdrive && !isVimeo && (
                 <div
                   ref={shieldRef}
                   style={{ opacity: 1, pointerEvents: "auto", transition: "opacity 80ms linear" }}

@@ -1,5 +1,4 @@
 import Link from "next/link"
-import { ArrowRight } from "lucide-react"
 import { LiquidCtaButton } from "@/components/buttons/liquid-cta-button"
 
 export function CtaSection() {
@@ -12,18 +11,11 @@ export function CtaSection() {
         <p className="text-base sm:text-lg text-gray-400 mb-10 text-balance">
           Join 500+ students who are already building. Start with just ₹989. Learn forever. Cancel anytime.
         </p>
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 w-full sm:w-auto">
+        <div className="flex items-center justify-center">
           <Link href="#pricing" className="w-full sm:w-auto">
-            <button className="w-full px-8 py-4 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all duration-300 text-lg shadow-lg shadow-red-600/50">
+            <button className="w-full sm:w-auto px-10 py-4 bg-red-600 text-white font-bold rounded-lg hover:bg-red-700 transition-all duration-300 text-lg shadow-lg shadow-red-600/50">
               Join Now
             </button>
-          </Link>
-          <Link
-            href="#"
-            className="group flex items-center justify-center gap-2 px-6 sm:px-8 py-4 text-sm sm:text-base font-semibold text-gray-400 hover:text-white transition-colors border border-gray-600 rounded-lg hover:border-red-600 w-full sm:w-auto"
-          >
-            <span>Join Discord Community</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
           </Link>
         </div>
       </div>

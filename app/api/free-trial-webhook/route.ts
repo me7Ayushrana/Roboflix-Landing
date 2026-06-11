@@ -1,8 +1,17 @@
 import { NextResponse } from "next/server"
-import { supabase, isSupabaseConfigured } from "@/lib/supabase"
+import { supabase, getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase"
 
 export async function POST(req: Request) {
   try {
+    // ─── Webhook Secret Authorization Check ────────────────────────────────
+    const webhookSecret = process.env.WEBHOOK_SECRET
+    if (webhookSecret) {
+      const clientSecret = req.headers.get("x-webhook-secret")
+      if (clientSecret !== webhookSecret) {
+        return NextResponse.json({ error: "Unauthorized webhook request" }, { status: 401 })
+      }
+    }
+
     const body = await req.json()
     const { email, phone } = body
 
@@ -25,9 +34,9 @@ export async function POST(req: Request) {
 
     if (isSupabaseConfigured()) {
       try {
-        // Drop constraint checks are handled by postgres, but we attempt to insert first.
-        // If there's a tier constraint error, we notify in log, but we'll try to add it.
-        const { error } = await supabase
+        // Use server-side admin client (bypasses RLS) if service role key is present
+        const dbClient = getSupabaseAdmin() || supabase
+        const { error } = await dbClient
           .from("roboflix_lms_users")
           .upsert([
             {

@@ -237,6 +237,8 @@ export default function LmsDashboardPage() {
       console.error("Error signing out from Supabase:", err)
     } finally {
       localStorage.removeItem("lms_user")
+      // Clear the server-readable auth cookie
+      document.cookie = "roboflix-lms-auth=; path=/; max-age=0; SameSite=Strict; Secure"
       window.location.href = "/lms/login"
     }
   }

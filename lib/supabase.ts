@@ -23,3 +23,17 @@ export const supabase = createClient(
   supabaseUrl || "https://placeholder-url.supabase.co",
   supabaseAnonKey || "placeholder-anon-key"
 )
+
+// Admin/Server-side client that bypasses RLS policies securely using service role key
+export const getSupabaseAdmin = () => {
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  if (!supabaseUrl || !serviceKey) {
+    return null
+  }
+  return createClient(supabaseUrl, serviceKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  })
+}

@@ -87,6 +87,13 @@ export default function LmsLoginPage() {
     return () => clearInterval(timer)
   }, [])
 
+  // Set a lightweight session cookie so the server-side middleware can
+  // detect authenticated users without reading localStorage.
+  const setAuthCookie = () => {
+    const maxAge = 60 * 60 * 24 * 7 // 7 days
+    document.cookie = `roboflix-lms-auth=1; path=/; max-age=${maxAge}; SameSite=Strict; Secure`
+  }
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setError("")
@@ -165,6 +172,7 @@ export default function LmsLoginPage() {
         
         localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail, tier: finalTier }))
         localStorage.setItem("lms_session_id", sessionId)
+        setAuthCookie()
         router.push("/lms/dashboard")
         return
       }
@@ -220,6 +228,7 @@ export default function LmsLoginPage() {
           }
           localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail }))
           localStorage.setItem("lms_session_id", sessionId)
+          setAuthCookie()
           router.push("/lms/dashboard")
         } else {
           setError("Invalid administrator password.")
@@ -309,6 +318,7 @@ export default function LmsLoginPage() {
 
             localStorage.setItem("lms_user", JSON.stringify({ email: trimmedEmail, tier: studentRecord.tier }))
             localStorage.setItem("lms_session_id", sessionId)
+            setAuthCookie()
             router.push("/lms/dashboard")
           } else {
             setError("Invalid password.")

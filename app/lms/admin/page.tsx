@@ -1775,29 +1775,33 @@ create table if not exists public.roboflix_lms_settings (
 -- Enable Row Level Security on Settings safely
 alter table public.roboflix_lms_settings enable row level security;
 
--- 3. Create Open Access Policies safely without throwing conflict errors
+-- 3. Create Secure Row Level Security Policies safely without throwing conflict errors
 do $$
 begin
-  -- Users policies
-  if not exists (select 1 from pg_policies where policyname = 'Allow public read' and tablename = 'roboflix_lms_users') then
-    create policy "Allow public read" on public.roboflix_lms_users for select using (true);
+  -- Users select policy
+  if not exists (select 1 from pg_policies where policyname = 'Allow read for users' and tablename = 'roboflix_lms_users') then
+    create policy "Allow read for users" on public.roboflix_lms_users for select using (true);
   end if;
-  if not exists (select 1 from pg_policies where policyname = 'Allow public insert' and tablename = 'roboflix_lms_users') then
-    create policy "Allow public insert" on public.roboflix_lms_users for insert with check (true);
-  end if;
-  if not exists (select 1 from pg_policies where policyname = 'Allow public update' and tablename = 'roboflix_lms_users') then
-    create policy "Allow public update" on public.roboflix_lms_users for update using (true) with check (true);
-  end if;
-  if not exists (select 1 from pg_policies where policyname = 'Allow public delete' and tablename = 'roboflix_lms_users') then
-    create policy "Allow public delete" on public.roboflix_lms_users for delete using (true);
+  -- Users write policy (ONLY admins)
+  if not exists (select 1 from pg_policies where policyname = 'Allow write access for admins only' and tablename = 'roboflix_lms_users') then
+    create policy "Allow write access for admins only" on public.roboflix_lms_users for all using (
+      auth.jwt() ->> 'email' in ('ayushamit007@gmail.com', 'ishinder.dev@gmail.com')
+    ) with check (
+      auth.jwt() ->> 'email' in ('ayushamit007@gmail.com', 'ishinder.dev@gmail.com')
+    );
   end if;
   
-  -- Settings policies
-  if not exists (select 1 from pg_policies where policyname = 'Allow public read settings' and tablename = 'roboflix_lms_settings') then
-    create policy "Allow public read settings" on public.roboflix_lms_settings for select using (true);
+  -- Settings read policy
+  if not exists (select 1 from pg_policies where policyname = 'Allow read settings' and tablename = 'roboflix_lms_settings') then
+    create policy "Allow read settings" on public.roboflix_lms_settings for select using (true);
   end if;
-  if not exists (select 1 from pg_policies where policyname = 'Allow public write settings' and tablename = 'roboflix_lms_settings') then
-    create policy "Allow public write settings" on public.roboflix_lms_settings for all using (true) with check (true);
+  -- Settings write policy (ONLY admins)
+  if not exists (select 1 from pg_policies where policyname = 'Allow write settings for admins only' and tablename = 'roboflix_lms_settings') then
+    create policy "Allow write settings for admins only" on public.roboflix_lms_settings for all using (
+      auth.jwt() ->> 'email' in ('ayushamit007@gmail.com', 'ishinder.dev@gmail.com')
+    ) with check (
+      auth.jwt() ->> 'email' in ('ayushamit007@gmail.com', 'ishinder.dev@gmail.com')
+    );
   end if;
 end
 $$;`
@@ -1835,29 +1839,33 @@ create table if not exists public.roboflix_lms_settings (
 -- Enable Row Level Security on Settings safely
 alter table public.roboflix_lms_settings enable row level security;
 
--- 3. Create Open Access Policies safely without throwing conflict errors
+-- 3. Create Secure Row Level Security Policies safely without throwing conflict errors
 do $$
 begin
-  -- Users policies
-  if not exists (select 1 from pg_policies where policyname = 'Allow public read' and tablename = 'roboflix_lms_users') then
-    create policy "Allow public read" on public.roboflix_lms_users for select using (true);
+  -- Users select policy
+  if not exists (select 1 from pg_policies where policyname = 'Allow read for users' and tablename = 'roboflix_lms_users') then
+    create policy "Allow read for users" on public.roboflix_lms_users for select using (true);
   end if;
-  if not exists (select 1 from pg_policies where policyname = 'Allow public insert' and tablename = 'roboflix_lms_users') then
-    create policy "Allow public insert" on public.roboflix_lms_users for insert with check (true);
-  end if;
-  if not exists (select 1 from pg_policies where policyname = 'Allow public update' and tablename = 'roboflix_lms_users') then
-    create policy "Allow public update" on public.roboflix_lms_users for update using (true) with check (true);
-  end if;
-  if not exists (select 1 from pg_policies where policyname = 'Allow public delete' and tablename = 'roboflix_lms_users') then
-    create policy "Allow public delete" on public.roboflix_lms_users for delete using (true);
+  -- Users write policy (ONLY admins)
+  if not exists (select 1 from pg_policies where policyname = 'Allow write access for admins only' and tablename = 'roboflix_lms_users') then
+    create policy "Allow write access for admins only" on public.roboflix_lms_users for all using (
+      auth.jwt() ->> 'email' in ('ayushamit007@gmail.com', 'ishinder.dev@gmail.com')
+    ) with check (
+      auth.jwt() ->> 'email' in ('ayushamit007@gmail.com', 'ishinder.dev@gmail.com')
+    );
   end if;
   
-  -- Settings policies
-  if not exists (select 1 from pg_policies where policyname = 'Allow public read settings' and tablename = 'roboflix_lms_settings') then
-    create policy "Allow public read settings" on public.roboflix_lms_settings for select using (true);
+  -- Settings read policy
+  if not exists (select 1 from pg_policies where policyname = 'Allow read settings' and tablename = 'roboflix_lms_settings') then
+    create policy "Allow read settings" on public.roboflix_lms_settings for select using (true);
   end if;
-  if not exists (select 1 from pg_policies where policyname = 'Allow public write settings' and tablename = 'roboflix_lms_settings') then
-    create policy "Allow public write settings" on public.roboflix_lms_settings for all using (true) with check (true);
+  -- Settings write policy (ONLY admins)
+  if not exists (select 1 from pg_policies where policyname = 'Allow write settings for admins only' and tablename = 'roboflix_lms_settings') then
+    create policy "Allow write settings for admins only" on public.roboflix_lms_settings for all using (
+      auth.jwt() ->> 'email' in ('ayushamit007@gmail.com', 'ishinder.dev@gmail.com')
+    ) with check (
+      auth.jwt() ->> 'email' in ('ayushamit007@gmail.com', 'ishinder.dev@gmail.com')
+    );
   end if;
 end
 $$;`}

@@ -51,6 +51,26 @@ export default function RootLayout({
         <meta name="theme-color" content="#070707" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        
+        {/* Right-Click and DevTools Inspect Protection */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              document.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+              });
+              document.addEventListener('keydown', function(e) {
+                if (
+                  e.key === 'F12' ||
+                  (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'U')) ||
+                  (e.metaKey && e.altKey && (e.key === 'I' || e.key === 'J' || e.key === 'C' || e.key === 'U'))
+                ) {
+                  e.preventDefault();
+                }
+              });
+            `
+          }}
+        />
       </head>
       <body className={`${manrope.variable} font-sans antialiased bg-black text-white`}>
         <LenisProvider>{children}</LenisProvider>
