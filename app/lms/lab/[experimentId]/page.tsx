@@ -2238,28 +2238,323 @@ export default function VirtualLabPage() {
 - **Raspberry Pi 4 / 5**: Powerful Linux-capable SBCs. Features GPIO headers (5V, GND, SDA, SCL, TX/RX, GCLK), USB-C power input, micro-HDMI, and PCIe connectivity.`
     }
 
-    // 11. Sensors
-    if (
-      query.includes("sensor") ||
-      query.includes("dht11") ||
-      query.includes("dht22") ||
-      query.includes("hc-sr04") ||
-      query.includes("ultrasonic") ||
-      query.includes("ldr") ||
-      query.includes("photoresistor") ||
-      query.includes("light sensor") ||
-      query.includes("pir") ||
-      query.includes("motion sensor") ||
-      query.includes("gas") ||
-      query.includes("mq-2") ||
-      query.includes("moisture") ||
-      query.includes("soil") ||
-      query.includes("rfid") ||
-      query.includes("gps") ||
-      query.includes("joystick") ||
-      query.includes("camera") ||
-      query.includes("ir")
-    ) {
+    // 11. Specific Component Wiring Guides
+    if (query.includes("buzzer") || query.includes("alarm")) {
+      return `🔊 **How to connect an Active Buzzer to Arduino:**
+
+Connecting a buzzer is simple. It has two pins: a positive pin (usually marked with a '+' or has a longer leg) and a negative pin (shorter leg).
+
+**1. Wiring Steps:**
+- Connect the **positive (+) pin** of the buzzer to a digital pin on the Arduino (for example, **Pin 8**).
+- Connect the **negative (-) pin** of the buzzer to any **GND** pin on the Arduino.
+
+**2. Example Code:**
+\`\`\`cpp
+void setup() {
+  pinMode(8, OUTPUT); // Set Pin 8 as output
+}
+
+void loop() {
+  digitalWrite(8, HIGH); // Turn buzzer ON
+  delay(1000);           // Wait for 1 second
+  digitalWrite(8, LOW);  // Turn buzzer OFF
+  delay(1000);           // Wait for 1 second
+}
+\`\`\``;
+    }
+
+    if (query.includes("rgb")) {
+      return `🌈 **How to connect an RGB LED to Arduino:**
+
+An RGB LED has four pins: a shared Ground (GND) pin and three color pins (Red, Green, Blue).
+
+**1. Wiring Steps:**
+- Connect the longest pin (shared **GND/Cathode**) directly to a **GND** pin on the Arduino.
+- Connect the **Red (R) pin** to a PWM-enabled digital pin on the Arduino (for example, **Pin 3**) through a 220Ω resistor.
+- Connect the **Green (G) pin** to a PWM digital pin (for example, **Pin 5**) through a 220Ω resistor.
+- Connect the **Blue (B) pin** to a PWM digital pin (for example, **Pin 6**) through a 220Ω resistor.
+
+**2. Example Code:**
+\`\`\`cpp
+const int redPin = 3;
+const int greenPin = 5;
+const int bluePin = 6;
+
+void setup() {
+  pinMode(redPin, OUTPUT);
+  pinMode(greenPin, OUTPUT);
+  pinMode(bluePin, OUTPUT);
+}
+
+void loop() {
+  // Set to Red
+  analogWrite(redPin, 255);
+  analogWrite(greenPin, 0);
+  analogWrite(bluePin, 0);
+  delay(1000);
+
+  // Set to Green
+  analogWrite(redPin, 0);
+  analogWrite(greenPin, 255);
+  analogWrite(bluePin, 0);
+  delay(1000);
+
+  // Set to Blue
+  analogWrite(redPin, 0);
+  analogWrite(greenPin, 0);
+  analogWrite(bluePin, 255);
+  delay(1000);
+}
+\`\`\``;
+    }
+
+    if (query.includes("led")) {
+      return `💡 **How to connect a Red LED to Arduino:**
+
+To connect an LED safely, you must use a resistor (like a 220Ω resistor) to prevent the LED from burning out.
+
+**1. Wiring Steps:**
+- Connect one leg of a **220Ω Resistor** to a digital pin on the Arduino (for example, **Pin 9**).
+- Connect the other leg of the resistor to the **positive pin (Anode, longer leg)** of the LED.
+- Connect the **negative pin (Cathode, shorter leg)** of the LED to a **GND** pin on the Arduino.
+
+**2. Example Code:**
+\`\`\`cpp
+void setup() {
+  pinMode(9, OUTPUT); // Set Pin 9 as output
+}
+
+void loop() {
+  digitalWrite(9, HIGH); // Turn LED ON
+  delay(1000);           // Wait for 1 second
+  digitalWrite(9, LOW);  // Turn LED OFF
+  delay(1000);           // Wait for 1 second
+}
+\`\`\``;
+    }
+
+    if (query.includes("hc-sr04") || query.includes("ultrasonic") || query.includes("distance")) {
+      return `📏 **How to connect the HC-SR04 Ultrasonic Sensor to Arduino:**
+
+This sensor uses sound waves to measure distance. It has four pins: VCC, Trig (Trigger), Echo, and GND.
+
+**1. Wiring Steps:**
+- Connect the **VCC pin** to the **5V** pin on the Arduino.
+- Connect the **GND pin** to any **GND** pin on the Arduino.
+- Connect the **Trig pin** to a digital pin on the Arduino (for example, **Pin 11**).
+- Connect the **Echo pin** to a digital pin on the Arduino (for example, **Pin 12**).
+
+**2. Example Code:**
+\`\`\`cpp
+const int trigPin = 11;
+const int echoPin = 12;
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(trigPin, OUTPUT);
+  pinMode(echoPin, INPUT);
+}
+
+void loop() {
+  // Clear the trigger pin
+  digitalWrite(trigPin, LOW);
+  delayMicroseconds(2);
+
+  // Send a 10 microsecond pulse
+  digitalWrite(trigPin, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trigPin, LOW);
+
+  // Read the echo pulse duration
+  long duration = pulseIn(echoPin, HIGH);
+
+  // Calculate distance in centimeters
+  int distance = duration * 0.034 / 2;
+
+  Serial.print("Distance: ");
+  Serial.print(distance);
+  Serial.println(" cm");
+
+  delay(500);
+}
+\`\`\``;
+    }
+
+    if (query.includes("servo")) {
+      return `⚙️ **How to connect a Servo Motor (SG90 / MG996R) to Arduino:**
+
+Servos rotate to a specific angle (0 to 180 degrees) and have three colored wires: Orange/Yellow (Signal), Red (Power), and Brown (Ground).
+
+**1. Wiring Steps:**
+- Connect the **Red wire (VCC)** to the **5V** pin on the Arduino.
+- Connect the **Brown wire (GND)** to a **GND** pin on the Arduino.
+- Connect the **Orange/Yellow wire (Signal)** to a PWM-enabled digital pin on the Arduino (for example, **Pin 9**).
+
+**2. Example Code:**
+\`\`\`cpp
+#include <Servo.h>
+
+Servo myServo;
+
+void setup() {
+  myServo.attach(9); // Attach the servo on Pin 9
+}
+
+void loop() {
+  myServo.write(0);   // Turn to 0 degrees
+  delay(1000);
+  myServo.write(90);  // Turn to 90 degrees
+  delay(1000);
+  myServo.write(180); // Turn to 180 degrees
+  delay(1000);
+}
+\`\`\``;
+    }
+
+    if (query.includes("motor")) {
+      return `🚗 **How to connect a DC Gearbox Motor to Arduino (using L298N):**
+
+Arduino pins cannot power a DC motor directly because motors need too much current. You must use a motor driver like the **L298N**.
+
+**1. Wiring Steps:**
+- Connect the two terminals of the **DC Motor** to the **OUT1** and **OUT2** screw terminals on the L298N driver.
+- Connect your **Power Source** (like a battery):
+  - Positive (+) battery wire to the L298N **12V** terminal.
+  - Negative (-) battery wire to the L298N **GND** terminal.
+- Connect **Grounds**: Wire the Arduino's **GND** pin to the L298N **GND** terminal (they must share a ground!).
+- Connect **Control Pins**:
+  - Connect **IN1** on the L298N to Arduino digital **Pin 4**.
+  - Connect **IN2** on the L298N to Arduino digital **Pin 5**.
+  - Connect **ENA** (Enable A, remove the jumper cap if present) to Arduino digital **Pin 3** (PWM pin for speed control).
+
+**2. Example Code:**
+\`\`\`cpp
+const int in1 = 4;
+const int in2 = 5;
+const int ena = 3;
+
+void setup() {
+  pinMode(in1, OUTPUT);
+  pinMode(in2, OUTPUT);
+  pinMode(ena, OUTPUT);
+}
+
+void loop() {
+  // Move Forward at medium speed
+  digitalWrite(in1, HIGH);
+  digitalWrite(in2, LOW);
+  analogWrite(ena, 150); // Speed value from 0 to 255
+  delay(3000);
+
+  // Stop the motor
+  digitalWrite(in1, LOW);
+  digitalWrite(in2, LOW);
+  analogWrite(ena, 0);
+  delay(1000);
+}
+\`\`\``;
+    }
+
+    if (query.includes("dht11") || query.includes("temperature") || query.includes("humidity")) {
+      return `🌡️ **How to connect the DHT11 Sensor to Arduino:**
+
+The DHT11 measures temperature and humidity. It usually has 3 pins: VCC, Data (Signal), and GND.
+
+**1. Wiring Steps:**
+- Connect the **VCC pin** to the **5V** pin on the Arduino.
+- Connect the **GND pin** to a **GND** pin on the Arduino.
+- Connect the **DATA pin** to a digital pin on the Arduino (for example, **Pin 2**).
+
+**2. Example Code:**
+\`\`\`cpp
+#include <DHT.h>
+
+#define DHTPIN 2     // Digital Pin 2
+#define DHTTYPE DHT11
+
+DHT dht(DHTPIN, DHTTYPE);
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+}
+
+void loop() {
+  float humidity = dht.readHumidity();
+  float temp = dht.readTemperature(); // Temperature in Celsius
+
+  Serial.print("Temperature: ");
+  Serial.print(temp);
+  Serial.print(" °C, Humidity: ");
+  Serial.print(humidity);
+  Serial.println(" %");
+
+  delay(2000); // Read every 2 seconds
+}
+\`\`\``;
+    }
+
+    if (query.includes("mq-2") || query.includes("gas") || query.includes("smoke")) {
+      return `💨 **How to connect the MQ-2 Gas/Smoke Sensor to Arduino:**
+
+The MQ-2 detects combustible gas and smoke. It has four pins: VCC, GND, D0 (digital output), and A0 (analog output).
+
+**1. Wiring Steps:**
+- Connect the **VCC pin** to the **5V** pin on the Arduino.
+- Connect the **GND pin** to a **GND** pin on the Arduino.
+- Connect the **A0 (Analog Output) pin** to an Analog Input pin on the Arduino (for example, **Pin A0**).
+
+**2. Example Code:**
+\`\`\`cpp
+const int gasPin = A0;
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  int gasValue = analogRead(gasPin); // Read analog value (0 to 1023)
+  
+  Serial.print("Gas Concentration: ");
+  Serial.println(gasValue);
+
+  delay(500); // Read every half second
+}
+\`\`\``;
+    }
+
+    if (query.includes("ldr") || query.includes("photoresistor") || query.includes("light sensor")) {
+      return `☀️ **How to connect an LDR (Light Sensor) to Arduino:**
+
+An LDR changes its resistance depending on light. To read this with Arduino, you need a simple voltage divider circuit using a **10kΩ resistor** (or a 220Ω resistor).
+
+**1. Wiring Steps:**
+- Connect one leg of the **LDR** to the Arduino **5V** pin.
+- Connect the other leg of the LDR to one leg of the **resistor**.
+- Connect the other leg of the **resistor** to an Arduino **GND** pin.
+- Connect a wire from the junction point (where LDR and resistor meet) to an Analog Input pin on the Arduino (for example, **Pin A0**).
+
+**2. Example Code:**
+\`\`\`cpp
+const int ldrPin = A0;
+
+void setup() {
+  Serial.begin(9600);
+}
+
+void loop() {
+  int lightLevel = analogRead(ldrPin); // Read light level (0 to 1023)
+  
+  Serial.print("Light Level: ");
+  Serial.println(lightLevel);
+
+  delay(1000);
+}
+\`\`\``;
+    }
+
+    // 12. Fallback Lists
+    if (query.includes("sensor")) {
       return `📡 **Sensors & Modules in the Catalog:**
 
 - **HC-SR04 Ultrasonic**: Wire VCC, TRIG, ECHO, GND. Measures distance by sending 40kHz ultrasound pulses.
@@ -2272,22 +2567,17 @@ export default function VirtualLabPage() {
 - **RC522 RFID**: Card reader utilizing 13.56 MHz communication via SPI bus (SDA, SCK, MOSI, MISO).
 - **NEO-6M GPS**: Receives coordinates and transmits NMEA text strings over UART serial ports.
 - **Analog Joystick**: Reads analog X/Y directions (VRx, VRy) and a digital click select button (SW).
-- **OV7670 Camera**: Captured frames are routed through I2C controls (SIOC/SIOD) and VSYNC timing.`
+- **OV7670 Camera**: Captured frames are routed through I2C controls (SIOC/SIOD) and VSYNC timing.`;
     }
 
-    // 12. Actuators and outputs
     if (
-      query.includes("led") ||
-      query.includes("rgb") ||
-      query.includes("buzzer") ||
-      query.includes("motor") ||
-      query.includes("servo") ||
+      query.includes("actuator") ||
+      query.includes("output") ||
       query.includes("stepper") ||
       query.includes("display") ||
       query.includes("oled") ||
       query.includes("lcd1602") ||
-      query.includes("fan") ||
-      query.includes("alarm")
+      query.includes("fan")
     ) {
       return `🦾 **Actuators & Display Outputs:**
 
@@ -2297,11 +2587,12 @@ export default function VirtualLabPage() {
 - **DC Gearbox Motor / Geared Tyre**: High-current motors. Must be controlled via a motor driver like **L298N** to manage speed and direction.
 - **SG90 / MG996R Servos**: Rotational actuators sweeps between 0° and 180° via 50Hz PWM signals.
 - **28BYJ-48 Stepper**: Rotates step-by-step using precise four-coil input pulses (IN1-IN4).
-- **LCD1602 / 0.96\" OLED**: Displays text, telemetry readings, or IoT states using I2C protocols (SDA, SCL pins).`
+- **LCD1602 / 0.96\" OLED**: Displays text, telemetry readings, or IoT states using I2C protocols (SDA, SCL pins).`;
     }
 
-    // 13. Drivers, Tools, Power Modules
     if (
+      query.includes("driver") ||
+      query.includes("tool") ||
       query.includes("l298n") ||
       query.includes("pca9685") ||
       query.includes("resistor") ||
@@ -2333,7 +2624,7 @@ export default function VirtualLabPage() {
 - **5V Active Relay**: Uses a small control signal (IN) to open or close high-voltage isolated circuits (COM, NO, NC).
 - **4x4 Matrix Keypad**: Matrix of 16 keys scanned by rows (R1-R4) and columns (C1-C4).
 - **HC-05 Bluetooth & ESP-01 WiFi**: Wireless communication adapters transmitting data over Serial/UART TX/RX.
-- **LiPo Battery 3.7V**: Compact rechargeable energy cell providing lightweight mobile power.`
+- **LiPo Battery 3.7V**: Compact rechargeable energy cell providing lightweight mobile power.`;
     }
 
     // 14. Testing Objects
