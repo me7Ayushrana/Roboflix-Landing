@@ -995,6 +995,40 @@ export default function VirtualLabPage() {
   const [isChatTyping, setIsChatTyping] = useState(false)
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
+  // Resizable Editor Sidebar controls
+  const [editorWidth, setEditorWidth] = useState(380)
+  const isResizingRef = useRef(false)
+
+  const startResizing = (e: React.MouseEvent) => {
+    e.preventDefault()
+    isResizingRef.current = true
+    document.body.style.cursor = "col-resize"
+  }
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isResizingRef.current) return
+      const newWidth = window.innerWidth - e.clientX
+      if (newWidth >= 280 && newWidth <= 650) {
+        setEditorWidth(newWidth)
+      }
+    }
+
+    const handleMouseUp = () => {
+      if (isResizingRef.current) {
+        isResizingRef.current = false
+        document.body.style.cursor = ""
+      }
+    }
+
+    window.addEventListener("mousemove", handleMouseMove)
+    window.addEventListener("mouseup", handleMouseUp)
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove)
+      window.removeEventListener("mouseup", handleMouseUp)
+    }
+  }, [])
+
   // Default Works Panel state
   const [isDefaultWorksOpen, setIsDefaultWorksOpen] = useState(false)
   const [selectedDemoId, setSelectedDemoId] = useState<string | null>(null)
@@ -2500,9 +2534,23 @@ How can I assist you with your circuit sketch today?`
               envGas={envGas}
             />
 
+            {/* Draggable Vertical Resizer Handle */}
+            {!isFullscreen && (
+              <div
+                onMouseDown={startResizing}
+                className="w-1.5 hover:w-2 bg-transparent hover:bg-red-650/40 cursor-col-resize flex-shrink-0 transition-all relative z-30"
+                style={{ marginLeft: "-3px", marginRight: "-3px" }}
+              >
+                <div className="absolute inset-y-0 left-1/2 w-[1px] bg-gray-800/40 -translate-x-1/2" />
+              </div>
+            )}
+
             {/* Right Editor/Monitor sidebar */}
             {!isFullscreen && (
-              <div className="w-[380px] border-l flex flex-col h-full flex-shrink-0 bg-[#0c0c0c] border-gray-800">
+              <div 
+                className="border-l flex flex-col h-full flex-shrink-0 bg-[#0c0c0c] border-gray-800"
+                style={{ width: `${editorWidth}px` }}
+              >
                 <CodeEditor code={code} onChange={handleCodeChange} />
                 <SerialMonitor
                   logs={logs}
@@ -2827,12 +2875,24 @@ How can I assist you with your circuit sketch today?`
             {!isFullscreen && (
               <div className="h-[40%] flex min-h-[180px] border-t border-gray-850">
                 {/* Left Code Editor */}
-                <div className="flex-1 h-full border-r border-gray-850">
+                <div className="flex-1 h-full">
                   <CodeEditor code={code} onChange={handleCodeChange} />
                 </div>
                 
+                {/* Draggable Vertical Resizer Handle */}
+                <div
+                  onMouseDown={startResizing}
+                  className="w-1.5 hover:w-2 bg-transparent hover:bg-red-650/40 cursor-col-resize flex-shrink-0 transition-all relative z-30"
+                  style={{ marginLeft: "-3px", marginRight: "-3px" }}
+                >
+                  <div className="absolute inset-y-0 left-1/2 w-[1px] bg-gray-800/40 -translate-x-1/2" />
+                </div>
+
                 {/* Right Serial Monitor Output */}
-                <div className="w-[380px] h-full flex-shrink-0">
+                <div 
+                  className="h-full flex-shrink-0 border-l border-gray-850"
+                  style={{ width: `${editorWidth}px` }}
+                >
                   <SerialMonitor
                     logs={logs}
                     isSimulating={isSimulating}
@@ -3009,8 +3069,20 @@ How can I assist you with your circuit sketch today?`
               </div>
             </div>
 
+            {/* Draggable Vertical Resizer Handle */}
+            <div
+              onMouseDown={startResizing}
+              className="w-1.5 hover:w-2 bg-transparent hover:bg-red-650/40 cursor-col-resize flex-shrink-0 transition-all relative z-30"
+              style={{ marginLeft: "-3px", marginRight: "-3px" }}
+            >
+              <div className="absolute inset-y-0 left-1/2 w-[1px] bg-gray-800/40 -translate-x-1/2" />
+            </div>
+
             {/* Right Editor sidebar */}
-            <div className="w-[380px] border-l flex flex-col h-full flex-shrink-0 bg-[#0c0c0c] border-gray-800">
+            <div 
+              className="border-l flex flex-col h-full flex-shrink-0 bg-[#0c0c0c] border-gray-800"
+              style={{ width: `${editorWidth}px` }}
+            >
               <CodeEditor code={code} onChange={handleCodeChange} />
               <div className="h-[25%] p-4 border-t border-gray-850 flex flex-col justify-between font-sans">
                 <span className="text-[10px] font-bold uppercase text-gray-500">Interactive Controls</span>
