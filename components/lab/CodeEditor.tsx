@@ -77,6 +77,30 @@ export default function CodeEditor({ code, onChange }: CodeEditorProps) {
       }
     }
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // Handle Tab key to insert indentation instead of moving focus
+      if (e.key === "Tab") {
+        e.preventDefault()
+        const textarea = textareaRef.current
+        if (!textarea) return
+
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const val = textarea.value
+
+        // Insert 2 spaces for tab indent
+        const newValue = val.substring(0, start) + "  " + val.substring(end)
+        onChange(newValue)
+
+        // Reset cursor selection to correct index
+        setTimeout(() => {
+          if (textareaRef.current) {
+            textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 2
+          }
+        }, 0)
+      }
+    }
+
     return (
       <div className="absolute inset-0 flex bg-[#0c0c0c] text-white font-mono text-sm overflow-hidden select-text">
         {/* Line Numbers Sidebar */}
@@ -96,6 +120,7 @@ export default function CodeEditor({ code, onChange }: CodeEditorProps) {
           ref={textareaRef}
           value={code}
           onChange={(e) => onChange(e.target.value)}
+          onKeyDown={handleKeyDown}
           onScroll={handleScroll}
           className="flex-grow bg-[#0c0c0c] text-gray-300 px-4 py-3 outline-none resize-none overflow-y-auto leading-5 text-xs font-mono h-full"
           placeholder="// Type your Arduino C++ code sketch here..."
