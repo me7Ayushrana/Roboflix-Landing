@@ -1829,6 +1829,340 @@ export default function VirtualLabPage() {
     e.target.value = "" // reset input
   }
 
+  // Domain-expert response generator for the AI Lab Tutor
+  const generateTutorResponse = (queryText: string): string => {
+    const query = queryText.toLowerCase().trim()
+
+    // 1. Check wiring / wiring report
+    if (
+      query.includes("check my wiring") ||
+      query.includes("wiring report") ||
+      query.includes("analyze wiring") ||
+      query.includes("is my wiring correct") ||
+      query.includes("check connection") ||
+      query.includes("how is my wiring")
+    ) {
+      if (connections.length === 0) {
+        return "⚠️ **ANALYSIS: No Jumper Wires Connected!**\n\nI don't see any wire connections on the grid. To build a circuit:\n1. Hover over a pin node (red or grey dot) on any placed component.\n2. Click and drag a jumper line to a pin node on another component.\n3. Make sure to share a common ground (GND) lane and route correct digital/analog signals to your microcontroller."
+      } else {
+        return `❇️ **WIRING ANALYSIS REPORT:**\n\n- Placed Components: **${placedComponents.length} parts** detected on canvas.\n- Active Connections: **${connections.length} circuit nets** routed.\n- Common Ground: Verify that all GND pins are connected to a shared rail or a shared GND node on your controller board.\n- Ready State: Connections look correctly routed on the grid! You can now verify, write sketch code, and click 'Run Simulation' or 'Upload'.`
+      }
+    }
+
+    // 2. Keyboard Shortcuts / Hotkeys
+    if (
+      query.includes("shortcut") ||
+      query.includes("hotkey") ||
+      query.includes("keybind") ||
+      query.includes("keyboard") ||
+      query.includes("button shortcut") ||
+      query.includes("keys") ||
+      query.includes("control shortcut") ||
+      query.includes("key shortcut")
+    ) {
+      return `⌨️ **Sandbox Keyboard Shortcuts & Hotkeys:**
+
+- **R**: Rotate the currently selected component by 90° clockwise.
+- **Spacebar (Hold)**: Activate **Pan mode** to drag and scroll the canvas freely.
+- **+ / =**: Zoom in on the canvas.
+- **-**: Zoom out of the canvas.
+- **0**: Reset zoom to 100% and center canvas alignment.
+- **Z**: **Undo** the last action (adding/deleting parts, wire routes, rotations, etc.).
+- **Shift + Z** or **Y**: **Redo** the last undone action.
+- **Escape (Esc)**: Cancel current jumper wire drawing route.`
+    }
+
+    // 3. Undo / Redo
+    if (
+      query.includes("undo") ||
+      query.includes("redo") ||
+      query.includes("history") ||
+      query.includes("go back") ||
+      query.includes("go forward") ||
+      query.includes("revert")
+    ) {
+      return `🔄 **Undo/Redo State History Engine:**
+
+- **How it works**: Every action you take—placing a component, deleting, drawing wires, moving elements, or rotating—is tracked in a history stack.
+- **Toolbar Buttons**: Click the **Undo (↩️)** and **Redo (↪️)** buttons on the bottom control panel of the canvas.
+- **Keybinds**: Press **Z** to undo, and press **Shift+Z** or **Y** to redo.
+- **Limits**: The system preserves undo snapshots so you can step back and restore previous circuit configurations without losing your work.`
+    }
+
+    // 4. Auto Arrange Layout
+    if (
+      query.includes("arrange") ||
+      query.includes("auto arrange") ||
+      query.includes("layout align") ||
+      query.includes("clean canvas") ||
+      query.includes("organize")
+    ) {
+      return `📐 **Auto Arrange Layout:**
+
+- **What it does**: Clean up a cluttered board! Auto-arrange automatically aligns all placed microcontrollers and sensors neatly on the grid for optimal schematic visual quality.
+- **Wiring Impact**: To ensure neatness and avoid layout collision rules, auto-arranging the layout will **clear existing wire connections**.
+- **Confirmation Message**: The Sandbox will prompt a warning before execution: *'Are you sure you want to auto arrange the layout? All components will be aligned and wires will be cleared for neatness.'* Click OK to confirm.`
+    }
+
+    // 5. Delete Component / Wire / Clear Canvas
+    if (
+      query.includes("delete") ||
+      query.includes("remove") ||
+      query.includes("clear canvas") ||
+      query.includes("erase") ||
+      query.includes("trash")
+    ) {
+      return `🗑️ **Deleting and Clearing Canvas Actions:**
+
+- **Delete Selected Component**: Click the Trash icon on the toolbar to delete the active component. A confirmation alert *'Are you sure you want to delete this component?'* will prompt to prevent accidental removals.
+- **Delete Wire Connection**: Hover over any active wire path to show the Delete button (Trash icon). Click it to trigger a confirmation: *'Are you sure you want to delete this wire?'*.
+- **Clear Entire Canvas**: Click the Reset/Clear button on the toolbar to empty the workspace. The Sandbox prompts a confirmation: *'Are you sure you want to clear the entire canvas? This will remove all components and wires.'*`
+    }
+
+    // 6. Workspace Layout, Theme, Fullscreen
+    if (
+      query.includes("layout") ||
+      query.includes("immersive") ||
+      query.includes("schematic") ||
+      query.includes("split") ||
+      query.includes("theme") ||
+      query.includes("night mode") ||
+      query.includes("dark mode") ||
+      query.includes("light mode") ||
+      query.includes("fullscreen")
+    ) {
+      return `🖥️ **Workspace Layout & Customization:**
+
+- **Layout Styles**: Toggle between **Schematic** (focused layout showing canvas on left and editor/logs on right) and **Immersive Split** (split canvas rows) depending on your design preferences.
+- **Themes**: Switch between **Night/Dark Mode** (sleek black grid overlay) and **Light Mode** using the theme toggle in the header.
+- **Fullscreen**: Use the Maximize/Minimize button in the top-right toolbar to view the lab canvas in full screen to expand your drawing space.`
+    }
+
+    // 7. Telemetry Sliders / Environmental controls
+    if (
+      query.includes("slider") ||
+      query.includes("telemetry") ||
+      query.includes("environment") ||
+      query.includes("adjust distance") ||
+      query.includes("sensor reading") ||
+      query.includes("light slider") ||
+      query.includes("temperature slider") ||
+      query.includes("gas slider") ||
+      query.includes("humidity slider") ||
+      query.includes("moisture slider")
+    ) {
+      return `🎛️ **Interactive Telemetry Environmental Sliders:**
+
+- **Purpose**: To test how your circuit reacts in real-world situations, the telemetry panel features interactive sliders:
+  - **Distance Slider**: Adjusts HC-SR04 ultrasonic distance reading (10cm - 200cm).
+  - **Light Slider**: Adjusts LDR photoresistor ambient light level (0 - 1023).
+  - **Motion Toggle**: Simulates PIR motion sensor detection (True/False).
+  - **Temperature & Humidity Sliders**: Simulates DHT11 environmental values (0°C-50°C and 10%-90%).
+  - **Moisture Slider**: Simulates Soil Moisture wetness level (0% - 100%).
+  - **Gas Concentration Slider**: Simulates MQ-2 Gas sensor PPM leakage (50 - 800 PPM).
+- **Testing**: Change these sliders during active simulation and watch how they update sensor inputs, print logs, and trigger outputs (LED flashes or buzzer alarms) in real time!`
+    }
+
+    // 8. Uploading, Simulation, Flashing, and Grading
+    if (
+      query.includes("simulation") ||
+      query.includes("simulate") ||
+      query.includes("upload") ||
+      query.includes("flash") ||
+      query.includes("compile") ||
+      query.includes("run") ||
+      query.includes("verify") ||
+      query.includes("grade") ||
+      query.includes("grading") ||
+      query.includes("serial monitor") ||
+      query.includes("logs")
+    ) {
+      return `⚙️ **Simulation, Uploading, and Grading:**
+
+- **Verify/Run Simulation**: Validates your script. It checks if required libraries are referenced, digital/analog pins are designated properly, and your wiring matches the code pinout definitions.
+- **Upload Code**: Simulates standard avr-g++ compiler flashing. It checks USB serial ports, initiates a flash write, updates progress (0% to 100%), and resets the board.
+- **Serial Monitor**: Displays real-time logs, debug output from \`Serial.println\`, Wi-Fi connection states, warnings, and graded step validation.
+- **Grading & XP**: If you meet all lesson requirements, the simulation completes, awarding XP and showing a green validation checklist!`
+    }
+
+    // 9. Platform Security, Developer console, right-click, videos
+    if (
+      query.includes("inspect") ||
+      query.includes("inspect elements") ||
+      query.includes("right click") ||
+      query.includes("developer tool") ||
+      query.includes("f12") ||
+      query.includes("ctrl shift i") ||
+      query.includes("cmd shift i") ||
+      query.includes("dev tools") ||
+      query.includes("console") ||
+      query.includes("safe") ||
+      query.includes("protect") ||
+      query.includes("video") ||
+      query.includes("youtube") ||
+      query.includes("vimeo") ||
+      query.includes("mail")
+    ) {
+      return `🔒 **Platform Security & Protection Measures:**
+
+- **Developer Tools Blocked**: The LMS Sandbox disables standard inspect element keyboard shortcuts (F12, Ctrl+Shift+I, Cmd+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C) on Windows and macOS.
+- **Right-Click Disabled**: To protect proprietary media and course components, right-click is fully disabled across the LMS workspace and video players.
+- **Intrusion Fallback**: If a user attempts to force-open developer tools, a secure listener intercepts the command and redirects them to write an email instead of opening inspect elements.
+- **Hidden Video Links**: YouTube/Vimeo URLs are secured via backend Supabase env masking and are not exposed inside the frontend HTML elements, protecting copyrighted content.`
+    }
+
+    // 10. Microcontrollers
+    if (
+      query.includes("arduino") ||
+      query.includes("uno") ||
+      query.includes("esp32") ||
+      query.includes("raspberry") ||
+      query.includes("pi 4") ||
+      query.includes("pi 5") ||
+      query.includes("pico")
+    ) {
+      return `🔌 **Microcontrollers & Development Boards:**
+
+- **Arduino Uno R3**: Standard board with 5V/3.3V power, GND pins, 14 Digital GPIO pins (D2-D13, D13 has default built-in LED), and 3 Analog Input pins (A0-A2).
+- **ESP32 Dev Board**: High-performance IoT board with 3.3V power, GND, and GPIO pins (2, 4, 5, 12, 13, 14, 15). Features on-board Wi-Fi and Bluetooth.
+- **Raspberry Pi 4 / 5**: Powerful Linux-capable SBCs. Features GPIO headers (5V, GND, SDA, SCL, TX/RX, GCLK), USB-C power input, micro-HDMI, and PCIe connectivity.`
+    }
+
+    // 11. Sensors
+    if (
+      query.includes("sensor") ||
+      query.includes("dht11") ||
+      query.includes("dht22") ||
+      query.includes("hc-sr04") ||
+      query.includes("ultrasonic") ||
+      query.includes("ldr") ||
+      query.includes("photoresistor") ||
+      query.includes("light sensor") ||
+      query.includes("pir") ||
+      query.includes("motion sensor") ||
+      query.includes("gas") ||
+      query.includes("mq-2") ||
+      query.includes("moisture") ||
+      query.includes("soil") ||
+      query.includes("rfid") ||
+      query.includes("gps") ||
+      query.includes("joystick") ||
+      query.includes("camera") ||
+      query.includes("ir")
+    ) {
+      return `📡 **Sensors & Modules in the Catalog:**
+
+- **HC-SR04 Ultrasonic**: Wire VCC, TRIG, ECHO, GND. Measures distance by sending 40kHz ultrasound pulses.
+- **DHT11 Temp/Humidity**: Reads environment data. Wire VCC, DATA, GND. Initialize DHT library in code.
+- **LDR Photoresistor**: Light sensor. Wire in a voltage divider circuit with a resistor to read analog values on A0.
+- **IR Obstacle**: Active low digital sensor detecting obstacles using infrared reflection.
+- **PIR Motion**: Detects movement in space, output pin goes HIGH when body movement is measured.
+- **MQ-2 Gas Sensor**: Measures LPG/smoke levels. Dangerous PPM alerts sound above 300 PPM.
+- **Soil Moisture**: Connect SIG to analog inputs. Reads dry/wet conductivity levels.
+- **RC522 RFID**: Card reader utilizing 13.56 MHz communication via SPI bus (SDA, SCK, MOSI, MISO).
+- **NEO-6M GPS**: Receives coordinates and transmits NMEA text strings over UART serial ports.
+- **Analog Joystick**: Reads analog X/Y directions (VRx, VRy) and a digital click select button (SW).
+- **OV7670 Camera**: Captured frames are routed through I2C controls (SIOC/SIOD) and VSYNC timing.`
+    }
+
+    // 12. Actuators and outputs
+    if (
+      query.includes("led") ||
+      query.includes("rgb") ||
+      query.includes("buzzer") ||
+      query.includes("motor") ||
+      query.includes("servo") ||
+      query.includes("stepper") ||
+      query.includes("display") ||
+      query.includes("oled") ||
+      query.includes("lcd1602") ||
+      query.includes("fan") ||
+      query.includes("alarm")
+    ) {
+      return `🦾 **Actuators & Display Outputs:**
+
+- **Red LED**: Standard light emitter. Positive anode (+) must hook to digital GPIO through a **220Ω resistor**, negative cathode (-) to GND.
+- **RGB LED**: Emits multiple colors by PWM duty cycling Red, Green, and Blue terminals (GND pin shared).
+- **Active Buzzer**: High-pitched audio alarm module. Positive (+) goes to digital control pin, negative (-) to GND.
+- **DC Gearbox Motor / Geared Tyre**: High-current motors. Must be controlled via a motor driver like **L298N** to manage speed and direction.
+- **SG90 / MG996R Servos**: Rotational actuators sweeps between 0° and 180° via 50Hz PWM signals.
+- **28BYJ-48 Stepper**: Rotates step-by-step using precise four-coil input pulses (IN1-IN4).
+- **LCD1602 / 0.96\" OLED**: Displays text, telemetry readings, or IoT states using I2C protocols (SDA, SCL pins).`
+    }
+
+    // 13. Drivers, Tools, Power Modules
+    if (
+      query.includes("l298n") ||
+      query.includes("pca9685") ||
+      query.includes("resistor") ||
+      query.includes("button") ||
+      query.includes("breadboard") ||
+      query.includes("potentiometer") ||
+      query.includes("tp4056") ||
+      query.includes("buck") ||
+      query.includes("shifter") ||
+      query.includes("wire") ||
+      query.includes("relay") ||
+      query.includes("keypad") ||
+      query.includes("bluetooth") ||
+      query.includes("wifi") ||
+      query.includes("lipo") ||
+      query.includes("battery")
+    ) {
+      return `⚙️ **Drivers, Power Modules, and Prototyping Tools:**
+
+- **L298N Motor Driver**: High-power H-Bridge for controlling DC motor direction (IN1-IN4) and speed (ENA/ENB PWM).
+- **PCA9685 Servo Driver**: 16-channel I2C controller ideal for managing multiple servo motors synchronously.
+- **220Ω Resistor**: Current-limiting resistor to protect LEDs from burning out.
+- **Push Button**: Momentary input switch. Pull-down resistor recommended for clean HIGH/LOW transitions.
+- **Half Breadboard**: Prototyping canvas grid with connected rails for power distribution.
+- **10k Potentiometer**: Adjustable rotary resistor used as a variable voltage divider.
+- **TP4056 Module**: Type-C single-cell lithium-ion battery charging module with built-in protection.
+- **LM2596 Buck**: Step-down voltage regulator adjusting input power to a lower output level via pot tuning.
+- **Level Shifter**: Bi-directional module to bridge communication between 3.3V logic (ESP32/Pi) and 5V logic (Arduino).
+- **5V Active Relay**: Uses a small control signal (IN) to open or close high-voltage isolated circuits (COM, NO, NC).
+- **4x4 Matrix Keypad**: Matrix of 16 keys scanned by rows (R1-R4) and columns (C1-C4).
+- **HC-05 Bluetooth & ESP-01 WiFi**: Wireless communication adapters transmitting data over Serial/UART TX/RX.
+- **LiPo Battery 3.7V**: Compact rechargeable energy cell providing lightweight mobile power.`
+    }
+
+    // 14. Testing Objects
+    if (
+      query.includes("object") ||
+      query.includes("box") ||
+      query.includes("water") ||
+      query.includes("cloud") ||
+      query.includes("human") ||
+      query.includes("card") ||
+      query.includes("car") ||
+      query.includes("animal") ||
+      query.includes("wall") ||
+      query.includes("cone") ||
+      query.includes("testing asset")
+    ) {
+      return `📦 **Testing Assets & Objects:**
+
+- **Obstacle Box / Brick Wall / Traffic Cone**: Place near the HC-SR04 Ultrasonic or IR sensor to change distance reading and test trigger states.
+- **Water Puddle**: Simulates moisture conditions. Drag it onto the Soil Moisture sensor to simulate soil wetness levels.
+- **Gas/Smoke Cloud**: Simulates gas leakage. Drag it onto the MQ-2 Gas sensor to increase the PPM reading.
+- **Human Character / Testing Animal**: Simulates motion. Drag across the PIR sensor fields to trigger infrared motion events.
+- **RFID Keyfob**: Drag near the RC522 reader to simulate swipe authorization cards.`
+    }
+
+    // Fallback general response
+    return `I can help you with anything in the Roboflix Virtual Lab Sandbox! 
+
+Here is what you can ask me:
+- **Hardware details**: "How do I connect the HC-SR04?", "What does the L298N motor driver do?", "How do I wire an LDR photoresistor?"
+- **Keyboard shortcuts**: "What are the hotkeys?" (e.g. rotating elements with R, panning with Space, undoing with Z)
+- **Interactive sliders**: "How do the telemetry sliders work?"
+- **Workspace layout**: "How can I change layouts or toggle night mode?"
+- **State operations**: "How do delete confirmations work?", "What does auto arrange do?", "How do I undo?"
+- **Sandbox security**: "Why is right-click/inspect disabled?"
+
+How can I assist you with your circuit sketch today?`
+  }
+
   // AI Assistant Chat Drawer Send Handler
   const handleSendChatMessage = () => {
     if (!chatInput.trim()) return
@@ -1847,24 +2181,7 @@ export default function VirtualLabPage() {
 
     // Generate AI simulated response based on question matching
     setTimeout(() => {
-      let aiResponse = "I've analyzed your question. To implement this circuit, ensure you route power from VCC (5V) to the sensor's power pins, share common ground, and hook signal outputs to digital or analog GPIO pins on the Uno. Click 'Upload' to flash and test!"
-      const query = userMsg.toLowerCase()
-
-      if (query.includes("wire") || query.includes("connections") || query.includes("how to connect")) {
-        aiResponse = `Here is a step-by-step wiring recommendation:
-1. Connect **GND** of Arduino Uno to the Ground rail or negative pin of your peripheral.
-2. Route **5V** or **3V3** from Arduino to the Power pin of the sensor (HC-SR04/PIR).
-3. Connect **TRIG** pin of the Ultrasonic sensor to D7, and **ECHO** to D6.
-4. If using an LED, connect the anode (+) through a **220Ω resistor** to digital pin D13, and the cathode (-) to GND.`
-      } else if (query.includes("dht11") || query.includes("dht22") || query.includes("temperature")) {
-        aiResponse = "The **DHT11 sensor** reads environment humidity and temperature. Wire VCC to 5V, GND to GND, and DATA to digital pin D2. In code, initialize the DHT library, start communication using `dht.begin()`, and fetch readings using `dht.readTemperature()`."
-      } else if (query.includes("compilation") || query.includes("error") || query.includes("fail") || query.includes("semicolon")) {
-        aiResponse = "Compilation errors usually arise from three issues:\n1. **Missing semicolons (;)** at the end of function lines.\n2. **Mismatched curly braces ({ or })** causing syntax block confusion.\n3. **Mismatched Pin numbers** in code definitions vs. canvas wires."
-      } else if (query.includes("car") || query.includes("motor") || query.includes("l298n")) {
-        aiResponse = "To drive the Geared DC Motor using the L298N driver:\n- Connect **ENA** to a PWM-capable pin (D9/D10/D11) to control motor speed.\n- Connect **IN1** and **IN2** to digital output pins (D4/D5) to set direction.\n- Set IN1 HIGH and IN2 LOW to spin forward; reverse pins to spin backward."
-      } else if (query.includes("garden") || query.includes("moisture") || query.includes("relay")) {
-        aiResponse = "For the Smart Agriculture setup:\n- Connect the **Soil Moisture Sensor** SIG pin to Analog input A0.\n- Connect the **Relay module** IN pin to Digital pin D4.\n- Code logic: Read raw analog input, map it to 0-100%, and switch the relay high/low to trigger the mock pump droplets!"
-      }
+      const aiResponse = generateTutorResponse(userMsg)
 
       setChatMessages(prev => [...prev, { sender: "ai", text: aiResponse }])
       setIsChatTyping(false)
@@ -1883,23 +2200,7 @@ export default function VirtualLabPage() {
     setIsChatTyping(true)
     
     setTimeout(() => {
-      let responseText = ""
-      if (promptText.includes("Check my wiring")) {
-        if (connections.length === 0) {
-          responseText = "⚠️ ANALYSIS: I don't see any jumper wires connected! Drag wires from Arduino pins to your sensor nodes to create active electrical nets."
-        } else {
-          responseText = `❇️ WIRING REPORT: Active nodes look good! 
-- Found ${placedComponents.length} parts on board.
-- Connected ${connections.length} circuit nets.
-- Ground lanes are shared. Ready to compile and flash code!`
-        }
-      } else if (promptText.includes("How to wire LDR")) {
-        responseText = "To wire the LDR Photoresistor: Connect Pin 1 of LDR to Arduino 5V. Connect Pin 2 of LDR to Arduino Analog A0. Also, place a pull-down resistor from A0 to GND to form a voltage divider!"
-      } else if (promptText.includes("Explain Stepper Motor")) {
-        responseText = "The **28BYJ-48 Stepper Motor** operates by sequential coil activation. It utilizes 4 inputs (IN1-IN4) connected to digital outputs (e.g. D8-D11) on the Arduino. Pulse them in sequence to rotate step-by-step!"
-      } else {
-        responseText = "I can guide you! Make sure your GND lines are shared, compile using 'Verify', and watch the serial output."
-      }
+      const responseText = generateTutorResponse(promptText)
 
       setChatMessages(prev => [...prev, { sender: "ai", text: responseText }])
       setIsChatTyping(false)
