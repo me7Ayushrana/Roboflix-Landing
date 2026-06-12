@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import Editor, { Monaco, loader } from "@monaco-editor/react"
 
 // Configure Monaco loader to use the robust and fast cdnjs alternative
@@ -15,9 +15,102 @@ interface CodeEditorProps {
   onChange: (val: string) => void
 }
 
+// Fallback Native Code Editor Component
+// Defined outside of CodeEditor to prevent React from rebuilding the component function
+// on parent state change, resolving the cursor focus-loss bug completely.
+interface FallbackEditorProps {
+  code: string
+  onChange: (val: string) => void
+  fontSize: number
+}
+
+function FallbackEditor({ code, onChange, fontSize }: FallbackEditorProps) {
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const linesRef = useRef<HTMLDivElement>(null)
+  const lineCount = Math.max(1, code.split("\n").length)
+  const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1)
+  const lineHeight = Math.round(fontSize * 1.5)
+
+  const handleScroll = () => {
+    if (textareaRef.current && linesRef.current) {
+      linesRef.current.scrollTop = textareaRef.current.scrollTop
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Handle Tab key to insert indentation instead of moving focus
+    if (e.key === "Tab") {
+      e.preventDefault()
+      const textarea = textareaRef.current
+      if (!textarea) return
+
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const val = textarea.value
+
+      // Insert 2 spaces for tab indent
+      const newValue = val.substring(0, start) + "  " + val.substring(end)
+      onChange(newValue)
+
+      // Reset cursor selection to correct index
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 2
+        }
+      }, 0)
+    }
+  }
+
+  return (
+    <div className="absolute inset-0 flex bg-[#0c0c0c] text-white font-mono text-sm overflow-hidden select-text" data-lenis-prevent>
+      {/* Line Numbers Sidebar */}
+      <div 
+        ref={linesRef}
+        className="w-12 bg-[#080808] text-gray-650 text-right pr-2.5 select-none py-3 border-r border-gray-850 overflow-hidden flex-shrink-0"
+        style={{ 
+          scrollbarWidth: "none",
+          fontSize: `${Math.max(9, fontSize - 2)}px`
+        }}
+      >
+        {lineNumbers.map((num) => (
+          <div 
+            key={num} 
+            className="font-bold opacity-45"
+            style={{
+              height: `${lineHeight}px`,
+              lineHeight: `${lineHeight}px`
+            }}
+          >
+            {num}
+          </div>
+        ))}
+      </div>
+      {/* Text Area */}
+      <textarea
+        ref={textareaRef}
+        value={code}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onScroll={handleScroll}
+        data-lenis-prevent
+        className="flex-grow bg-[#0c0c0c] text-gray-300 px-4 py-3 outline-none resize-none overflow-y-auto font-mono h-full"
+        placeholder="// Type your Arduino C++ code sketch here..."
+        style={{
+          fontFamily: "'Fira Code', 'Courier New', monospace",
+          fontSize: `${fontSize}px`,
+          lineHeight: `${lineHeight}px`,
+          whiteSpace: "pre",
+          wordWrap: "normal"
+        }}
+      />
+    </div>
+  )
+}
+
 export default function CodeEditor({ code, onChange }: CodeEditorProps) {
   const [monacoLoaded, setMonacoLoaded] = useState(false)
   const [showFallback, setShowFallback] = useState(false)
+  const [fontSize, setFontSize] = useState(14) // default readable code font size (14px)
 
   useEffect(() => {
     // Show offline option/auto-fallback if Monaco loading is slow (3 seconds)
@@ -64,76 +157,6 @@ export default function CodeEditor({ code, onChange }: CodeEditorProps) {
     monaco.editor.setTheme("roboflix-dark")
   }
 
-  // Fallback Native Code Editor (with line numbers and synced scroll)
-  const FallbackEditorView = () => {
-    const textareaRef = useRef<HTMLTextAreaElement>(null)
-    const linesRef = useRef<HTMLDivElement>(null)
-    const lineCount = Math.max(1, code.split("\n").length)
-    const lineNumbers = Array.from({ length: lineCount }, (_, i) => i + 1)
-
-    const handleScroll = () => {
-      if (textareaRef.current && linesRef.current) {
-        linesRef.current.scrollTop = textareaRef.current.scrollTop
-      }
-    }
-
-    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Handle Tab key to insert indentation instead of moving focus
-      if (e.key === "Tab") {
-        e.preventDefault()
-        const textarea = textareaRef.current
-        if (!textarea) return
-
-        const start = textarea.selectionStart
-        const end = textarea.selectionEnd
-        const val = textarea.value
-
-        // Insert 2 spaces for tab indent
-        const newValue = val.substring(0, start) + "  " + val.substring(end)
-        onChange(newValue)
-
-        // Reset cursor selection to correct index
-        setTimeout(() => {
-          if (textareaRef.current) {
-            textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 2
-          }
-        }, 0)
-      }
-    }
-
-    return (
-      <div className="absolute inset-0 flex bg-[#0c0c0c] text-white font-mono text-sm overflow-hidden select-text">
-        {/* Line Numbers Sidebar */}
-        <div 
-          ref={linesRef}
-          className="w-10 bg-[#080808] text-gray-650 text-right pr-2.5 select-none py-3 border-r border-gray-850 overflow-hidden flex-shrink-0"
-          style={{ scrollbarWidth: "none" }}
-        >
-          {lineNumbers.map((num) => (
-            <div key={num} className="h-5 leading-5 text-[10px] font-bold opacity-40">
-              {num}
-            </div>
-          ))}
-        </div>
-        {/* Text Area */}
-        <textarea
-          ref={textareaRef}
-          value={code}
-          onChange={(e) => onChange(e.target.value)}
-          onKeyDown={handleKeyDown}
-          onScroll={handleScroll}
-          className="flex-grow bg-[#0c0c0c] text-gray-300 px-4 py-3 outline-none resize-none overflow-y-auto leading-5 text-xs font-mono h-full"
-          placeholder="// Type your Arduino C++ code sketch here..."
-          style={{
-            fontFamily: "'Fira Code', 'Courier New', monospace",
-            whiteSpace: "pre",
-            wordWrap: "normal"
-          }}
-        />
-      </div>
-    )
-  }
-
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0c0c0c] border-b border-gray-800 relative select-none">
       {/* Editor Ribbon Title */}
@@ -150,11 +173,31 @@ export default function CodeEditor({ code, onChange }: CodeEditorProps) {
           )}
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
+          {/* Text Size setting controller */}
+          <div className="flex items-center bg-black/40 border border-white/5 rounded px-2 py-0.5 gap-1.5">
+            <span className="text-[8.5px] text-gray-500 font-mono font-bold uppercase">Size:</span>
+            <button 
+              onClick={() => setFontSize(prev => Math.max(11, prev - 1))}
+              className="text-[10px] font-bold text-gray-400 hover:text-white px-1 transition cursor-pointer"
+              title="Decrease Text Size"
+            >
+              A-
+            </button>
+            <span className="text-[9px] font-extrabold text-red-500 font-mono">{fontSize}px</span>
+            <button 
+              onClick={() => setFontSize(prev => Math.min(22, prev + 1))}
+              className="text-[10px] font-bold text-gray-400 hover:text-white px-1 transition cursor-pointer"
+              title="Increase Text Size"
+            >
+              A+
+            </button>
+          </div>
+
           {showFallback ? (
             <button 
               onClick={() => { setShowFallback(false); setMonacoLoaded(false); }}
-              className="text-[9px] uppercase font-bold text-red-500 hover:text-red-400 transition underline cursor-pointer pr-2"
+              className="text-[9px] uppercase font-bold text-red-500 hover:text-red-400 transition underline cursor-pointer pr-1"
             >
               Retry Monaco
             </button>
@@ -162,7 +205,7 @@ export default function CodeEditor({ code, onChange }: CodeEditorProps) {
             !monacoLoaded && (
               <button 
                 onClick={() => setShowFallback(true)}
-                className="text-[9px] uppercase font-bold text-gray-500 hover:text-gray-300 transition underline cursor-pointer pr-2"
+                className="text-[9px] uppercase font-bold text-gray-500 hover:text-gray-300 transition underline cursor-pointer pr-1"
               >
                 Use Offline Editor
               </button>
@@ -177,7 +220,7 @@ export default function CodeEditor({ code, onChange }: CodeEditorProps) {
       {/* Editor Mount Area */}
       <div className="flex-grow min-h-[200px] relative">
         {showFallback ? (
-          <FallbackEditorView />
+          <FallbackEditor code={code} onChange={onChange} fontSize={fontSize} />
         ) : (
           <Editor
             height="100%"
@@ -186,10 +229,10 @@ export default function CodeEditor({ code, onChange }: CodeEditorProps) {
             onChange={handleEditorChange}
             onMount={handleEditorDidMount}
             options={{
-              fontSize: 13,
+              fontSize: fontSize,
               fontFamily: "'Fira Code', 'Courier New', monospace",
               minimap: { enabled: false },
-              lineHeight: 20,
+              lineHeight: Math.round(fontSize * 1.5),
               cursorBlinking: "smooth",
               cursorSmoothCaretAnimation: "on",
               smoothScrolling: true,
