@@ -160,60 +160,54 @@ export default function CodeEditor({ code, onChange }: CodeEditorProps) {
   return (
     <div className="flex-1 flex flex-col h-full bg-[#0c0c0c] border-b border-gray-800 relative select-none">
       {/* Editor Ribbon Title */}
-      <div className="h-9 border-b border-gray-800 bg-[#0d0d0d] flex items-center px-4 justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className={`w-2 h-2 rounded-full ${showFallback ? "bg-amber-500 animate-pulse" : "bg-red-650 animate-pulse"}`} />
-          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 font-mono">
+      <div className="h-9 border-b border-gray-800 bg-[#0d0d0d] flex items-center px-3 justify-between flex-shrink-0">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className={`w-1.5 h-1.5 rounded-full ${showFallback ? "bg-amber-500 animate-pulse" : "bg-red-650 animate-pulse"}`} />
+          <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 font-mono truncate">
             sketch.ino
           </span>
-          {showFallback && (
-            <span className="text-[8px] tracking-wider text-amber-500 font-extrabold bg-amber-950/40 border border-amber-900/35 px-1.5 py-0.5 rounded font-mono">
-              OFFLINE EDITOR
-            </span>
-          )}
         </div>
         
-        <div className="flex items-center gap-3">
-          {/* Text Size setting controller */}
-          <div className="flex items-center bg-black/40 border border-white/5 rounded px-2 py-0.5 gap-1.5">
-            <span className="text-[8.5px] text-gray-500 font-mono font-bold uppercase">Size:</span>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {/* Compact Text Size Controller */}
+          <div className="flex items-center bg-black/45 border border-white/5 rounded-md px-1.5 py-0.5 gap-1">
             <button 
               onClick={() => setFontSize(prev => Math.max(11, prev - 1))}
-              className="text-[10px] font-bold text-gray-400 hover:text-white px-1 transition cursor-pointer"
-              title="Decrease Text Size"
+              className="w-4 h-4 flex items-center justify-center text-[10px] font-bold text-gray-400 hover:text-white hover:bg-white/5 rounded transition cursor-pointer"
+              title="Decrease Font Size"
             >
-              A-
+              –
             </button>
-            <span className="text-[9px] font-extrabold text-red-500 font-mono">{fontSize}px</span>
+            <span className="text-[9px] font-extrabold text-red-500 font-mono px-0.5">{fontSize}px</span>
             <button 
               onClick={() => setFontSize(prev => Math.min(22, prev + 1))}
-              className="text-[10px] font-bold text-gray-400 hover:text-white px-1 transition cursor-pointer"
-              title="Increase Text Size"
+              className="w-4 h-4 flex items-center justify-center text-[10px] font-bold text-gray-400 hover:text-white hover:bg-white/5 rounded transition cursor-pointer"
+              title="Increase Font Size"
             >
-              A+
+              +
             </button>
           </div>
 
+          {/* Monaco Connection Toggle */}
           {showFallback ? (
             <button 
               onClick={() => { setShowFallback(false); setMonacoLoaded(false); }}
-              className="text-[9px] uppercase font-bold text-red-500 hover:text-red-400 transition underline cursor-pointer pr-1"
+              className="text-[8.5px] uppercase tracking-wider font-extrabold bg-amber-950/30 hover:bg-amber-900/40 text-amber-500 border border-amber-900/30 px-1.5 py-0.5 rounded font-mono transition cursor-pointer"
+              title="Click to reload Monaco Editor"
             >
-              Retry Monaco
+              Offline (Retry)
             </button>
           ) : (
             !monacoLoaded && (
               <button 
                 onClick={() => setShowFallback(true)}
-                className="text-[9px] uppercase font-bold text-gray-500 hover:text-gray-300 transition underline cursor-pointer pr-1"
+                className="text-[8.5px] uppercase tracking-wider font-bold bg-white/5 hover:bg-white/10 text-gray-400 border border-white/5 px-1.5 py-0.5 rounded font-mono transition cursor-pointer"
+                title="Switch to offline text editor"
               >
-                Use Offline Editor
+                Use Offline
               </button>
             )
           )}
-          <span className="text-[9px] uppercase font-mono px-2 py-0.5 rounded bg-black/40 border border-white/5 text-gray-500">
-            C++ (Arduino)
-          </span>
         </div>
       </div>
 
