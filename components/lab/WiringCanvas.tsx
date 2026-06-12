@@ -94,9 +94,18 @@ export default function WiringCanvas({
   const canvasRef = useRef<HTMLDivElement>(null)
   const dragOffset = useRef<{ x: number; y: number }>({ x: 0, y: 0 })
 
-  // Undo history stack for wire connections
-  const [connectionsHistory, setConnectionsHistory] = useState<WireConnection[][]>([])
-  const [redoHistory, setRedoHistory] = useState<WireConnection[][]>([])
+  // Sandbox State History for complete Undo/Redo (components & wires)
+  interface SandboxStateSnapshot {
+    components: PlacedComponent[]
+    connections: WireConnection[]
+  }
+  const [undoStack, setUndoStack] = useState<SandboxStateSnapshot[]>([])
+  const [redoStack, setRedoStack] = useState<SandboxStateSnapshot[]>([])
+
+  const pushToHistory = (comps = placedComponents, conns = connections) => {
+    setUndoStack(prev => [...prev, { components: comps, connections: conns }])
+    setRedoStack([])
+  }
 
   // Workspace Keyboard Shortcuts (Pan, Zoom, Undo, Escape, Rotate)
   useEffect(() => {
@@ -116,6 +125,7 @@ export default function WiringCanvas({
       // 1. Rotate Component: 'r'
       if (key === "r" && selectedCompId) {
         e.preventDefault()
+        pushToHistory()
         const updated = placedComponents.map(c => {
           if (c.id === selectedCompId) {
             return {
@@ -190,7 +200,7 @@ export default function WiringCanvas({
       window.removeEventListener("keydown", handleKeyDown)
       window.removeEventListener("keyup", handleKeyUp)
     }
-  }, [selectedCompId, placedComponents, onUpdateComponents, connectionsHistory])
+  }, [selectedCompId, placedComponents, connections, onUpdateComponents, undoStack])
 
   // Mouse scroll wheel & trackpad pinch-to-zoom event listener
   useEffect(() => {
@@ -208,19 +218,21 @@ export default function WiringCanvas({
   }, [])
 
   const handleUndo = () => {
-    if (connectionsHistory.length === 0) return
-    const prev = connectionsHistory[connectionsHistory.length - 1]
-    setRedoHistory(red => [...red, connections])
-    setConnectionsHistory(hist => hist.slice(0, -1))
-    onUpdateConnections(prev)
+    if (undoStack.length === 0) return
+    const prev = undoStack[undoStack.length - 1]
+    setRedoStack(red => [...red, { components: placedComponents, connections: connections }])
+    setUndoStack(hist => hist.slice(0, -1))
+    onUpdateComponents(prev.components)
+    onUpdateConnections(prev.connections)
   }
 
   const handleRedo = () => {
-    if (redoHistory.length === 0) return
-    const next = redoHistory[redoHistory.length - 1]
-    setConnectionsHistory(hist => [...hist, connections])
-    setRedoHistory(red => red.slice(0, -1))
-    onUpdateConnections(next)
+    if (redoStack.length === 0) return
+    const next = redoStack[redoStack.length - 1]
+    setUndoStack(hist => [...hist, { components: placedComponents, connections: connections }])
+    setRedoStack(red => red.slice(0, -1))
+    onUpdateComponents(next.components)
+    onUpdateConnections(next.connections)
   }
 
   // Snaps coordinate to selected grid size
@@ -253,12 +265,14 @@ export default function WiringCanvas({
       y: Math.max(10, y)
     }
 
+    pushToHistory()
     onUpdateComponents([...placedComponents, newComp])
   }
 
   // Handle Dragging Placed Components on Canvas
   const handleCompDragStart = (e: React.MouseEvent, plCompId: string) => {
     e.stopPropagation()
+    pushToHistory()
     const comp = placedComponents.find(c => c.id === plCompId)
     if (!comp || !canvasRef.current) return
 
@@ -415,8 +429,7 @@ export default function WiringCanvas({
           toPinId: pinId,
           color: activeWireColor
         }
-        setConnectionsHistory(prev => [...prev, connections])
-        setRedoHistory([])
+        pushToHistory()
         onUpdateConnections([...connections, newWire])
       }
       setWireStart(null)
@@ -424,8 +437,8 @@ export default function WiringCanvas({
   }
 
   const handleClearCanvas = () => {
-    setConnectionsHistory(prev => [...prev, connections])
-    setRedoHistory([])
+    if (!confirm("Are you sure you want to clear the entire canvas? This will remove all components and wires.")) return
+    pushToHistory()
     onUpdateComponents([])
     onUpdateConnections([])
     setWireStart(null)
@@ -433,6 +446,8 @@ export default function WiringCanvas({
 
   // Auto Arrange components nicely
   const handleAutoArrange = () => {
+    if (!confirm("Are you sure you want to auto arrange the layout? All components will be aligned and wires will be cleared for neatness.")) return
+    pushToHistory()
     const arranged = placedComponents.map((c, idx) => ({
       ...c,
       x: 100 + (idx % 3) * 200,
@@ -444,8 +459,8 @@ export default function WiringCanvas({
   }
 
   const handleDeleteComponent = (compId: string) => {
-    setConnectionsHistory(prev => [...prev, connections])
-    setRedoHistory([])
+    if (!confirm("Are you sure you want to delete this component?")) return
+    pushToHistory()
     onUpdateComponents(placedComponents.filter(c => c.id !== compId))
     onUpdateConnections(connections.filter(conn => 
       conn.fromComponentId !== compId && conn.toComponentId !== compId
@@ -453,6 +468,7 @@ export default function WiringCanvas({
   }
 
   const handleScaleComponent = (plCompId: string, delta: number) => {
+    pushToHistory()
     const updated = placedComponents.map(c => {
       if (c.id === plCompId) {
         const currentScale = c.scale || 1.0
@@ -598,9 +614,9 @@ export default function WiringCanvas({
             {/* Undo */}
             <button
               onClick={handleUndo}
-              disabled={connectionsHistory.length === 0}
+              disabled={undoStack.length === 0}
               className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 disabled:opacity-25 rounded-lg text-gray-400 hover:text-white transition"
-              title="Undo Last Connection (Z)"
+              title="Undo Last Action (Z)"
             >
               <Undo className="w-3.5 h-3.5 text-red-500" />
             </button>
@@ -608,9 +624,9 @@ export default function WiringCanvas({
             {/* Redo */}
             <button
               onClick={handleRedo}
-              disabled={redoHistory.length === 0}
+              disabled={redoStack.length === 0}
               className="p-1.5 bg-[#111] hover:bg-white/5 border border-gray-800 disabled:opacity-25 rounded-lg text-gray-400 hover:text-white transition"
-              title="Redo Undone Connection (Y)"
+              title="Redo Undone Action (Y)"
             >
               <Redo className="w-3.5 h-3.5 text-red-500" />
             </button>
@@ -896,8 +912,8 @@ export default function WiringCanvas({
                       onMouseLeave={() => setHoveredWireIdx(null)}
                       onClick={(e) => {
                         e.stopPropagation()
-                        setConnectionsHistory(prev => [...prev, connections])
-                        setRedoHistory([])
+                        if (!confirm("Are you sure you want to delete this wire?")) return
+                        pushToHistory()
                         onUpdateConnections(connections.filter((_, i) => i !== idx))
                         setHoveredWireIdx(null)
                       }}
