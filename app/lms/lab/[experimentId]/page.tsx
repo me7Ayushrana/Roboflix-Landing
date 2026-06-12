@@ -901,6 +901,142 @@ interface DemoProject {
 }
 
 
+const validateArduinoCode = (code: string): string[] => {
+  const errors: string[] = [];
+  const trimmed = code.trim();
+
+  // 1. Detect empty input
+  if (trimmed === "") {
+    errors.push("❌ COMPILE ERROR: Empty code sketch. Please write C++/Arduino code before verifying or uploading.");
+    return errors;
+  }
+
+  // 2. Remove comments to avoid false positives in parser checks
+  // Remove single line comments
+  let cleanCode = trimmed.replace(/\/\/.*$/gm, "");
+  // Remove block comments
+  cleanCode = cleanCode.replace(/\/\*[\s\S]*?\*\//g, "");
+
+  // 3. Arduino Structure Checks (setup and loop)
+  const hasSetup = /void\s+setup\s*\(\s*(void)?\s*\)/i.test(cleanCode);
+  const hasLoop = /void\s+loop\s*\(\s*(void)?\s*\)/i.test(cleanCode);
+
+  if (!hasSetup) {
+    errors.push("❌ COMPILE ERROR: missing 'void setup()' function. Every Arduino sketch requires a setup() function to initialize variables and pin modes.");
+  }
+  if (!hasLoop) {
+    errors.push("❌ COMPILE ERROR: missing 'void loop()' function. Every Arduino sketch requires a loop() function to run the main logic repeatedly.");
+  }
+
+  // 4. Bracket / Parentheses Mismatch
+  const openBraces = (cleanCode.match(/{/g) || []).length;
+  const closeBraces = (cleanCode.match(/}/g) || []).length;
+  if (openBraces !== closeBraces) {
+    errors.push(`❌ COMPILE ERROR: Unbalanced curly braces. Found ${openBraces} '{' and ${closeBraces} '}'. Make sure every block is properly closed.`);
+  }
+
+  const openParens = (cleanCode.match(/\(/g) || []).length;
+  const closeParens = (cleanCode.match(/\)/g) || []).length;
+  if (openParens !== closeParens) {
+    errors.push(`❌ COMPILE ERROR: Unbalanced parentheses. Found ${openParens} '(' and ${closeParens} ')'. Check your function calls and condition expressions.`);
+  }
+
+  // 5. Line-by-Line Semicolon & Statement Check
+  const lines = cleanCode.split("\n");
+  lines.forEach((line, index) => {
+    const lineNum = index + 1;
+    const lTrim = line.trim();
+    if (!lTrim) return; // skip empty lines
+
+    // Skip control structures, block definitions, includes, preprocessor directives, etc.
+    if (
+      lTrim.startsWith("#") ||
+      lTrim.startsWith("if") ||
+      lTrim.startsWith("else") ||
+      lTrim.startsWith("for") ||
+      lTrim.startsWith("while") ||
+      lTrim.startsWith("switch") ||
+      lTrim.startsWith("case") ||
+      lTrim.endsWith("{") ||
+      lTrim.endsWith("}") ||
+      lTrim.endsWith(";") ||
+      lTrim.endsWith(":") ||
+      lTrim.startsWith("void") ||
+      lTrim.startsWith("class") ||
+      lTrim.startsWith("struct")
+    ) {
+      return;
+    }
+
+    // Check if the line looks like a statement (e.g. contains variable assignment or a function call)
+    // but doesn't end with a semicolon
+    const isStatement = /[a-zA-Z0-9_]+\s*\(.*?\)/.test(lTrim) || /=/.test(lTrim);
+    if (isStatement) {
+      errors.push(`❌ COMPILE ERROR: Expected ';' on line ${lineNum}: "${lTrim}"`);
+    }
+  });
+
+  // 6. Function signature checks
+  // pinMode(pin, mode)
+  const pinModeRegex = /pinMode\s*\(([^)]*)\)/g;
+  let pinMatch;
+  while ((pinMatch = pinModeRegex.exec(cleanCode)) !== null) {
+    const args = pinMatch[1].split(",").map(a => a.trim());
+    if (args.length !== 2 || args[0] === "" || args[1] === "") {
+      errors.push("❌ COMPILE ERROR: 'pinMode' requires 2 arguments (pin, mode). Example: pinMode(13, OUTPUT).");
+      continue;
+    }
+    const mode = args[1];
+    if (mode !== "OUTPUT" && mode !== "INPUT" && mode !== "INPUT_PULLUP") {
+      errors.push(`❌ COMPILE ERROR: '${mode}' was not declared in this scope. Did you mean OUTPUT, INPUT, or INPUT_PULLUP (case-sensitive, uppercase)?`);
+    }
+  }
+
+  // digitalWrite(pin, state)
+  const digitalWriteRegex = /digitalWrite\s*\(([^)]*)\)/g;
+  let writeMatch;
+  while ((writeMatch = digitalWriteRegex.exec(cleanCode)) !== null) {
+    const args = writeMatch[1].split(",").map(a => a.trim());
+    if (args.length !== 2 || args[0] === "" || args[1] === "") {
+      errors.push("❌ COMPILE ERROR: 'digitalWrite' requires 2 arguments (pin, state). Example: digitalWrite(13, HIGH).");
+      continue;
+    }
+    const state = args[1];
+    if (state !== "HIGH" && state !== "LOW") {
+      errors.push(`❌ COMPILE ERROR: '${state}' was not declared in this scope. State must be HIGH or LOW (case-sensitive, uppercase).`);
+    }
+  }
+
+  // delay(ms)
+  const delayRegex = /delay\s*\(([^)]*)\)/g;
+  let delayMatch;
+  while ((delayMatch = delayRegex.exec(cleanCode)) !== null) {
+    const arg = delayMatch[1].trim();
+    if (arg === "") {
+      errors.push("❌ COMPILE ERROR: 'delay' requires 1 numeric argument representing milliseconds. Example: delay(1000).");
+    }
+  }
+
+  // Serial Monitor Checks
+  const hasSerialPrint = /Serial\s*\.\s*(print|println|write)/.test(cleanCode);
+  const hasSerialBegin = /Serial\s*\.\s*begin\s*\([^)]*\)/.test(cleanCode);
+  if (hasSerialPrint && !hasSerialBegin) {
+    errors.push("⚠️ RUNTIME WARNING: 'Serial' printing commands used but Serial connection was not initialized. Call 'Serial.begin(baudrate)' inside setup() first.");
+  }
+
+  const serialBeginRegex = /Serial\s*\.\s*begin\s*\(([^)]*)\)/g;
+  let serialMatch;
+  while ((serialMatch = serialBeginRegex.exec(cleanCode)) !== null) {
+    const baud = serialMatch[1].trim();
+    const validBaudrates = ["300", "1200", "2400", "4800", "9600", "19200", "38400", "57600", "74880", "115200", "230400", "250000", "500000", "1000000", "2000000"];
+    if (!validBaudrates.includes(baud)) {
+      errors.push(`❌ COMPILE ERROR: Invalid baud rate '${baud}'. Expected a standard speed like 9600 or 115200.`);
+    }
+  }
+
+  return errors;
+};
+
 export default function VirtualLabPage() {
   const params = useParams()
   const router = useRouter()
@@ -1583,6 +1719,22 @@ export default function VirtualLabPage() {
   const handleUploadCode = () => {
     if (!config) return
     initAudioContext()
+
+    // Validate C++ code syntax first!
+    const compileErrors = validateArduinoCode(code)
+    if (compileErrors.length > 0) {
+      setLogs([
+        "⚙️ Starting build environment...",
+        "🔨 Analyzing source code...",
+        ...compileErrors,
+        "❌ BUILD FAILED: Compilation terminated with errors."
+      ])
+      setPassed(false)
+      setIsSimulating(false)
+      playFailureChime()
+      return
+    }
+
     setIsUploading(true)
     setUploadProgress(0)
     setUploadStepText("Checking syntax rules & compiling compiler variables...")
@@ -1616,6 +1768,30 @@ export default function VirtualLabPage() {
   const handleRunSimulation = () => {
     if (!config) return
     initAudioContext()
+
+    // Validate code syntax first!
+    const compileErrors = validateArduinoCode(code)
+    if (compileErrors.length > 0) {
+      setIsSimulating(true)
+      setLogs(["⚙️ Starting build environment...", "🔨 Checking source code..."])
+      setPassed(null)
+      setXpAwarded(0)
+      setSimulationHint(undefined)
+
+      setTimeout(() => {
+        setLogs([
+          "⚙️ Starting build environment...",
+          "🔨 Analyzing source code...",
+          ...compileErrors,
+          "❌ BUILD FAILED: Compilation terminated with errors."
+        ])
+        setPassed(false)
+        setIsSimulating(false)
+        playFailureChime()
+      }, 800)
+      return
+    }
+
     setIsSimulating(true)
     setLogs(["⚙️ Starting build environment...", "🔨 Checking circuit connectivity rules..."])
     setPassed(null)

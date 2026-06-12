@@ -35,7 +35,8 @@ interface WiringCanvasProps {
 const getWireHexColor = (colorName: string) => {
   switch (colorName) {
     case "red": return "#ef4444"
-    case "black": return "#1f2937"
+    case "white":
+    case "black": return "#f8fafc"
     case "yellow": return "#eab308"
     case "green": return "#22c55e"
     case "blue": return "#3b82f6"
@@ -45,6 +46,37 @@ const getWireHexColor = (colorName: string) => {
     default: return "#ef4444"
   }
 }
+
+const getSilkscreenStyle = (pin: { x: number; y: number }, defWidth: number, defHeight: number, scale: number) => {
+  const offset = 12; // Base offset in design units
+  let top = pin.y;
+  let left = pin.x;
+  let transform = "translate(-50%, -50%)";
+  let textAlign: "center" | "left" | "right" = "center";
+
+  if (pin.y < defHeight * 0.35) {
+    top += offset;
+    transform = "translate(-50%, 0)";
+  } else if (pin.y > defHeight * 0.65) {
+    top -= offset;
+    transform = "translate(-50%, -100%)";
+  } else if (pin.x < defWidth * 0.35) {
+    left += offset;
+    transform = "translate(0, -50%)";
+    textAlign = "left";
+  } else if (pin.x > defWidth * 0.65) {
+    left -= offset;
+    transform = "translate(-100%, -50%)";
+    textAlign = "right";
+  }
+
+  return {
+    left: left * scale,
+    top: top * scale,
+    transform,
+    textAlign,
+  };
+};
 
 export default function WiringCanvas({
   placedComponents,
@@ -74,7 +106,7 @@ export default function WiringCanvas({
   const [activeWireColor, setActiveWireColor] = useState<string>("red")
   const [draggingCompId, setDraggingCompId] = useState<string | null>(null)
   const [selectedCompId, setSelectedCompId] = useState<string | null>(null)
-  const [wireStyle, setWireStyle] = useState<"curved" | "orthogonal">("orthogonal")
+  const [wireStyle, setWireStyle] = useState<"curved" | "orthogonal">("curved")
   const [snapGridSize, setSnapGridSize] = useState<number>(10)
   const [gridTheme, setGridTheme] = useState<"dots" | "lines" | "none">("lines")
   
@@ -393,6 +425,64 @@ export default function WiringCanvas({
     return { x: rx, y: ry }
   }
 
+  const getPinExitVector = (plCompId: string, pinId: string) => {
+    const comp = placedComponents.find(c => c.id === plCompId)
+    if (!comp) return { x: 0, y: -1 }
+
+    const def = LAB_COMPONENTS[comp.componentId]
+    if (!def) return { x: 0, y: -1 }
+
+    const pin = def.pins.find(p => p.id === pinId)
+    if (!pin) return { x: 0, y: -1 }
+
+    const rotation = comp.rotation || 0
+
+    let vx = 0
+    let vy = -1
+
+    if (pin.y < 15 || pin.y < def.height * 0.2) {
+      vx = 0; vy = -1; // UP
+    } else if (pin.y > def.height - 15 || pin.y > def.height * 0.8) {
+      vx = 0; vy = 1; // DOWN
+    } else if (pin.x < 15 || pin.x < def.width * 0.2) {
+      vx = -1; vy = 0; // LEFT
+    } else if (pin.x > def.width - 15 || pin.x > def.width * 0.8) {
+      vx = 1; vy = 0; // RIGHT
+    } else if (pin.y < def.height * 0.5) {
+      vx = 0; vy = -1; // UP fallback
+    } else {
+      vx = 0; vy = 1; // DOWN fallback
+    }
+
+    if (rotation === 0) {
+      return { x: vx, y: vy }
+    }
+
+    const rad = (rotation * Math.PI) / 180
+    const rx = vx * Math.cos(rad) - vy * Math.sin(rad)
+    const ry = vx * Math.sin(rad) + vy * Math.cos(rad)
+
+    return { x: Math.round(rx), y: Math.round(ry) }
+  }
+
+  const getHoveredPin = (mx: number, my: number) => {
+    for (const comp of placedComponents) {
+      const def = LAB_COMPONENTS[comp.componentId]
+      if (!def) continue
+      for (const pin of def.pins) {
+        if (wireStart && wireStart.compId === comp.id && wireStart.pinId === pin.id) continue
+        const coords = getPinCoords(comp.id, pin.id)
+        const dx = mx - coords.x
+        const dy = my - coords.y
+        const dist = Math.sqrt(dx * dx + dy * dy)
+        if (dist < 15) {
+          return { compId: comp.id, pinId: pin.id, coords }
+        }
+      }
+    }
+    return null
+  }
+
   // Click on a Pin
   const handlePinClick = (e: React.MouseEvent, plCompId: string, pinId: string) => {
     e.stopPropagation()
@@ -649,7 +739,7 @@ export default function WiringCanvas({
             <span className="text-[8.5px] text-gray-500 font-bold uppercase tracking-widest shrink-0">Wire Color:</span>
             {[
               { id: "red",    hex: "#ef4444" },
-              { id: "black",  hex: "#374151" },
+              { id: "white",  hex: "#f8fafc" },
               { id: "yellow", hex: "#eab308" },
               { id: "green",  hex: "#22c55e" },
               { id: "blue",   hex: "#3b82f6" },
@@ -812,22 +902,83 @@ export default function WiringCanvas({
               let midX = 0
               let midY = 0
 
+              const startV = getPinExitVector(wire.fromComponentId, wire.fromPinId)
+              const endV = getPinExitVector(wire.toComponentId, wire.toPinId)
+
               if (wireStyle === "orthogonal") {
-                midX = start.x + (end.x - start.x) / 2
-                midY = start.y + (end.y - start.y) / 2
-                path = `M ${start.x} ${start.y} L ${midX} ${start.y} L ${midX} ${end.y} L ${end.x} ${end.y}`
+                const clear1 = 15 + (idx % 6) * 6
+                const clear2 = 15 + ((idx + 2) % 6) * 6
+
+                const p1 = { x: start.x + startV.x * clear1, y: start.y + startV.y * clear1 }
+                const p2 = { x: end.x + endV.x * clear2, y: end.y + endV.y * clear2 }
+
+                const dx = end.x - start.x
+                const dy = end.y - start.y
+
+                // Midpoints with dynamic offsets
+                const offset = (idx % 6) * 10 - 25
+                midX = start.x + dx / 2 + offset
+                midY = start.y + dy / 2 + offset
+
+                const leaveP1Horiz = startV.y !== 0
+                const arriveP2Horiz = endV.y !== 0
+
+                let pts = [start, p1]
+                if (leaveP1Horiz && arriveP2Horiz) {
+                  pts.push({ x: midX, y: p1.y })
+                  pts.push({ x: midX, y: p2.y })
+                } else if (!leaveP1Horiz && !arriveP2Horiz) {
+                  pts.push({ x: p1.x, y: midY })
+                  pts.push({ x: p2.x, y: midY })
+                } else if (leaveP1Horiz && !arriveP2Horiz) {
+                  pts.push({ x: midX, y: p1.y })
+                  pts.push({ x: midX, y: midY })
+                  pts.push({ x: p2.x, y: midY })
+                } else {
+                  pts.push({ x: p1.x, y: midY })
+                  pts.push({ x: midX, y: midY })
+                  pts.push({ x: midX, y: p2.y })
+                }
+                pts.push(p2, end)
+
+                const cleanPts = pts.filter((pt, i) => {
+                  if (i === 0) return true
+                  const prev = pts[i - 1]
+                  return Math.abs(pt.x - prev.x) > 0.1 || Math.abs(pt.y - prev.y) > 0.1
+                })
+
+                path = cleanPts.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x} ${pt.y}`).join(" ")
               } else {
-                const dx = Math.abs(end.x - start.x) * 0.4
-                const dy = Math.abs(end.y - start.y) * 0.4
-                path = `M ${start.x} ${start.y} C ${start.x + dx} ${start.y + (end.y > start.y ? dy : -dy)} ${end.x - dx} ${end.y + (end.y > start.y ? -dy : dy)} ${end.x} ${end.y}`
-                
-                const p1x = start.x + dx
-                const p1y = start.y + (end.y > start.y ? dy : -dy)
-                const p2x = end.x - dx
-                const p2y = end.y + (end.y > start.y ? -dy : dy)
-                
-                midX = 0.125 * start.x + 0.375 * p1x + 0.375 * p2x + 0.125 * end.x
-                midY = 0.125 * start.y + 0.375 * p1y + 0.375 * p2y + 0.125 * end.y
+                // Curved Jumper Wire with Tangent Exits & Gravity Sag
+                const clear1 = 15 + (idx % 5) * 4
+                const clear2 = 15 + ((idx + 2) % 5) * 4
+
+                const p1 = { x: start.x + startV.x * clear1, y: start.y + startV.y * clear1 }
+                const p2 = { x: end.x + endV.x * clear2, y: end.y + endV.y * clear2 }
+
+                const dx = p2.x - p1.x
+                const dy = p2.y - p1.y
+                const dist = Math.sqrt(dx * dx + dy * dy)
+                const proj = Math.max(30, dist * 0.25)
+
+                const cp1 = {
+                  x: p1.x + startV.x * proj,
+                  y: p1.y + startV.y * proj
+                }
+                const cp2 = {
+                  x: p2.x + endV.x * proj,
+                  y: p2.y + endV.y * proj
+                }
+
+                // Gravity Sag: pull control points downwards slightly
+                const sag = Math.max(15, dist * 0.08) + (idx % 4) * 8
+                cp1.y += sag
+                cp2.y += sag
+
+                path = `M ${start.x} ${start.y} L ${p1.x} ${p1.y} C ${cp1.x} ${cp1.y} ${cp2.x} ${cp2.y} ${p2.x} ${p2.y} L ${end.x} ${end.y}`
+
+                midX = 0.125 * p1.x + 0.375 * cp1.x + 0.375 * cp2.x + 0.125 * p2.x
+                midY = 0.125 * p1.y + 0.375 * cp1.y + 0.375 * cp2.y + 0.125 * p2.y
               }
 
               let strokeColor = "#eab308"
@@ -836,9 +987,9 @@ export default function WiringCanvas({
               if (wire.color === "red") {
                 strokeColor = "#ef4444"
                 shadowColor = "rgba(239,68,68,0.3)"
-              } else if (wire.color === "black") {
-                strokeColor = "#1f2937"
-                shadowColor = "rgba(31,41,55,0.4)"
+              } else if (wire.color === "black" || wire.color === "white") {
+                strokeColor = "#f8fafc"
+                shadowColor = "rgba(248,250,252,0.35)"
               } else if (wire.color === "yellow") {
                 strokeColor = "#eab308"
                 shadowColor = "rgba(234,179,8,0.3)"
@@ -865,12 +1016,12 @@ export default function WiringCanvas({
                 <g key={idx}>
                   {/* Glowing Outline */}
                   <path
-                    d={path}
-                    fill="none"
-                    stroke={isHovered ? "#ef4444" : shadowColor}
-                    strokeWidth={isHovered ? "8" : "7"}
-                    strokeLinecap="round"
-                    className="transition-all"
+                     d={path}
+                     fill="none"
+                     stroke={isHovered ? "#ef4444" : shadowColor}
+                     strokeWidth={isHovered ? "8" : "7"}
+                     strokeLinecap="round"
+                     className="transition-all"
                   />
                   {/* Core Wire */}
                   <path
@@ -933,7 +1084,7 @@ export default function WiringCanvas({
                 {(() => {
                   let previewColor = "#eab308"
                   if (activeWireColor === "red") previewColor = "#ef4444"
-                  else if (activeWireColor === "black") previewColor = "#4b5563"
+                  else if (activeWireColor === "black" || activeWireColor === "white") previewColor = "#f8fafc"
                   else if (activeWireColor === "yellow") previewColor = "#eab308"
                   else if (activeWireColor === "green") previewColor = "#22c55e"
                   else if (activeWireColor === "blue") previewColor = "#3b82f6"
@@ -941,9 +1092,79 @@ export default function WiringCanvas({
                   else if (activeWireColor === "orange") previewColor = "#f97316"
                   else if (activeWireColor === "cyan") previewColor = "#06b6d4"
 
-                  const previewPath = wireStyle === "orthogonal"
-                    ? `M ${wireStart.x} ${wireStart.y} L ${wireStart.x + (mousePos.x - wireStart.x) / 2} ${wireStart.y} L ${wireStart.x + (mousePos.x - wireStart.x) / 2} ${mousePos.y} L ${mousePos.x} ${mousePos.y}`
-                    : `M ${wireStart.x} ${wireStart.y} L ${mousePos.x} ${mousePos.y}`
+                  const hovered = getHoveredPin(mousePos.x, mousePos.y)
+                  const target = hovered ? hovered.coords : mousePos
+                  const startV = getPinExitVector(wireStart.compId, wireStart.pinId)
+                  const endV = hovered 
+                    ? getPinExitVector(hovered.compId, hovered.pinId)
+                    : { x: -startV.x, y: -startV.y }
+
+                  let previewPath = ""
+                  if (wireStyle === "orthogonal") {
+                    const clear1 = 15
+                    const clear2 = 15
+                    const p1 = { x: wireStart.x + startV.x * clear1, y: wireStart.y + startV.y * clear1 }
+                    const p2 = { x: target.x + endV.x * clear2, y: target.y + endV.y * clear2 }
+
+                    const dx = target.x - wireStart.x
+                    const dy = target.y - wireStart.y
+                    const midX = wireStart.x + dx / 2
+                    const midY = wireStart.y + dy / 2
+
+                    const leaveP1Horiz = startV.y !== 0
+                    const arriveP2Horiz = endV.y !== 0
+
+                    let pts = [wireStart, p1]
+                    if (leaveP1Horiz && arriveP2Horiz) {
+                      pts.push({ x: midX, y: p1.y })
+                      pts.push({ x: midX, y: p2.y })
+                    } else if (!leaveP1Horiz && !arriveP2Horiz) {
+                      pts.push({ x: p1.x, y: midY })
+                      pts.push({ x: p2.x, y: midY })
+                    } else if (leaveP1Horiz && !arriveP2Horiz) {
+                      pts.push({ x: midX, y: p1.y })
+                      pts.push({ x: midX, y: midY })
+                      pts.push({ x: p2.x, y: midY })
+                    } else {
+                      pts.push({ x: p1.x, y: midY })
+                      pts.push({ x: midX, y: midY })
+                      pts.push({ x: midX, y: p2.y })
+                    }
+                    pts.push(p2, target)
+
+                    const cleanPts = pts.filter((pt, i) => {
+                      if (i === 0) return true
+                      const prev = pts[i - 1]
+                      return Math.abs(pt.x - prev.x) > 0.1 || Math.abs(pt.y - prev.y) > 0.1
+                    })
+
+                    previewPath = cleanPts.map((pt, i) => `${i === 0 ? "M" : "L"} ${pt.x} ${pt.y}`).join(" ")
+                  } else {
+                    const clear1 = 15
+                    const clear2 = 15
+                    const p1 = { x: wireStart.x + startV.x * clear1, y: wireStart.y + startV.y * clear1 }
+                    const p2 = { x: target.x + endV.x * clear2, y: target.y + endV.y * clear2 }
+
+                    const dx = p2.x - p1.x
+                    const dy = p2.y - p1.y
+                    const dist = Math.sqrt(dx * dx + dy * dy)
+                    const proj = Math.max(30, dist * 0.25)
+
+                    const cp1 = {
+                      x: p1.x + startV.x * proj,
+                      y: p1.y + startV.y * proj
+                    }
+                    const cp2 = {
+                      x: p2.x + endV.x * proj,
+                      y: p2.y + endV.y * proj
+                    }
+
+                    const sag = Math.max(15, dist * 0.08)
+                    cp1.y += sag
+                    cp2.y += sag
+
+                    previewPath = `M ${wireStart.x} ${wireStart.y} L ${p1.x} ${p1.y} C ${cp1.x} ${cp1.y} ${cp2.x} ${cp2.y} ${p2.x} ${p2.y} L ${target.x} ${target.y}`
+                  }
                   
                   return (
                     <>
@@ -955,8 +1176,8 @@ export default function WiringCanvas({
                         strokeDasharray="5,5"
                       />
                       <circle
-                        cx={mousePos.x}
-                        cy={mousePos.y}
+                        cx={target.x}
+                        cy={target.y}
                         r="5"
                         fill={previewColor}
                       />
@@ -981,128 +1202,162 @@ export default function WiringCanvas({
               switch (comp.componentId) {
                 case "breadboard":
                   return (
-                    <div className="w-full h-full bg-[#f8f6f0] border border-[#e6e2d3] rounded-md shadow-md p-1 flex flex-col justify-between font-mono relative overflow-hidden select-none">
-                      {/* Power Rails (Top) */}
-                      <div className="flex items-center justify-between border-b border-[#e2dec9] pb-0.5">
-                        <span className="text-[6px] font-bold text-blue-600">-</span>
-                        <div className="flex gap-1 flex-1 justify-center">
+                    <div className="w-full h-full bg-[#151515] border-2 border-[#2a2a2a] rounded-md shadow-[0_4px_8px_rgba(0,0,0,0.5)] p-1.5 flex flex-col justify-between font-mono relative select-none">
+                      {/* Top power rails red/blue lanes */}
+                      <div className="border-b border-[#222] pb-1 flex flex-col gap-1">
+                        <div className="flex justify-between items-center px-1">
+                          <span className="text-[5px] font-bold text-red-500">➕</span>
+                          <div className="h-[1px] bg-red-500 flex-1 mx-2 opacity-50" />
+                          <span className="text-[5px] font-bold text-blue-500">➖</span>
+                        </div>
+                        {/* Power holes */}
+                        <div className="flex justify-between gap-1 px-3">
                           {Array.from({ length: 14 }).map((_, i) => (
-                            <span key={i} className="w-0.5 h-0.5 rounded-full bg-gray-400 opacity-60" />
-                          ))}
-                        </div>
-                        <span className="text-[6px] font-bold text-red-650">+</span>
-                      </div>
-
-                      {/* Row Grids */}
-                      <div className="flex-1 flex flex-col justify-center gap-0.5 py-0.5">
-                        <div className="flex flex-col gap-0.5">
-                          {Array.from({ length: 4 }).map((_, r) => (
-                            <div key={r} className="flex gap-1 justify-center">
-                              {Array.from({ length: 14 }).map((_, c) => (
-                                <span key={c} className="w-0.5 h-0.5 rounded-full bg-gray-400 opacity-60" />
-                              ))}
-                            </div>
-                          ))}
-                        </div>
-                        <div className="h-px bg-gray-300 w-full opacity-60" />
-                        <div className="flex flex-col gap-0.5">
-                          {Array.from({ length: 4 }).map((_, r) => (
-                            <div key={r} className="flex gap-1 justify-center">
-                              {Array.from({ length: 14 }).map((_, c) => (
-                                <span key={c} className="w-0.5 h-0.5 rounded-full bg-gray-400 opacity-60" />
-                              ))}
-                            </div>
+                            <span key={i} className="w-[3px] h-[3px] rounded-sm bg-[#0a0a0a] border border-[#2c2c2c] shadow-inner" />
                           ))}
                         </div>
                       </div>
 
-                      {/* Power Rails (Bottom) */}
-                      <div className="flex items-center justify-between border-t border-[#e2dec9] pt-0.5">
-                        <span className="text-[6px] font-bold text-blue-600">-</span>
-                        <div className="flex gap-1 flex-1 justify-center">
+                      {/* Row Grids */}
+                      <div className="flex-1 py-1 flex flex-col justify-around">
+                        <div className="flex justify-between gap-0.5 px-3">
                           {Array.from({ length: 14 }).map((_, i) => (
-                            <span key={i} className="w-0.5 h-0.5 rounded-full bg-gray-400 opacity-60" />
+                            <span key={i} className="w-[3px] h-[3px] rounded-sm bg-[#0a0a0a] border border-[#2c2c2c] shadow-inner" />
                           ))}
                         </div>
-                        <span className="text-[6px] font-bold text-red-650">+</span>
+                        <div className="flex justify-between gap-0.5 px-3">
+                          {Array.from({ length: 14 }).map((_, i) => (
+                            <span key={i} className="w-[3px] h-[3px] rounded-sm bg-[#0a0a0a] border border-[#2c2c2c] shadow-inner" />
+                          ))}
+                        </div>
+                        {/* Center split lane */}
+                        <div className="h-1 bg-[#252525] w-full shadow-inner my-0.5" />
+                        <div className="flex justify-between gap-0.5 px-3">
+                          {Array.from({ length: 14 }).map((_, i) => (
+                            <span key={i} className="w-[3px] h-[3px] rounded-sm bg-[#0a0a0a] border border-[#2c2c2c] shadow-inner" />
+                          ))}
+                        </div>
+                        <div className="flex justify-between gap-0.5 px-3">
+                          {Array.from({ length: 14 }).map((_, i) => (
+                            <span key={i} className="w-[3px] h-[3px] rounded-sm bg-[#0a0a0a] border border-[#2c2c2c] shadow-inner" />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Bottom power rails */}
+                      <div className="border-t border-[#222] pt-1 flex flex-col gap-1">
+                        <div className="flex justify-between gap-1 px-3">
+                          {Array.from({ length: 14 }).map((_, i) => (
+                            <span key={i} className="w-[3px] h-[3px] rounded-sm bg-[#0a0a0a] border border-[#2c2c2c] shadow-inner" />
+                          ))}
+                        </div>
+                        <div className="flex justify-between items-center px-1">
+                          <span className="text-[5px] font-bold text-red-500">➕</span>
+                          <div className="h-[1px] bg-red-500 flex-1 mx-2 opacity-50" />
+                          <span className="text-[5px] font-bold text-blue-500">➖</span>
+                        </div>
                       </div>
                     </div>
                   );
                 case "led-red":
                   return (
                     <div className="w-full h-full flex flex-col items-center justify-center relative select-none">
-                      <div className="absolute top-[30px] flex gap-2">
-                        <div className="w-0.5 h-5 bg-slate-450" />
-                        <div className="w-0.5 h-7 bg-slate-450" />
+                      {/* Solder Leg Leads */}
+                      <div className="absolute top-[30px] flex gap-2.5">
+                        <div className="w-0.5 h-6 bg-slate-400 border-r border-slate-600 shadow" />
+                        <div className="w-0.5 h-7.5 bg-slate-400 border-r border-slate-600 shadow" />
                       </div>
+                      {/* 3D LED Epoxy Bulb */}
                       <div 
-                        className={`w-8 h-8 rounded-full border border-red-750/30 transition-all duration-300 ${
+                        className={`w-9 h-9 rounded-full border border-red-750/30 transition-all duration-300 relative shadow-[inset_0_-4px_6px_rgba(0,0,0,0.4),0_3px_5px_rgba(0,0,0,0.5)] ${
                           ledActive || isSimulating
                             ? "bg-red-500 shadow-[0_0_20px_#ef4444,0_0_40px_#ef4444,0_0_60px_#ef4444bb]" 
-                            : "bg-red-900/60"
+                            : "bg-gradient-to-b from-red-600/70 to-red-950/80"
                         }`} 
-                      />
+                      >
+                        {/* Epoxy glass reflection shine */}
+                        <div className="absolute top-1 left-2 w-2.5 h-1.5 bg-white/40 rounded-full blur-[0.5px]" />
+                        {/* Internal anode/cathode cup */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-3 bg-red-800/40 rounded-sm border border-red-700/60 animate-pulse" />
+                      </div>
                       {(ledActive || isSimulating) && (
                         <div className="absolute w-14 h-14 rounded-full bg-red-500/10 animate-ping pointer-events-none" />
                       )}
-                      <span className={`text-[7px] font-bold mt-0.5 uppercase font-mono tracking-wider transition-colors ${
-                        ledActive || isSimulating ? "text-red-400" : "text-red-800"
-                      }`}>LED</span>
+                      <span className={`text-[6.5px] font-extrabold mt-1.5 uppercase font-mono tracking-wider transition-colors ${
+                        ledActive || isSimulating ? "text-red-400 drop-shadow-[0_0_4px_#ef4444]" : "text-red-800"
+                      }`}>RED LED</span>
                     </div>
                   );
                 case "rgb-led":
                   return (
                     <div className="w-full h-full flex flex-col items-center justify-center relative select-none">
-                      <div className="absolute top-[30px] flex gap-1">
+                      {/* Four leads */}
+                      <div className="absolute top-[30px] flex gap-1.5">
                         {Array.from({ length: 4 }).map((_, i) => (
-                          <div key={i} className="w-0.5 h-5 bg-slate-450" />
+                          <div key={i} className="w-0.5 h-6 bg-slate-400 shadow" />
                         ))}
                       </div>
+                      {/* Clear Epoxy Bulb */}
                       <div 
-                        className={`w-8 h-8 rounded-full border border-gray-700/35 transition-all duration-500 ${
+                        className={`w-9 h-9 rounded-full border border-gray-750/30 transition-all duration-500 relative shadow-[inset_0_-4px_6px_rgba(0,0,0,0.3),0_3px_5px_rgba(0,0,0,0.5)] ${
                           isSimulating 
-                            ? "bg-cyan-400 shadow-[0_0_20px_#22d3ee,0_0_35px_#22d3ee]" 
-                            : "bg-white/20"
+                            ? "bg-cyan-400/80 shadow-[0_0_20px_#22d3ee,0_0_35px_#22d3ee]" 
+                            : "bg-gradient-to-b from-white/10 via-white/5 to-white/20"
                         }`} 
-                      />
-                      <span className="text-[7px] font-bold text-cyan-400 mt-0.5 uppercase font-mono tracking-wider">RGB</span>
+                      >
+                        {/* Reflection shine */}
+                        <div className="absolute top-1 left-2 w-2.5 h-1.5 bg-white/30 rounded-full blur-[0.5px]" />
+                        {/* Internal RGB color cores */}
+                        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex gap-0.5 opacity-65">
+                          <div className="w-1 h-1.5 bg-red-500 rounded-full" />
+                           <div className="w-1 h-1.5 bg-green-500 rounded-full" />
+                          <div className="w-1 h-1.5 bg-blue-500 rounded-full" />
+                        </div>
+                      </div>
+                      <span className="text-[6.5px] font-extrabold text-cyan-500 mt-1.5 uppercase font-mono tracking-wider drop-shadow">RGB LED</span>
                     </div>
                   );
                 case "buzzer":
                   return (
-                    <div className="w-full h-full flex flex-col items-center justify-center relative select-none bg-[#111] rounded-full border-2 border-[#333] shadow-inner p-1">
-                      <div className="w-2.5 h-2.5 rounded-full bg-black border border-gray-800 flex items-center justify-center">
-                        <div className="w-1 h-1 bg-gray-705 rounded-full" />
+                    <div className="w-full h-full flex flex-col items-center justify-center relative select-none bg-gradient-to-b from-[#222] to-[#0a0a0a] rounded-full border-[3px] border-[#333] shadow-[0_4px_6px_rgba(0,0,0,0.5),inset_0_2px_4px_rgba(255,255,255,0.1)] p-1">
+                      {/* Sound emission hole */}
+                      <div className="w-4 h-4 rounded-full bg-black border border-gray-900 flex items-center justify-center shadow-inner relative">
+                        {/* Sound hole mesh */}
+                        <div className="w-2.5 h-2.5 bg-gray-900 rounded-full border border-gray-800" />
+                        {/* Plus (+) label for positive leg orientation */}
+                        <span className="absolute -top-3.5 -right-3.5 text-[7px] font-bold text-gray-500 font-mono">+</span>
                       </div>
-                      <span className={`text-[7px] font-bold mt-0.5 font-mono transition-colors ${
-                        buzzerActive ? "text-red-400" : "text-gray-500"
-                      }`}>BUZZ</span>
+                      <span className={`text-[6.5px] font-extrabold mt-1 font-mono tracking-wider transition-colors ${
+                        buzzerActive ? "text-red-500 drop-shadow-[0_0_3px_#ef4444]" : "text-gray-500"
+                      }`}>BUZZER</span>
                       {buzzerActive && (
                         <>
                           <div className="absolute inset-0 border border-red-500/50 rounded-full animate-ping pointer-events-none" />
                           <div className="absolute inset-[-4px] border border-orange-500/30 rounded-full animate-ping pointer-events-none [animation-delay:0.2s]" />
                         </>
                       )}
-                      {isSimulating && !buzzerActive && (
-                        <div className="absolute inset-0 border border-red-500/30 rounded-full animate-ping pointer-events-none" />
-                      )}
                     </div>
                   );
                 case "servo-motor":
                   return (
-                    <div className="w-full h-full bg-[#1e3a8a] border border-blue-900 rounded-lg p-1 flex flex-col justify-between font-mono relative overflow-hidden select-none">
-                      <span className="text-[7px] font-bold text-blue-300">SERVO</span>
+                    <div className="w-full h-full bg-[#1e3a8a] border-2 border-blue-900 rounded-lg p-1.5 flex flex-col justify-between font-mono relative overflow-hidden select-none shadow-[0_4px_6px_rgba(0,0,0,0.4)]">
+                      <span className="text-[6.5px] font-extrabold text-blue-300">SG90 SERVO</span>
                       <div className="flex-1 flex items-center justify-center relative">
+                        {/* Rotational horn shaft */}
+                        <div className="w-5 h-5 rounded-full bg-[#1e1e1e] border border-gray-800 flex items-center justify-center shadow-sm relative">
+                          <div className="w-1.5 h-1.5 rounded-full bg-gray-600 border border-gray-800" />
+                        </div>
+                        {/* Sweeping horn arm */}
                         <div 
                           style={{
                             transform: isSimulating ? `rotate(${(Math.sin(Date.now() / 150) * 60) + 90}deg)` : "rotate(90deg)",
                             transformOrigin: "center center",
                             transition: "transform 0.1s linear"
                           }}
-                          className="w-8 h-2.5 bg-white border border-gray-300 rounded-full flex items-center justify-between px-1"
+                          className="w-12 h-3.5 bg-[#252525] border border-gray-800 rounded-full flex items-center justify-between px-1 absolute shadow z-10"
                         >
-                          <circle cx="2" cy="2" r="0.7" fill="#475569" />
-                          <circle cx="6" cy="2" r="0.7" fill="#ef4444" />
+                          <circle cx="2" cy="2" r="0.8" fill="#475569" />
+                          <circle cx="10" cy="2" r="0.8" fill="#ef4444" />
                         </div>
                       </div>
                     </div>
@@ -1110,63 +1365,88 @@ export default function WiringCanvas({
                 case "dc-motor":
                 case "geared-dc-motor":
                   return (
-                    <div className="w-full h-full bg-[#b45309] border border-amber-850 rounded-lg p-1 flex items-center justify-between font-mono relative overflow-hidden select-none">
+                    <div className="w-full h-full bg-[#92400e] border-2 border-amber-900 rounded-lg p-1.5 flex items-center justify-between font-mono relative overflow-hidden select-none shadow-[0_3px_5px_rgba(0,0,0,0.4)]">
                       <div className="flex flex-col">
-                        <span className="text-[7px] font-bold text-amber-200">GEAR</span>
-                        <span className="text-[5px] text-gray-400">3V</span>
+                        <span className="text-[6.5px] font-extrabold text-amber-200">DC GEAR</span>
+                        <span className="text-[5px] text-amber-400 font-bold">3V-6V</span>
                       </div>
+                      {/* Spin wheel */}
                       <div 
                         style={{
-                          transform: isSimulating ? `rotate(${Date.now() / 4 % 360}deg)` : "rotate(0deg)",
+                          transform: isSimulating ? `rotate(${Date.now() / 3 % 360}deg)` : "rotate(0deg)",
                           transformOrigin: "center center"
                         }}
-                        className="w-8 h-8 rounded-full border-4 border-dashed border-black bg-slate-800 flex items-center justify-center shadow-md shrink-0"
+                        className="w-9 h-9 rounded-full border-4 border-dashed border-[#111] bg-slate-800 flex items-center justify-center shadow-[inset_0_2px_4px_rgba(0,0,0,0.6),0_1px_3px_rgba(0,0,0,0.4)] shrink-0 relative"
                       >
-                        <div className="w-2.5 h-2.5 rounded-full bg-amber-500 border border-black" />
+                        {/* Metallic hub */}
+                        <div className="w-3.5 h-3.5 rounded-full bg-gradient-to-tr from-gray-400 via-gray-100 to-gray-400 border border-gray-600" />
                       </div>
                     </div>
                   );
                 case "potentiometer":
                   return (
-                    <div className="w-full h-full bg-[#047857] border border-emerald-800 rounded-xl p-1 flex flex-col justify-between select-none">
-                      <span className="text-[7px] font-bold text-emerald-250 uppercase font-mono">10k POT</span>
-                      <div className="flex-1 flex items-center justify-center">
-                        <div 
-                          style={{
-                            transform: isSimulating ? `rotate(${Math.sin(Date.now() / 300) * 120}deg)` : "rotate(0deg)",
-                            transition: "transform 0.1s ease"
-                          }}
-                          className="w-7 h-7 rounded-full border-2 border-slate-400 bg-slate-300 flex items-center justify-center relative cursor-pointer shadow-md"
-                        >
-                          <div className="w-0.5 h-2.5 bg-red-650 rounded absolute top-0" />
+                    <div className="w-full h-full bg-[#0b4f30] border-2 border-[#0d6940] rounded-xl p-1.5 flex flex-col justify-between select-none shadow-[0_3px_6px_rgba(0,0,0,0.4)]">
+                      <span className="text-[6px] font-extrabold text-emerald-300 uppercase font-mono tracking-wider">10k POT</span>
+                      <div className="flex-grow flex items-center justify-center">
+                        {/* Blue outer housing */}
+                        <div className="w-8 h-8 rounded bg-[#1d4ed8] border border-blue-900 flex items-center justify-center shadow-inner relative">
+                          {/* Silver metallic dial shaft */}
+                          <div 
+                            style={{
+                              transform: isSimulating ? `rotate(${(Math.sin(Date.now() / 400) * 135) + 135}deg)` : "rotate(135deg)",
+                              transition: "transform 0.15s ease"
+                            }}
+                            className="w-6.5 h-6.5 rounded-full border border-gray-600 bg-gradient-to-tr from-gray-400 via-gray-100 to-gray-400 flex items-center justify-center relative shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
+                          >
+                            {/* Pointer indicator notch */}
+                            <div className="w-1 h-2.5 bg-red-650 rounded-sm absolute top-0" />
+                            <div className="w-2 h-2 rounded-full bg-gray-500 shadow-inner" />
+                          </div>
                         </div>
                       </div>
                     </div>
                   );
                 case "push-button":
                   return (
-                    <div className="w-full h-full bg-[#374151] border border-gray-700 rounded-md p-1 flex flex-col justify-between select-none shadow-md">
-                      <span className="text-[6px] text-gray-450 uppercase font-mono font-bold">BUTTON</span>
-                      <div className="flex-1 flex items-center justify-center">
-                        <div 
-                          className={`w-5 h-5 rounded-full border border-red-800 flex items-center justify-center transition-all cursor-pointer ${
-                            isSimulating ? "bg-red-500 scale-95 shadow-inner" : "bg-red-700 hover:bg-red-650 shadow"
-                          }`}
-                        />
+                    <div className="w-full h-full bg-[#1e293b] border-2 border-gray-800 rounded p-1.5 flex flex-col justify-between select-none shadow-[0_3px_5px_rgba(0,0,0,0.4)] relative">
+                      {/* Corner metal brackets */}
+                      <div className="absolute top-0.5 left-0.5 w-1 h-1 border-t border-l border-gray-400 opacity-60" />
+                      <div className="absolute top-0.5 right-0.5 w-1 h-1 border-t border-r border-gray-400 opacity-60" />
+                      <div className="absolute bottom-0.5 left-0.5 w-1 h-1 border-b border-l border-gray-400 opacity-60" />
+                      <div className="absolute bottom-0.5 right-0.5 w-1 h-1 border-b border-r border-gray-400 opacity-60" />
+                      
+                      <span className="text-[5.5px] text-gray-500 uppercase font-mono font-extrabold tracking-wider z-10 leading-none">BUTTON</span>
+                      <div className="flex-grow flex items-center justify-center">
+                        {/* Base housing */}
+                        <div className="w-6.5 h-6.5 bg-[#0b0f17] border border-gray-900 rounded-full flex items-center justify-center relative shadow-inner">
+                          {/* Plunger */}
+                          <div 
+                            className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center transition-all duration-75 cursor-pointer shadow-[0_1px_3px_rgba(0,0,0,0.5)] ${
+                              isSimulating 
+                                ? "bg-red-650 border-red-700 scale-90 translate-y-0.5 shadow-inner" 
+                                : "bg-red-500 border-red-400 hover:bg-red-450 hover:scale-[1.02]"
+                            }`}
+                          >
+                            <div className="w-2 h-2 rounded-full bg-red-700/30 opacity-60 shadow-inner" />
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
                 case "resistor":
                   return (
                     <div className="w-full h-full flex flex-col items-center justify-center relative select-none">
-                      <div className="w-full h-0.5 bg-slate-400 absolute" />
-                      <div className="w-10 h-3.5 bg-[#f0e68c] border border-yellow-600 rounded flex items-center justify-between px-1 relative z-10">
-                        <div className="w-0.5 h-full bg-red-850" />
-                        <div className="w-0.5 h-full bg-red-850" />
-                        <div className="w-0.5 h-full bg-[#78350f]" />
-                        <div className="w-0.5 h-full bg-amber-500" />
+                      {/* Lead wire */}
+                      <div className="w-full h-[1.5px] bg-[#a1a1a1] absolute shadow-[0_1px_1px_rgba(0,0,0,0.3)]" />
+                      {/* Resistor body */}
+                      <div className="w-11 h-4 bg-[#d4c39e] border border-[#a18c64] rounded-full flex items-center justify-between px-1.5 relative z-10 shadow-[0_2px_4px_rgba(0,0,0,0.4)]">
+                        {/* Bands (Red, Red, Brown, Gold) */}
+                        <div className="w-1 h-full bg-[#ef4444]" />
+                        <div className="w-1 h-full bg-[#ef4444]" />
+                        <div className="w-1 h-full bg-[#78350f]" />
+                        <div className="w-[1.5px] h-full bg-[#fbbf24] ml-0.5" />
                       </div>
-                      <span className="text-[6.5px] font-bold text-yellow-600 mt-0.5 font-mono">220Ω</span>
+                      <span className="text-[6.5px] font-extrabold text-[#d4c39e] mt-1 font-mono tracking-wider drop-shadow">220Ω</span>
                     </div>
                   );
                 case "obj-box":
@@ -1396,7 +1676,7 @@ export default function WiringCanvas({
                     </div>
                   );
                 case "relay-module":
-                  const relayActive = isSimulating && envMoisture < 35;
+                  const relayActive = isSimulating && ((envMoisture ?? 0) < 35);
                   return (
                     <div className="w-full h-full bg-[#064e3b] border border-[#047857] rounded-md p-1 flex flex-col justify-between font-mono select-none">
                       <div className="flex justify-between items-center text-[5px] text-emerald-300 font-bold px-1">
@@ -1750,8 +2030,7 @@ export default function WiringCanvas({
                     <img
                       src={def.imageUrl}
                       alt={def.name}
-                      className="w-full h-full object-fill select-none pointer-events-none"
-                      style={{ mixBlendMode: "screen" }}
+                      className="w-full h-full object-contain select-none pointer-events-none"
                     />
                   </div>
 
@@ -1870,8 +2149,10 @@ export default function WiringCanvas({
                   top: comp.y,
                   width: def.width * scale,
                   height: def.height * scale,
-                  borderColor: isSelected ? "#E50914" : def.color + "33",
-                  backgroundColor: "#0d0d0df2",
+                  borderColor: isSelected ? "#E50914" : def.color + "44",
+                  background: `radial-gradient(circle at 50% 40%, ${def.color}cc 0%, #060606f8 100%), 
+                               radial-gradient(rgba(255,255,255,0.06) 1.5px, transparent 1.5px)`,
+                  backgroundSize: `100% 100%, ${8 * scale}px ${8 * scale}px`,
                   transform: `rotate(${rotation}deg)`,
                   transformOrigin: "center center",
                 }}
@@ -1883,11 +2164,61 @@ export default function WiringCanvas({
                   setSelectedCompId(comp.id)
                 }}
               >
+                {/* Silkscreen outer ring line */}
+                <div 
+                  style={{
+                    border: "1px dashed rgba(255,255,255,0.12)",
+                    inset: "4px",
+                  }}
+                  className="absolute rounded-lg pointer-events-none"
+                />
+
+                {/* Corner mounting holes (realistic brass pads) */}
+                <div className="absolute top-1 left-1 w-2.5 h-2.5 rounded-full border border-[#c2a649]/60 bg-[#121212] flex items-center justify-center opacity-70 pointer-events-none z-10">
+                  <div className="w-1 h-1 rounded-full bg-slate-900 border border-slate-700 shadow-inner" />
+                </div>
+                <div className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full border border-[#c2a649]/60 bg-[#121212] flex items-center justify-center opacity-70 pointer-events-none z-10">
+                  <div className="w-1 h-1 rounded-full bg-slate-900 border border-slate-700 shadow-inner" />
+                </div>
+                <div className="absolute bottom-1 left-1 w-2.5 h-2.5 rounded-full border border-[#c2a649]/60 bg-[#121212] flex items-center justify-center opacity-70 pointer-events-none z-10">
+                  <div className="w-1 h-1 rounded-full bg-slate-900 border border-slate-700 shadow-inner" />
+                </div>
+                <div className="absolute bottom-1 right-1 w-2.5 h-2.5 rounded-full border border-[#c2a649]/60 bg-[#121212] flex items-center justify-center opacity-70 pointer-events-none z-10">
+                  <div className="w-1 h-1 rounded-full bg-slate-900 border border-slate-700 shadow-inner" />
+                </div>
+
+                {/* Printed PCB Silkscreen Markings */}
+                <div 
+                  style={{ fontSize: `${Math.max(5.5, 6 * scale)}px` }}
+                  className="absolute bottom-1.5 left-3 text-[6px] font-mono text-white/30 uppercase tracking-widest pointer-events-none select-none z-10"
+                >
+                  ROBOFLIX HW LABS • v1.1
+                </div>
+
+                {/* Silkscreen Pin Labels */}
+                {def.pins.map(pin => {
+                  const labelStyle = getSilkscreenStyle(pin, def.width, def.height, scale);
+                  return (
+                    <span
+                      key={`silk-${pin.id}`}
+                      style={{
+                        ...labelStyle,
+                        fontSize: `${Math.max(6.5, 7.5 * scale)}px`,
+                        color: "#ffffffab",
+                        textShadow: "0 0 1px rgba(0,0,0,0.6)",
+                      }}
+                      className="absolute font-mono font-bold tracking-wide pointer-events-none select-none uppercase z-10"
+                    >
+                      {pin.label}
+                    </span>
+                  );
+                })}
+
                 {/* Delete Button */}
                 <button
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={() => handleDeleteComponent(comp.id)}
-                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-650 hover:bg-red-600 rounded-full border border-red-900/30 flex items-center justify-center text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg cursor-pointer"
+                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-650 hover:bg-red-600 rounded-full border border-red-900/30 flex items-center justify-center text-[10px] text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg cursor-pointer z-40"
                   title="Remove Component"
                 >
                   ✕
@@ -1918,7 +2249,7 @@ export default function WiringCanvas({
                 </div>
 
                 {/* Hardware header */}
-                <div className="flex items-center gap-1.5 border-b border-gray-800 pb-1.5 mb-1 text-left">
+                <div className="flex items-center gap-1.5 border-b border-gray-800 pb-1.5 mb-1 text-left z-10">
                   <span className="text-sm">{def.icon}</span>
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold text-gray-300 whitespace-normal break-words leading-tight tracking-wide">
@@ -1928,7 +2259,7 @@ export default function WiringCanvas({
                 </div>
 
                 {/* SVG/HTML Body preview block */}
-                <div className="flex-1 flex items-center justify-center relative overflow-hidden rounded-lg">
+                <div className="flex-1 flex items-center justify-center relative overflow-hidden rounded-lg z-10">
                   {renderCustomHardware()}
                 </div>
 
@@ -1944,36 +2275,36 @@ export default function WiringCanvas({
                     <button
                       key={pin.id}
                       style={{
-                        left: pin.x * scale - 6,
-                        top: pin.y * scale - 6,
+                        left: pin.x * scale - 7,
+                        top: pin.y * scale - 7,
                         borderColor: wireColorHex,
                         boxShadow: wireColorHex ? `0 0 8px ${wireColorHex}` : undefined
                       }}
                       onMouseDown={(e) => e.stopPropagation()}
                       onClick={(e) => handlePinClick(e, comp.id, pin.id)}
-                      className={`absolute w-3.5 h-3.5 rounded-full border flex items-center justify-center group/pin cursor-pointer transition ${
+                      className={`absolute w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center group/pin cursor-pointer transition-all duration-150 z-30 ${
                         wireStart?.compId === comp.id && wireStart?.pinId === pin.id
-                          ? "bg-red-600 border-red-400 scale-125 animate-pulse"
-                          : "bg-gray-800 hover:bg-red-650/65 border-gray-600 hover:border-red-400"
+                          ? "bg-red-650 border-red-400 scale-125 animate-pulse shadow-[0_0_8px_#ef4444]"
+                          : "bg-black/90 hover:bg-red-650/60 border-[#c2a649] hover:border-red-400 shadow-[0_1px_3px_rgba(0,0,0,0.5)]"
                       }`}
                     >
                       {/* Tiny Center Pin Node */}
                       <span 
-                        className="w-1.5 h-1.5 bg-gray-400 group-hover/pin:bg-white rounded-full" 
+                        className="w-1.5 h-1.5 bg-[#d8b4fe]/40 group-hover/pin:bg-white rounded-full transition-colors" 
                         style={{
                           backgroundColor: wireColorHex
                         }}
                       />
                       
                       {/* Tooltip Label */}
-                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 py-0.5 px-1.5 bg-black border border-gray-800 text-[8px] font-mono text-gray-300 rounded opacity-0 group-hover/pin:opacity-100 transition pointer-events-none whitespace-nowrap z-50">
+                      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1 py-0.5 px-1.5 bg-black/95 border border-gray-800 text-[8px] font-mono text-gray-300 rounded opacity-0 group-hover/pin:opacity-100 transition duration-150 pointer-events-none whitespace-nowrap z-50 shadow-2xl">
                         {pin.label}
                       </span>
                     </button>
                   )
                 })}
               </div>
-            )
+            );
           })}
         </div>
         
