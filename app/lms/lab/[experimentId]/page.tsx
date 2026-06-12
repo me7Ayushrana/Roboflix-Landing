@@ -2556,7 +2556,7 @@ How can I assist you with your circuit sketch today?`
 
               {/* Right portion is the 2.5D visual playground environment */}
               {showEnvSim && !isFullscreen && (
-                <div className="w-[360px] border-l flex flex-col h-full flex-shrink-0 p-4 space-y-4 overflow-y-auto custom-scrollbar bg-black/90 border-gray-850">
+                <div className="w-[360px] border-l flex flex-col h-full flex-shrink-0 p-4 space-y-4 overflow-y-auto custom-scrollbar bg-black/90 border-gray-850" data-lenis-prevent>
                 <div>
                   <h3 className="text-xs font-bold uppercase tracking-widest text-red-500 mb-1">
                     Environment Simulation
@@ -2854,7 +2854,7 @@ How can I assist you with your circuit sketch today?`
         {workspaceLayout === "telemetry" && (
           <div className="flex-1 flex overflow-hidden min-h-0">
             {/* Center Expanded Telemetry Dashboard */}
-            <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar bg-[#070707] text-white">
+            <div className="flex-1 p-6 space-y-6 overflow-y-auto custom-scrollbar bg-[#070707] text-white" data-lenis-prevent>
               <div>
                 <h2 className="text-lg font-bold text-red-500 uppercase tracking-widest flex items-center gap-2">
                   <Activity className="w-5 h-5 text-red-650 animate-pulse" />
@@ -2995,7 +2995,7 @@ How can I assist you with your circuit sketch today?`
                   <button onClick={handleClearLogs} className="text-xs text-gray-500 hover:text-gray-300">Clear</button>
                 </div>
                 
-                <div className="h-56 overflow-y-auto bg-black/40 rounded-lg p-4 font-mono text-xs text-emerald-400 space-y-1.5 border border-gray-850/50 custom-scrollbar">
+                <div className="h-56 overflow-y-auto bg-black/40 rounded-lg p-4 font-mono text-xs text-emerald-400 space-y-1.5 border border-gray-850/50 custom-scrollbar" data-lenis-prevent>
                   {logs.length > 0 ? (
                     logs.map((log, idx) => (
                       <p key={idx} className={log.includes("❌") ? "text-red-500" : log.includes("🎉") ? "text-green-400" : ""}>
@@ -3082,7 +3082,7 @@ How can I assist you with your circuit sketch today?`
               </div>
 
               {/* Projects Grid */}
-              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar">
+              <div className="flex-1 overflow-y-auto p-6 custom-scrollbar" data-lenis-prevent>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                   {DEMO_PROJECTS.map((project) => {
                     const isActive = selectedDemoId === project.id
@@ -3223,6 +3223,7 @@ How can I assist you with your circuit sketch today?`
               <div 
                 ref={chatScrollRef}
                 className="flex-1 overflow-y-auto p-5 space-y-4 custom-scrollbar bg-black/5"
+                data-lenis-prevent
               >
                 {chatMessages.map((msg, idx) => (
                   <div

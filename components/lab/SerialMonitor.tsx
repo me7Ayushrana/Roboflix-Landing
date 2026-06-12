@@ -80,7 +80,7 @@ export default function SerialMonitor({
       </div>
 
       {/* Terminal logs list */}
-      <div className="flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed space-y-1 bg-black/40 custom-scrollbar select-text selection:bg-red-600/30">
+      <div className="flex-1 overflow-y-auto p-4 font-mono text-[11px] leading-relaxed space-y-1 bg-black/40 custom-scrollbar select-text selection:bg-red-600/30" data-lenis-prevent>
         {logs.length > 0 ? (
           logs.map((log, idx) => {
             const isError = log.includes("❌") || log.includes("ERROR")

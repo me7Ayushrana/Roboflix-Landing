@@ -110,7 +110,7 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
       </div>
 
       {/* Panel Scroll Area */}
-      <div className="h-0 flex-grow overflow-y-auto p-4 custom-scrollbar">
+      <div className="h-0 flex-grow overflow-y-auto p-4 custom-scrollbar" data-lenis-prevent>
         {activeSubTab === "brief" ? (
           <div className="space-y-5">
             <div>
@@ -173,7 +173,7 @@ export default function ComponentPalette({ config, onDragStart }: ComponentPalet
             </div>
 
             {/* Category Filter Options */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1" data-lenis-prevent>
               {[
                 { id: "all", label: "All" },
                 { id: "microcontroller", label: "Controllers" },
