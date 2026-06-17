@@ -78,13 +78,12 @@ NEXT_PUBLIC_YT_S1_E3=https://www.youtube.com/watch?v=t3U3x_kUIbc&list=RDMMt3U3x_
 
 ---
 
-## 🔀 Git Repository Syncing (Dual Remotes)
+## 🔀 Git Repository Syncing
 
-To ensure high availability and mirroring, the development workspace pushes updates to both GitHub repositories simultaneously upon executing `git push origin main`.
+Development commits are pushed directly to the primary repository (`Roboflix-Landing`). The backup repository (`Roboflix-Landing-Backup`) is decoupled and frozen from any push events until explicitly instructed.
 
 ### Git Remote Configurations (`git remote -v`)
 ```bash
 origin  https://github.com/me7Ayushrana/Roboflix-Landing.git (fetch)
 origin  https://github.com/me7Ayushrana/Roboflix-Landing.git (push)
-origin  https://github.com/me7Ayushrana/Roboflix-Landing-Backup.git (push)
 ```
